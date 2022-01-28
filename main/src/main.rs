@@ -1,6 +1,7 @@
 use ferinth::Ferinth;
-use mc_mod_meta::{common::McMod, fabric::FabricManifest, forge::ForgeManifest};
-use std::fs;
+use message::Message;
+use mod_entry::ModEntry;
+use std::{fs, sync::mpsc::Receiver};
 
 use eframe::{
     egui::{
@@ -12,10 +13,15 @@ use eframe::{
 
 use std::borrow::Cow;
 
+use crate::mod_entry::State;
+
+mod message;
+mod mod_entry;
+
 struct UiApp {
-    mod_list: Vec<McMod>,
+    mod_list: Vec<ModEntry>,
     search_buf: String,
-    modrinth: Ferinth,
+    app_rx: Option<Receiver<Message>>,
 }
 
 impl Default for UiApp {
@@ -23,10 +29,11 @@ impl Default for UiApp {
         Self {
             mod_list: Default::default(),
             search_buf: Default::default(),
-            modrinth: Ferinth::new("Test app"),
+            app_rx: None,
         }
     }
 }
+
 impl epi::App for UiApp {
     fn name(&self) -> &str {
         "An App"
@@ -38,13 +45,89 @@ impl epi::App for UiApp {
         _frame: &epi::Frame,
         _storage: Option<&dyn epi::Storage>,
     ) {
-        self.scan_mod_folder();
-        mod_thing(&self.mod_list, &self.modrinth);
         self.configure_fonts(ctx);
         self.configure_style(ctx);
+
+        self.scan_mod_folder();
+
+        let mut mod_list = self.mod_list.clone();
+
+        let (tx, rx) = std::sync::mpsc::channel::<Message>();
+
+        self.app_rx = Some(rx);
+
+        tokio::task::spawn(async move {
+            struct ModrinthManager {
+                client: Ferinth,
+            }
+
+            impl ModrinthManager {
+                async fn fetch_mod_data(&self, mod_list: &mut Vec<ModEntry>) {
+                    for entry in mod_list {
+                        let modrinth_id = self.get_modrinth_id(entry.hashes.sha1.as_str()).await;
+
+                        entry.modrinth_id = Some(modrinth_id.clone());
+
+                        entry.state = match self.client.list_versions(modrinth_id.as_str()).await {
+                            Ok(version_data) => {
+                                //a
+                                let mut up_to_date = false;
+
+                                for file in &version_data[0].files {
+                                    if let Some(hash) = &file.hashes.sha1 {
+                                        if hash == &entry.hashes.sha1 {
+                                            up_to_date = true;
+                                        }
+                                    }
+                                }
+
+                                if up_to_date {
+                                    State::Current
+                                } else {
+                                    State::Outdated
+                                }
+                            }
+                            Err(_err) => State::Invalid,
+                        };
+                    }
+                }
+
+                async fn get_modrinth_id(&self, mod_hash: &str) -> String {
+                    match self.client.get_version_from_file_hash(mod_hash).await {
+                        Ok(result) => result.mod_id,
+                        Err(_err) => "No".into(),
+                    }
+                }
+            }
+
+            let modrinth = ModrinthManager {
+                client: Ferinth::new("Test app"),
+            };
+
+            modrinth.fetch_mod_data(&mut mod_list).await;
+
+            tx.send(Message::UpdatedModList { list: mod_list }).unwrap();
+            dbg!("sent");
+        });
     }
 
     fn update(&mut self, ctx: &egui::CtxRef, _frame: &epi::Frame) {
+        if let Some(rx) = &self.app_rx {
+            match rx.try_recv() {
+                Ok(message) => {
+                    //A
+                    match message {
+                        Message::UpdatedModList { list } => {
+                            self.mod_list = list;
+                        }
+                    }
+                }
+                Err(err) => {
+                    //A
+                    // dbg!(&err);
+                }
+            };
+        }
         egui::SidePanel::left("options_panel")
             .resizable(false)
             .max_width(180.)
@@ -77,7 +160,7 @@ impl epi::App for UiApp {
                     ..Default::default()
                 }
                 .show(ui, |ui| {
-                    let filtered_list: Vec<&McMod> = self
+                    let filtered_list: Vec<&ModEntry> = self
                         .mod_list
                         .iter()
                         .filter(|mod_entry| {
@@ -127,7 +210,16 @@ impl epi::App for UiApp {
                                         .show(ui, |ui| {
                                             ui.set_width(35.);
                                             ui.centered_and_justified(|ui| {
-                                                ui.label(version);
+                                                let text = match mod_entry.state {
+                                                    State::Current => RichText::new(version)
+                                                        .color(Color32::from_rgb(50, 255, 50)),
+                                                    State::Outdated => RichText::new(version)
+                                                        .color(Color32::from_rgb(255, 255, 50)),
+                                                    State::Invalid => RichText::new(version)
+                                                        .color(Color32::from_rgb(255, 50, 50)),
+                                                };
+
+                                                ui.label(text);
                                             });
                                         });
 
@@ -199,33 +291,18 @@ impl epi::App for UiApp {
 
 impl UiApp {
     fn scan_mod_folder(&mut self) {
+        self.mod_list.clear();
+
         let dir = fs::canonicalize("./mods/").unwrap();
 
         let read_dir = fs::read_dir(dir).unwrap();
 
         for path in read_dir {
-            let fname = path.unwrap().path();
+            let path = path.unwrap().path();
 
-            let file = fs::File::open(&fname).unwrap();
+            let file = fs::File::open(&path).unwrap();
 
-            match mc_mod_meta::get_modloader(&file) {
-                Ok(modloader) => match modloader {
-                    mc_mod_meta::ModLoader::Forge => {
-                        let forge_meta = ForgeManifest::from_file(file).unwrap();
-                        for mod_meta in forge_meta.mods {
-                            self.mod_list.push(mod_meta.into());
-                        }
-                    }
-                    mc_mod_meta::ModLoader::Fabric => {
-                        let mod_meta = FabricManifest::from_file(file).unwrap();
-
-                        self.mod_list.push(mod_meta.into());
-                    }
-                },
-                Err(err) => {
-                    println!("{}", err);
-                }
-            }
+            self.mod_list.append(&mut ModEntry::from_file(file));
         }
     }
 
@@ -271,13 +348,8 @@ impl UiApp {
     }
 }
 
-async fn mod_thing(mod_list: &Vec<McMod>, modrinth: &Ferinth) {
-    for entry in mod_list {
-        modrinth.get_mod(&entry.id).await.unwrap();
-    }
-}
-
-fn main() {
+#[tokio::main(worker_threads = 4)]
+async fn main() {
     let app = UiApp::default();
     let native_options = eframe::NativeOptions {
         initial_window_size: Some(Vec2::new(970., 300.)),

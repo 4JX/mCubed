@@ -1,3 +1,5 @@
+//TODO: Add the Quilt manifest whenever that becomes stable, see https://github.com/QuiltMC/rfcs/blob/master/specification/0002-quilt.mod.json.md
+
 use core::fmt;
 use std::{fs::File, io::BufReader};
 
