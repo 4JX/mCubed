@@ -1,3 +1,4 @@
+use core::fmt;
 use std::{fs::File, io::Read};
 
 use lazy_static::lazy_static;
@@ -14,6 +15,7 @@ pub struct ModEntry {
     pub hashes: Hashes,
     pub modrinth_id: Option<String>,
     pub state: State,
+    pub sourced_from: Source,
 }
 
 #[derive(Clone, Debug)]
@@ -27,6 +29,18 @@ pub enum State {
     Current,
     Outdated,
     Invalid,
+}
+
+#[derive(Clone, Copy, Debug)]
+pub enum Source {
+    Local,
+    Modrinth,
+}
+
+impl fmt::Display for Source {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        fmt::Debug::fmt(self, f)
+    }
 }
 
 impl ModEntry {
@@ -46,6 +60,7 @@ impl ModEntry {
             hashes: hashes.clone(),
             modrinth_id,
             state: State::Invalid,
+            sourced_from: Source::Local,
         }
     }
 
@@ -62,24 +77,20 @@ impl ModEntry {
         let mut mod_vec = Vec::new();
 
         match mc_mod_meta::get_modloader(&file) {
-            Ok(modloader) => {
-                dbg!(&hashes);
-
-                match modloader {
-                    mc_mod_meta::ModLoader::Forge => {
-                        let forge_meta = ForgeManifest::from_file(file).unwrap();
-                        for mod_meta in forge_meta.mods {
-                            let mc_mod = MinecraftMod::from(mod_meta);
-                            mod_vec.push(Self::new(mc_mod, &hashes, None));
-                        }
-                    }
-                    mc_mod_meta::ModLoader::Fabric => {
-                        let mod_meta = FabricManifest::from_file(file).unwrap();
+            Ok(modloader) => match modloader {
+                mc_mod_meta::ModLoader::Forge => {
+                    let forge_meta = ForgeManifest::from_file(file).unwrap();
+                    for mod_meta in forge_meta.mods {
                         let mc_mod = MinecraftMod::from(mod_meta);
                         mod_vec.push(Self::new(mc_mod, &hashes, None));
                     }
                 }
-            }
+                mc_mod_meta::ModLoader::Fabric => {
+                    let mod_meta = FabricManifest::from_file(file).unwrap();
+                    let mc_mod = MinecraftMod::from(mod_meta);
+                    mod_vec.push(Self::new(mc_mod, &hashes, None));
+                }
+            },
             Err(err) => {
                 println!("{}", err);
             }

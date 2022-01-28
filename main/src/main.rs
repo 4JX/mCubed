@@ -1,19 +1,22 @@
 use ferinth::Ferinth;
-use message::Message;
+use message::{FetchingModContext, Message};
 use mod_entry::ModEntry;
-use std::{fs, sync::mpsc::Receiver};
+use std::{
+    fs,
+    sync::mpsc::{Receiver, Sender},
+};
 
 use eframe::{
     egui::{
         self, style::DebugOptions, Color32, CtxRef, FontData, FontDefinitions, FontFamily,
-        RichText, Style, Vec2, Visuals,
+        ProgressBar, RichText, Style, Vec2, Visuals, Widget,
     },
     epi,
 };
 
 use std::borrow::Cow;
 
-use crate::mod_entry::State;
+use crate::mod_entry::{Source, State};
 
 mod message;
 mod mod_entry;
@@ -22,6 +25,7 @@ struct UiApp {
     mod_list: Vec<ModEntry>,
     search_buf: String,
     app_rx: Option<Receiver<Message>>,
+    fetching_info: Option<FetchingModContext>,
 }
 
 impl Default for UiApp {
@@ -30,6 +34,7 @@ impl Default for UiApp {
             mod_list: Default::default(),
             search_buf: Default::default(),
             app_rx: None,
+            fetching_info: None,
         }
     }
 }
@@ -62,32 +67,38 @@ impl epi::App for UiApp {
             }
 
             impl ModrinthManager {
-                async fn fetch_mod_data(&self, mod_list: &mut Vec<ModEntry>) {
-                    for entry in mod_list {
+                async fn fetch_mod_data(&self, mod_list: &mut Vec<ModEntry>, tx: Sender<Message>) {
+                    let list_length = mod_list.len();
+                    for (position, entry) in mod_list.iter_mut().enumerate() {
+                        tx.send(Message::FetchingMod {
+                            context: FetchingModContext {
+                                name: entry.display_name.clone(),
+                                position,
+                                total: list_length,
+                            },
+                        })
+                        .unwrap();
+
                         let modrinth_id = self.get_modrinth_id(entry.hashes.sha1.as_str()).await;
 
                         entry.modrinth_id = Some(modrinth_id.clone());
 
-                        entry.state = match self.client.list_versions(modrinth_id.as_str()).await {
+                        match self.client.list_versions(modrinth_id.as_str()).await {
                             Ok(version_data) => {
-                                //a
-                                let mut up_to_date = false;
+                                entry.sourced_from = Source::Modrinth;
+                                // Assume its outdated unless proven otherwise
+                                entry.state = State::Outdated;
 
-                                for file in &version_data[0].files {
+                                'outer: for file in &version_data[0].files {
                                     if let Some(hash) = &file.hashes.sha1 {
                                         if hash == &entry.hashes.sha1 {
-                                            up_to_date = true;
+                                            entry.state = State::Current;
+                                            break 'outer;
                                         }
                                     }
                                 }
-
-                                if up_to_date {
-                                    State::Current
-                                } else {
-                                    State::Outdated
-                                }
                             }
-                            Err(_err) => State::Invalid,
+                            Err(_err) => entry.state = State::Invalid,
                         };
                     }
                 }
@@ -104,10 +115,10 @@ impl epi::App for UiApp {
                 client: Ferinth::new("Test app"),
             };
 
-            modrinth.fetch_mod_data(&mut mod_list).await;
+            let tx_clone = tx.clone();
+            modrinth.fetch_mod_data(&mut mod_list, tx_clone).await;
 
             tx.send(Message::UpdatedModList { list: mod_list }).unwrap();
-            dbg!("sent");
         });
     }
 
@@ -118,16 +129,27 @@ impl epi::App for UiApp {
                     //A
                     match message {
                         Message::UpdatedModList { list } => {
+                            self.fetching_info = None;
                             self.mod_list = list;
+                        }
+                        Message::FetchingMod { context: mod_name } => {
+                            self.fetching_info = Some(mod_name);
                         }
                     }
                 }
                 Err(err) => {
-                    //A
-                    // dbg!(&err);
+                    match err {
+                        std::sync::mpsc::TryRecvError::Empty => {
+                            //Non issue
+                        }
+                        std::sync::mpsc::TryRecvError::Disconnected => {
+                            // Eventually handle
+                        }
+                    }
                 }
             };
         }
+
         egui::SidePanel::left("options_panel")
             .resizable(false)
             .max_width(180.)
@@ -136,6 +158,7 @@ impl epi::App for UiApp {
                     ui.label("Placeholder");
                 });
             });
+
         egui::CentralPanel::default().show(ctx, |ui| {
             egui::Frame {
                 fill: Color32::from_rgb(50, 50, 50),
@@ -150,7 +173,24 @@ impl epi::App for UiApp {
                     ui.add(edit);
                 });
             });
+
             ui.add_space(5.);
+
+            if let Some(context) = &self.fetching_info {
+                let count = context.position as f32;
+                let total = context.total as f32;
+
+                ui.vertical_centered(|ui| {
+                    ui.style_mut().spacing.interact_size.y = 20.;
+
+                    ProgressBar::new(count / total)
+                        .text(format!("Fetching info for mod \"{}\"", context.name))
+                        .ui(ui);
+                });
+
+                ui.add_space(5.);
+                ctx.request_repaint();
+            }
 
             ui.vertical_centered_justified(|ui| {
                 egui::Frame {
@@ -186,7 +226,7 @@ impl epi::App for UiApp {
                                 }
                                 .show(ui, |ui| {
                                     ui.horizontal(|ui| {
-                                        ui.set_height(60.);
+                                        ui.set_height(40.);
 
                                         ui.style_mut().spacing.item_spacing = Vec2::splat(0.0);
 
@@ -208,7 +248,7 @@ impl epi::App for UiApp {
                                             ..Default::default()
                                         }
                                         .show(ui, |ui| {
-                                            ui.set_width(35.);
+                                            ui.set_width(45.);
                                             ui.centered_and_justified(|ui| {
                                                 let text = match mod_entry.state {
                                                     State::Current => RichText::new(version)
@@ -227,40 +267,34 @@ impl epi::App for UiApp {
                                             ui.set_width(60.);
 
                                             egui::Frame {
+                                                margin: Vec2::new(8.0, 0.0),
                                                 ..Default::default()
                                             }
                                             .show(
                                                 ui,
                                                 |ui| {
-                                                    ui.set_height(30.);
-                                                    ui.centered_and_justified(|ui| {
+                                                    ui.set_height(ui.available_height() / 2.0);
+                                                    ui.horizontal(|ui| {
                                                         ui.label(mod_entry.modloader.to_string());
                                                     });
                                                 },
                                             );
 
                                             egui::Frame {
+                                                margin: Vec2::new(8.0, 0.0),
                                                 ..Default::default()
                                             }
                                             .show(
                                                 ui,
                                                 |ui| {
-                                                    ui.set_height(30.);
-                                                    ui.centered_and_justified(|ui| {
-                                                        ui.label(mod_entry.modloader.to_string());
+                                                    ui.set_height(ui.available_height() / 2.0);
+                                                    ui.horizontal(|ui| {
+                                                        ui.label(
+                                                            mod_entry.sourced_from.to_string(),
+                                                        );
                                                     });
                                                 },
                                             );
-                                        });
-
-                                        egui::Frame {
-                                            ..Default::default()
-                                        }
-                                        .show(ui, |ui| {
-                                            ui.set_width(130.);
-                                            ui.centered_and_justified(|ui| {
-                                                ui.label(&mod_entry.id);
-                                            });
                                         });
 
                                         egui::Frame {
@@ -268,7 +302,6 @@ impl epi::App for UiApp {
                                             ..Default::default()
                                         }
                                         .show(ui, |ui| {
-                                            ui.set_min_width(10.);
                                             ui.centered_and_justified(|ui| {
                                                 ui.with_layout(
                                                     egui::Layout::right_to_left(),
