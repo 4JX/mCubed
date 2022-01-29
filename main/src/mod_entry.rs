@@ -14,7 +14,7 @@ pub struct ModEntry {
     pub modloader: ModLoader,
     pub hashes: Hashes,
     pub modrinth_id: Option<String>,
-    pub state: State,
+    pub state: FileState,
     pub sourced_from: Source,
 }
 
@@ -24,17 +24,21 @@ pub struct Hashes {
     pub sha512: String,
 }
 
-#[derive(Clone, Copy, Debug)]
-pub enum State {
+#[allow(dead_code)]
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum FileState {
     Current,
     Outdated,
     Invalid,
+    Local,
 }
 
+#[allow(dead_code)]
 #[derive(Clone, Copy, Debug)]
 pub enum Source {
     Local,
     Modrinth,
+    CurseForge,
 }
 
 impl fmt::Display for Source {
@@ -59,7 +63,7 @@ impl ModEntry {
             modloader,
             hashes: hashes.clone(),
             modrinth_id,
-            state: State::Invalid,
+            state: FileState::Local,
             sourced_from: Source::Local,
         }
     }

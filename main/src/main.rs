@@ -1,4 +1,6 @@
+use app_theme::AppTheme;
 use ferinth::Ferinth;
+use image_utils::ImageTextures;
 use message::{FetchingModContext, Message};
 use mod_entry::ModEntry;
 use std::{
@@ -7,36 +9,25 @@ use std::{
 };
 
 use eframe::{
-    egui::{
-        self, style::DebugOptions, Color32, CtxRef, FontData, FontDefinitions, FontFamily,
-        ProgressBar, RichText, Style, Vec2, Visuals, Widget,
-    },
+    egui::{self, style::DebugOptions, Context, ProgressBar, RichText, Style, Vec2, Widget},
     epi,
 };
 
-use std::borrow::Cow;
+use crate::mod_entry::{FileState, Source};
 
-use crate::mod_entry::{Source, State};
-
+mod app_theme;
+mod image_utils;
 mod message;
 mod mod_entry;
-
+mod text_utils;
+#[derive(Default)]
 struct UiApp {
+    theme: AppTheme,
     mod_list: Vec<ModEntry>,
     search_buf: String,
     app_rx: Option<Receiver<Message>>,
     fetching_info: Option<FetchingModContext>,
-}
-
-impl Default for UiApp {
-    fn default() -> Self {
-        Self {
-            mod_list: Default::default(),
-            search_buf: Default::default(),
-            app_rx: None,
-            fetching_info: None,
-        }
-    }
+    images: ImageTextures,
 }
 
 impl epi::App for UiApp {
@@ -46,12 +37,12 @@ impl epi::App for UiApp {
 
     fn setup(
         &mut self,
-        ctx: &egui::CtxRef,
+        ctx: &egui::Context,
         _frame: &epi::Frame,
         _storage: Option<&dyn epi::Storage>,
     ) {
-        self.configure_fonts(ctx);
         self.configure_style(ctx);
+        self.images.load_images(ctx);
 
         self.scan_mod_folder();
 
@@ -87,18 +78,18 @@ impl epi::App for UiApp {
                             Ok(version_data) => {
                                 entry.sourced_from = Source::Modrinth;
                                 // Assume its outdated unless proven otherwise
-                                entry.state = State::Outdated;
+                                entry.state = FileState::Outdated;
 
                                 'outer: for file in &version_data[0].files {
                                     if let Some(hash) = &file.hashes.sha1 {
                                         if hash == &entry.hashes.sha1 {
-                                            entry.state = State::Current;
+                                            entry.state = FileState::Current;
                                             break 'outer;
                                         }
                                     }
                                 }
                             }
-                            Err(_err) => entry.state = State::Invalid,
+                            Err(_err) => entry.state = FileState::Local,
                         };
                     }
                 }
@@ -122,7 +113,7 @@ impl epi::App for UiApp {
         });
     }
 
-    fn update(&mut self, ctx: &egui::CtxRef, _frame: &epi::Frame) {
+    fn update(&mut self, ctx: &egui::Context, _frame: &epi::Frame) {
         if let Some(rx) = &self.app_rx {
             match rx.try_recv() {
                 Ok(message) => {
@@ -160,15 +151,10 @@ impl epi::App for UiApp {
             });
 
         egui::CentralPanel::default().show(ctx, |ui| {
-            egui::Frame {
-                fill: Color32::from_rgb(50, 50, 50),
-                margin: Vec2::new(10., 10.),
-                ..Default::default()
-            }
-            .show(ui, |ui| {
+            ui.horizontal(|ui| {
                 ui.vertical_centered_justified(|ui| {
                     let edit = egui::TextEdit::singleline(&mut self.search_buf).hint_text(
-                        RichText::new("Search installed mods").color(Color32::from_rgb(40, 40, 40)),
+                        RichText::new("Search installed mods").color(self.theme.colors.gray),
                     );
                     ui.add(edit);
                 });
@@ -194,7 +180,7 @@ impl epi::App for UiApp {
 
             ui.vertical_centered_justified(|ui| {
                 egui::Frame {
-                    fill: Color32::from_gray(22),
+                    fill: self.theme.colors.darker_gray,
                     margin: Vec2::new(10., 10.),
                     corner_radius: 4.,
                     ..Default::default()
@@ -221,94 +207,192 @@ impl epi::App for UiApp {
 
                             for mod_entry in filtered_list {
                                 egui::Frame {
-                                    fill: Color32::from_rgb(50, 50, 50),
+                                    fill: self.theme.colors.dark_gray,
                                     ..Default::default()
                                 }
                                 .show(ui, |ui| {
                                     ui.horizontal(|ui| {
-                                        ui.set_height(40.);
+                                        ui.set_height(36.);
 
                                         ui.style_mut().spacing.item_spacing = Vec2::splat(0.0);
 
                                         let version = mod_entry.normalized_version();
                                         egui::Frame {
+                                            margin: Vec2::new(10.0, 0.0),
                                             ..Default::default()
                                         }
                                         .show(ui, |ui| {
-                                            ui.set_width(130.);
+                                            ui.set_width(120.);
+                                            ui.set_max_width(120.);
 
                                             ui.centered_and_justified(|ui| {
-                                                ui.style_mut().visuals.window_corner_radius = 20.;
+                                                ui.style_mut().wrap = Some(true);
                                                 ui.label(&mod_entry.display_name);
                                             });
                                         });
 
                                         egui::Frame {
-                                            fill: Color32::from_rgb(80, 80, 80),
+                                            fill: self.theme.colors.gray,
                                             ..Default::default()
                                         }
                                         .show(ui, |ui| {
                                             ui.set_width(45.);
                                             ui.centered_and_justified(|ui| {
+                                                let raw = text_utils::mod_version_text(version);
+
                                                 let text = match mod_entry.state {
-                                                    State::Current => RichText::new(version)
-                                                        .color(Color32::from_rgb(50, 255, 50)),
-                                                    State::Outdated => RichText::new(version)
-                                                        .color(Color32::from_rgb(255, 255, 50)),
-                                                    State::Invalid => RichText::new(version)
-                                                        .color(Color32::from_rgb(255, 50, 50)),
+                                                    FileState::Current => raw.color(
+                                                        self.theme
+                                                            .colors
+                                                            .mod_card
+                                                            .version_status
+                                                            .up_to_date,
+                                                    ),
+                                                    FileState::Outdated => raw.color(
+                                                        self.theme
+                                                            .colors
+                                                            .mod_card
+                                                            .version_status
+                                                            .outdated,
+                                                    ),
+                                                    FileState::Local => {
+                                                        raw.color(self.theme.colors.white)
+                                                    }
+                                                    FileState::Invalid => raw.color(
+                                                        self.theme
+                                                            .colors
+                                                            .mod_card
+                                                            .version_status
+                                                            .invalid,
+                                                    ),
                                                 };
 
                                                 ui.label(text);
                                             });
                                         });
 
+                                        ui.add_space(10.);
+
                                         ui.vertical(|ui| {
                                             ui.set_width(60.);
 
-                                            egui::Frame {
-                                                margin: Vec2::new(8.0, 0.0),
-                                                ..Default::default()
-                                            }
-                                            .show(
-                                                ui,
-                                                |ui| {
-                                                    ui.set_height(ui.available_height() / 2.0);
-                                                    ui.horizontal(|ui| {
-                                                        ui.label(mod_entry.modloader.to_string());
-                                                    });
-                                                },
-                                            );
+                                            let image_size = ui.available_height() / 2.0 * 0.5;
 
-                                            egui::Frame {
-                                                margin: Vec2::new(8.0, 0.0),
-                                                ..Default::default()
-                                            }
-                                            .show(
-                                                ui,
-                                                |ui| {
-                                                    ui.set_height(ui.available_height() / 2.0);
-                                                    ui.horizontal(|ui| {
-                                                        ui.label(
-                                                            mod_entry.sourced_from.to_string(),
+                                            ui.horizontal(|ui| {
+                                                let raw_text = text_utils::mod_card_data_text(
+                                                    mod_entry.modloader.to_string(),
+                                                );
+
+                                                let text = match mod_entry.modloader {
+                                                    mc_mod_meta::ModLoader::Forge => {
+                                                        ui.image(
+                                                            self.images.forge.as_mut().unwrap(),
+                                                            Vec2::splat(image_size),
                                                         );
-                                                    });
-                                                },
-                                            );
+
+                                                        raw_text.color(
+                                                            self.theme
+                                                                .colors
+                                                                .mod_card
+                                                                .modloader
+                                                                .forge,
+                                                        )
+                                                    }
+                                                    mc_mod_meta::ModLoader::Fabric => {
+                                                        ui.image(
+                                                            self.images.fabric.as_mut().unwrap(),
+                                                            Vec2::splat(image_size),
+                                                        );
+
+                                                        raw_text.color(
+                                                            self.theme
+                                                                .colors
+                                                                .mod_card
+                                                                .modloader
+                                                                .fabric,
+                                                        )
+                                                    }
+                                                };
+
+                                                ui.add_space(5.);
+
+                                                ui.label(text);
+                                            });
+
+                                            ui.horizontal(|ui| {
+                                                let raw_text = text_utils::mod_card_data_text(
+                                                    mod_entry.sourced_from.to_string(),
+                                                );
+
+                                                let text = match mod_entry.sourced_from {
+                                                    Source::Local => {
+                                                        ui.image(
+                                                            self.images.local.as_mut().unwrap(),
+                                                            Vec2::splat(image_size),
+                                                        );
+
+                                                        raw_text.color(
+                                                            self.theme.colors.mod_card.source.local,
+                                                        )
+                                                    }
+                                                    Source::Modrinth => {
+                                                        ui.image(
+                                                            self.images.modrinth.as_mut().unwrap(),
+                                                            Vec2::splat(image_size),
+                                                        );
+
+                                                        raw_text.color(
+                                                            self.theme
+                                                                .colors
+                                                                .mod_card
+                                                                .source
+                                                                .modrinth,
+                                                        )
+                                                    }
+                                                    Source::CurseForge => {
+                                                        ui.image(
+                                                            self.images
+                                                                .curseforge
+                                                                .as_mut()
+                                                                .unwrap(),
+                                                            Vec2::splat(image_size),
+                                                        );
+
+                                                        raw_text.color(
+                                                            self.theme
+                                                                .colors
+                                                                .mod_card
+                                                                .source
+                                                                .curseforge,
+                                                        )
+                                                    }
+                                                };
+
+                                                ui.add_space(5.);
+
+                                                ui.label(text);
+                                            });
                                         });
 
-                                        egui::Frame {
-                                            margin: Vec2::splat(10.),
-                                            ..Default::default()
-                                        }
-                                        .show(ui, |ui| {
-                                            ui.centered_and_justified(|ui| {
-                                                ui.with_layout(
-                                                    egui::Layout::right_to_left(),
-                                                    |ui| {
-                                                        ui.label("Icon placeholder");
-                                                    },
+                                        ui.centered_and_justified(|ui| {
+                                            ui.with_layout(egui::Layout::right_to_left(), |ui| {
+                                                ui.add_space(10.);
+                                                ui.image(
+                                                    self.images.bin.as_mut().unwrap(),
+                                                    Vec2::splat(12.),
                                                 );
+
+                                                if mod_entry.state == FileState::Outdated {
+                                                    ui.add_space(5.0);
+                                                    if ui
+                                                        .button(text_utils::update_button_text(
+                                                            "Le update button",
+                                                        ))
+                                                        .clicked()
+                                                    {
+                                                        //Boo
+                                                    }
+                                                }
                                             });
                                         });
                                     });
@@ -339,44 +423,20 @@ impl UiApp {
         }
     }
 
-    fn configure_fonts(&self, ctx: &CtxRef) {
-        let data = FontData {
-            font: Cow::Borrowed(include_bytes!("../fonts/inter/static/Inter-Medium.ttf")),
-            index: 0,
-        };
-        let mut font_def = FontDefinitions::default();
-        font_def.font_data.insert("Inter-Medium".to_string(), data);
-        font_def.family_and_size.insert(
-            eframe::egui::TextStyle::Heading,
-            (FontFamily::Proportional, 16.),
-        );
-        font_def.family_and_size.insert(
-            eframe::egui::TextStyle::Body,
-            (FontFamily::Proportional, 12.),
-        );
-        font_def
-            .fonts_for_family
-            .get_mut(&FontFamily::Proportional)
-            .unwrap()
-            .insert(0, "Inter-Medium".to_string());
-        ctx.set_fonts(font_def);
-    }
-
-    fn configure_style(&self, ctx: &CtxRef) {
-        let visuals = Visuals {
-            override_text_color: Some(Color32::from_gray(255)),
-            ..Default::default()
-        };
+    fn configure_style(&self, ctx: &Context) {
         let style = Style {
-            visuals,
+            text_styles: text_utils::default_text_styles(),
+            visuals: self.theme.visuals.clone(),
             debug: DebugOptions {
                 debug_on_hover: false,
                 show_expand_width: false,
                 show_expand_height: false,
-                show_resize: false,
+                show_resize: true,
             },
             ..Default::default()
         };
+
+        ctx.set_fonts(text_utils::get_font_def());
         ctx.set_style(style);
     }
 }
