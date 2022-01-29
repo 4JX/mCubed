@@ -12,53 +12,53 @@ pub struct ImageTextures {
 
 impl ImageTextures {
     pub fn load_images(&mut self, ctx: &egui::Context) {
-        self.forge.get_or_insert_with(|| {
+        self.forge = Some(
             // Load the texture only once.
             ctx.load_texture(
                 "forge-icon",
                 load_image_from_memory(include_bytes!("../res/forge.png")).unwrap(),
-            )
-        });
+            ),
+        );
 
-        self.fabric.get_or_insert_with(|| {
+        self.fabric = Some(
             // Load the texture only once.
             ctx.load_texture(
                 "fabric-icon",
                 load_image_from_memory(include_bytes!("../res/fabric.png")).unwrap(),
-            )
-        });
+            ),
+        );
 
-        self.curseforge.get_or_insert_with(|| {
+        self.curseforge = Some(
             // Load the texture only once.
             ctx.load_texture(
                 "curseforge-icon",
                 load_image_from_memory(include_bytes!("../res/curseforge.png")).unwrap(),
-            )
-        });
+            ),
+        );
 
-        self.modrinth.get_or_insert_with(|| {
+        self.modrinth = Some(
             // Load the texture only once.
             ctx.load_texture(
                 "modrinth-icon",
                 load_image_from_memory(include_bytes!("../res/modrinth.png")).unwrap(),
-            )
-        });
+            ),
+        );
 
-        self.local.get_or_insert_with(|| {
+        self.local = Some(
             // Load the texture only once.
             ctx.load_texture(
                 "local-icon",
                 load_image_from_memory(include_bytes!("../res/local.png")).unwrap(),
-            )
-        });
+            ),
+        );
 
-        self.bin.get_or_insert_with(|| {
+        self.bin = Some(
             // Load the texture only once.
             ctx.load_texture(
                 "bin-icon",
                 load_image_from_memory(include_bytes!("../res/bin.png")).unwrap(),
-            )
-        });
+            ),
+        );
     }
 }
 
