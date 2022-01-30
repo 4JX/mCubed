@@ -2,10 +2,16 @@ use app_theme::AppTheme;
 use back::{
     message::{FetchingModContext, Message},
     mod_entry::{FileState, ModEntry, Source},
+    Back,
 };
 use image_utils::ImageTextures;
 
-use std::{collections::HashMap, fs, sync::mpsc::Receiver};
+use std::{
+    collections::HashMap,
+    fs,
+    sync::mpsc::{Receiver, Sender},
+    thread,
+};
 
 use eframe::{
     egui::{self, style::DebugOptions, Context, ProgressBar, RichText, Style, Vec2, Widget},
@@ -21,7 +27,8 @@ struct UiApp {
     theme: AppTheme,
     mod_list: Vec<ModEntry>,
     search_buf: String,
-    app_rx: Option<Receiver<Message>>,
+    back_rx: Option<Receiver<Message>>,
+    front_tx: Option<Sender<Message>>,
     fetching_info: Option<FetchingModContext>,
     images: ImageTextures,
     mod_hash_cache: HashMap<String, String>,
@@ -61,14 +68,30 @@ impl epi::App for UiApp {
 
         self.scan_mod_folder();
 
-        let (tx, rx) = std::sync::mpsc::channel::<Message>();
+        let (back_tx, back_rx) = std::sync::mpsc::channel::<Message>();
+        let (front_tx, front_rx) = std::sync::mpsc::channel::<Message>();
 
-        back::start_backend(tx, self.mod_list.clone(), self.mod_hash_cache.clone());
-        self.app_rx = Some(rx);
+        let backend = Back::new(back_tx, front_rx);
+
+        thread::spawn(move || {
+            backend.init();
+        });
+
+        self.front_tx = Some(front_tx);
+        self.back_rx = Some(back_rx);
+
+        if let Some(front_tx) = &self.front_tx {
+            front_tx
+                .send(Message::UpdateModList {
+                    mod_list: self.mod_list.clone(),
+                    mod_hash_cache: self.mod_hash_cache.clone(),
+                })
+                .unwrap();
+        }
     }
 
     fn update(&mut self, ctx: &egui::Context, _frame: &epi::Frame) {
-        if let Some(rx) = &self.app_rx {
+        if let Some(rx) = &self.back_rx {
             match rx.try_recv() {
                 Ok(message) => {
                     //A
