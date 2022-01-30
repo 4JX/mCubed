@@ -1,6 +1,6 @@
 use app_theme::AppTheme;
 use back::{
-    message::{FetchingModContext, Message},
+    messages::{FetchingModContext, ToBackend, ToFrontend},
     mod_entry::{FileState, ModEntry, Source},
     Back,
 };
@@ -27,8 +27,8 @@ struct UiApp {
     theme: AppTheme,
     mod_list: Vec<ModEntry>,
     search_buf: String,
-    back_rx: Option<Receiver<Message>>,
-    front_tx: Option<Sender<Message>>,
+    receiver: Option<Receiver<ToFrontend>>,
+    sender: Option<Sender<ToBackend>>,
     fetching_info: Option<FetchingModContext>,
     images: ImageTextures,
     mod_hash_cache: HashMap<String, String>,
@@ -68,21 +68,21 @@ impl epi::App for UiApp {
 
         self.scan_mod_folder();
 
-        let (back_tx, back_rx) = std::sync::mpsc::channel::<Message>();
-        let (front_tx, front_rx) = std::sync::mpsc::channel::<Message>();
+        let (backend_sender, frontend_reciever) = std::sync::mpsc::channel::<ToFrontend>();
+        let (frontend_sender, backend_reciever) = std::sync::mpsc::channel::<ToBackend>();
 
-        let backend = Back::new(back_tx, front_rx);
+        let backend = Back::new(backend_sender, backend_reciever);
 
         thread::spawn(move || {
             backend.init();
         });
 
-        self.front_tx = Some(front_tx);
-        self.back_rx = Some(back_rx);
+        self.sender = Some(frontend_sender);
+        self.receiver = Some(frontend_reciever);
 
-        if let Some(front_tx) = &self.front_tx {
+        if let Some(front_tx) = &self.sender {
             front_tx
-                .send(Message::UpdateModList {
+                .send(ToBackend::UpdateModList {
                     mod_list: self.mod_list.clone(),
                     mod_hash_cache: self.mod_hash_cache.clone(),
                 })
@@ -91,12 +91,12 @@ impl epi::App for UiApp {
     }
 
     fn update(&mut self, ctx: &egui::Context, _frame: &epi::Frame) {
-        if let Some(rx) = &self.back_rx {
+        if let Some(rx) = &self.receiver {
             match rx.try_recv() {
                 Ok(message) => {
                     //A
                     match message {
-                        Message::UpdateModList {
+                        ToFrontend::UpdateModList {
                             mod_list,
                             mod_hash_cache,
                         } => {
@@ -104,7 +104,7 @@ impl epi::App for UiApp {
                             self.mod_list = mod_list;
                             self.mod_hash_cache = mod_hash_cache;
                         }
-                        Message::FetchingMod { context: mod_name } => {
+                        ToFrontend::FetchingMod { context: mod_name } => {
                             self.fetching_info = Some(mod_name);
                         }
                     }
@@ -367,7 +367,7 @@ impl epi::App for UiApp {
                                                     ui.add_space(5.0);
                                                     if ui
                                                         .button(text_utils::update_button_text(
-                                                            "Le update button",
+                                                            "Update",
                                                         ))
                                                         .clicked()
                                                     {

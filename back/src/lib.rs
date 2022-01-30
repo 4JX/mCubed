@@ -4,25 +4,26 @@ use std::{
 };
 
 use ferinth::Ferinth;
+use messages::ToBackend;
 use tokio::runtime::Runtime;
 
 use crate::{
-    message::{FetchingModContext, Message},
+    messages::{FetchingModContext, ToFrontend},
     mod_entry::{FileState, ModEntry, Source},
 };
 
-pub mod message;
+pub mod messages;
 pub mod mod_entry;
 
 pub struct Back {
-    back_tx: Sender<Message>,
-    front_rx: Receiver<Message>,
+    back_tx: Sender<ToFrontend>,
+    front_rx: Receiver<ToBackend>,
     rt: Runtime,
     modrinth: Ferinth,
 }
 
 impl Back {
-    pub fn new(back_tx: Sender<Message>, front_rx: Receiver<Message>) -> Self {
+    pub fn new(back_tx: Sender<ToFrontend>, front_rx: Receiver<ToBackend>) -> Self {
         let rt = tokio::runtime::Runtime::new().unwrap();
         let modrinth = Ferinth::new("Still a test app");
 
@@ -38,7 +39,7 @@ impl Back {
             loop {
                 match self.front_rx.recv() {
                     Ok(message) => match message {
-                        Message::UpdateModList {
+                        ToBackend::UpdateModList {
                             mod_list,
                             mod_hash_cache,
                         } => {
@@ -61,41 +62,41 @@ impl Back {
     ) {
         let list_length = mod_list.len();
 
-        for (position, entry) in mod_list.iter_mut().enumerate() {
+        for (position, mod_entry) in mod_list.iter_mut().enumerate() {
             self.back_tx
-                .send(Message::FetchingMod {
+                .send(ToFrontend::FetchingMod {
                     context: FetchingModContext {
-                        name: entry.display_name.clone(),
+                        name: mod_entry.display_name.clone(),
                         position,
                         total: list_length,
                     },
                 })
                 .unwrap();
 
-            entry.modrinth_id = if let Some(id) = mod_hash_cache.get(&entry.hashes.sha1) {
+            mod_entry.modrinth_id = if let Some(id) = mod_hash_cache.get(&mod_entry.hashes.sha1) {
                 Some(id.to_owned())
             } else {
                 if let Some(modrinth_id) =
-                    get_modrinth_id(&self.modrinth, entry.hashes.sha1.as_str()).await
+                    self.get_modrinth_id(mod_entry.hashes.sha1.as_str()).await
                 {
-                    mod_hash_cache.insert(entry.hashes.sha1.to_owned(), modrinth_id.to_owned());
+                    mod_hash_cache.insert(mod_entry.hashes.sha1.to_owned(), modrinth_id.to_owned());
                     Some(modrinth_id)
                 } else {
                     None
                 }
             };
 
-            if let Some(modrinth_id) = &entry.modrinth_id {
+            if let Some(modrinth_id) = &mod_entry.modrinth_id {
                 match self.modrinth.list_versions(modrinth_id.as_str()).await {
                     Ok(version_data) => {
-                        entry.sourced_from = Source::Modrinth;
+                        mod_entry.sourced_from = Source::Modrinth;
                         // Assume its outdated unless proven otherwise
-                        entry.state = FileState::Outdated;
+                        mod_entry.state = FileState::Outdated;
 
                         'outer: for file in &version_data[0].files {
                             if let Some(hash) = &file.hashes.sha1 {
-                                if hash == &entry.hashes.sha1 {
-                                    entry.state = FileState::Current;
+                                if hash == &mod_entry.hashes.sha1 {
+                                    mod_entry.state = FileState::Current;
                                     break 'outer;
                                 }
                             }
@@ -103,24 +104,24 @@ impl Back {
                     }
                     Err(err) => {
                         dbg!(err);
-                        entry.state = FileState::Local
+                        mod_entry.state = FileState::Local
                     }
                 };
             }
         }
 
-        async fn get_modrinth_id(modrinth: &Ferinth, mod_hash: &str) -> Option<String> {
-            match modrinth.get_version_from_file_hash(mod_hash).await {
-                Ok(result) => Some(result.mod_id),
-                Err(_err) => None,
-            }
-        }
-
         self.back_tx
-            .send(Message::UpdateModList {
+            .send(ToFrontend::UpdateModList {
                 mod_list,
                 mod_hash_cache,
             })
             .unwrap();
+    }
+
+    async fn get_modrinth_id(&self, mod_hash: &str) -> Option<String> {
+        match self.modrinth.get_version_from_file_hash(mod_hash).await {
+            Ok(result) => Some(result.mod_id),
+            Err(_err) => None,
+        }
     }
 }

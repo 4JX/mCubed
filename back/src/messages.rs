@@ -2,13 +2,28 @@ use std::collections::HashMap;
 
 use crate::mod_entry::ModEntry;
 
-pub enum Message {
+pub enum ToFrontend {
+    // Emitted when starting and ending a list update
     UpdateModList {
         mod_list: Vec<ModEntry>,
         mod_hash_cache: HashMap<String, String>,
     },
+
+    // Gives information about the mod whose information is being fetched
     FetchingMod {
         context: FetchingModContext,
+    },
+}
+
+pub enum ToBackend {
+    // Emitted when starting and ending a list update
+    UpdateModList {
+        mod_list: Vec<ModEntry>,
+        mod_hash_cache: HashMap<String, String>,
+    },
+
+    UpdateMod {
+        modrinth_id: String,
     },
 }
 
