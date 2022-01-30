@@ -13,11 +13,16 @@ pub struct ModEntry {
     pub display_name: String,
     pub modloader: ModLoader,
     pub hashes: Hashes,
-    pub modrinth_id: Option<String>,
+    pub modrinth_data: Option<ModrinthData>,
     pub state: FileState,
     pub sourced_from: Source,
 }
 
+#[derive(Clone, Debug)]
+pub struct ModrinthData {
+    pub id: String,
+    pub lastest_valid_version: String,
+}
 #[derive(Clone, Debug)]
 pub struct Hashes {
     pub sha1: String,
@@ -48,7 +53,7 @@ impl fmt::Display for Source {
 }
 
 impl ModEntry {
-    fn new(mc_mod: MinecraftMod, hashes: &Hashes, modrinth_id: Option<String>) -> Self {
+    fn new(mc_mod: MinecraftMod, hashes: &Hashes, modrinth_data: Option<ModrinthData>) -> Self {
         let MinecraftMod {
             id,
             version,
@@ -62,7 +67,7 @@ impl ModEntry {
             display_name,
             modloader,
             hashes: hashes.clone(),
-            modrinth_id,
+            modrinth_data,
             state: FileState::Local,
             sourced_from: Source::Local,
         }

@@ -3,8 +3,10 @@ use std::{
     sync::mpsc::{Receiver, Sender},
 };
 
+use bytes::Bytes;
 use ferinth::Ferinth;
 use messages::ToBackend;
+use mod_entry::ModrinthData;
 use tokio::runtime::Runtime;
 
 use crate::{
@@ -45,7 +47,47 @@ impl Back {
                         } => {
                             self.update_mod_list(mod_list, mod_hash_cache).await;
                         }
-                        _ => unreachable!(),
+
+                        ToBackend::UpdateMod {
+                            version_id,
+                            modloader,
+                        } => {
+                            let version = self
+                                .modrinth
+                                .get_version(version_id.as_str())
+                                .await
+                                .unwrap();
+
+                            let mut file_contents: Option<Bytes> = None;
+
+                            if version.files.len() > 1 {
+                                'outer: for file in version.files {
+                                    let filename = file.filename.clone();
+
+                                    if filename
+                                        .to_lowercase()
+                                        .contains(modloader.to_string().to_lowercase().as_str())
+                                    {
+                                        file_contents = Some(
+                                            self.modrinth
+                                                .download_version_file(&file)
+                                                .await
+                                                .unwrap(),
+                                        );
+                                        break 'outer;
+                                    }
+                                }
+                            } else if version.files.len() == 1 {
+                                file_contents = Some(
+                                    self.modrinth
+                                        .download_version_file(&version.files[0])
+                                        .await
+                                        .unwrap(),
+                                );
+                            }
+
+                            let _a = file_contents;
+                        }
                     },
                     Err(_err) => {
                         //TODO: Handle
@@ -73,23 +115,14 @@ impl Back {
                 })
                 .unwrap();
 
-            mod_entry.modrinth_id = if let Some(id) = mod_hash_cache.get(&mod_entry.hashes.sha1) {
-                Some(id.to_owned())
-            } else {
-                if let Some(modrinth_id) =
-                    self.get_modrinth_id(mod_entry.hashes.sha1.as_str()).await
-                {
-                    mod_hash_cache.insert(mod_entry.hashes.sha1.to_owned(), modrinth_id.to_owned());
-                    Some(modrinth_id)
-                } else {
-                    None
-                }
-            };
+            mod_entry.modrinth_data = if let Some(id) = self
+                .get_modrinth_id(&mod_entry.hashes.sha1, &mut mod_hash_cache)
+                .await
+            {
+                mod_entry.sourced_from = Source::Modrinth;
 
-            if let Some(modrinth_id) = &mod_entry.modrinth_id {
-                match self.modrinth.list_versions(modrinth_id.as_str()).await {
+                match self.modrinth.list_versions(id.as_str()).await {
                     Ok(version_data) => {
-                        mod_entry.sourced_from = Source::Modrinth;
                         // Assume its outdated unless proven otherwise
                         mod_entry.state = FileState::Outdated;
 
@@ -101,13 +134,20 @@ impl Back {
                                 }
                             }
                         }
+
+                        Some(ModrinthData {
+                            id,
+                            lastest_valid_version: version_data[0].id.clone(),
+                        })
                     }
-                    Err(err) => {
-                        dbg!(err);
-                        mod_entry.state = FileState::Local
+                    Err(_err) => {
+                        mod_entry.state = FileState::Local;
+                        None
                     }
-                };
-            }
+                }
+            } else {
+                None
+            };
         }
 
         self.back_tx
@@ -118,10 +158,25 @@ impl Back {
             .unwrap();
     }
 
-    async fn get_modrinth_id(&self, mod_hash: &str) -> Option<String> {
-        match self.modrinth.get_version_from_file_hash(mod_hash).await {
-            Ok(result) => Some(result.mod_id),
-            Err(_err) => None,
+    async fn get_modrinth_id(
+        &self,
+        mod_hash: &String,
+        mod_hash_cache: &mut HashMap<String, String>,
+    ) -> Option<String> {
+        if let Some(id) = mod_hash_cache.get(mod_hash) {
+            Some(id.clone())
+        } else {
+            match self
+                .modrinth
+                .get_version_from_file_hash(mod_hash.as_str())
+                .await
+            {
+                Ok(result) => {
+                    mod_hash_cache.insert(mod_hash.clone(), result.mod_id.clone());
+                    Some(result.mod_id)
+                }
+                Err(_err) => None,
+            }
         }
     }
 }

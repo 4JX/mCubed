@@ -371,7 +371,19 @@ impl epi::App for UiApp {
                                                         ))
                                                         .clicked()
                                                     {
-                                                        //Boo
+                                                        self.sender
+                                                            .as_ref()
+                                                            .unwrap()
+                                                            .send(ToBackend::UpdateMod {
+                                                                version_id: mod_entry
+                                                                    .modrinth_data
+                                                                    .as_ref()
+                                                                    .unwrap()
+                                                                    .lastest_valid_version
+                                                                    .clone(),
+                                                                modloader: mod_entry.modloader,
+                                                            })
+                                                            .unwrap();
                                                     }
                                                 }
                                             });

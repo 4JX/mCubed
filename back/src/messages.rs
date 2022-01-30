@@ -23,7 +23,8 @@ pub enum ToBackend {
     },
 
     UpdateMod {
-        modrinth_id: String,
+        version_id: String,
+        modloader: mc_mod_meta::ModLoader,
     },
 }
 
