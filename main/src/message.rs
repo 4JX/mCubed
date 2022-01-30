@@ -1,8 +1,15 @@
+use std::collections::HashMap;
+
 use crate::mod_entry::ModEntry;
 
 pub enum Message {
-    UpdatedModList { list: Vec<ModEntry> },
-    FetchingMod { context: FetchingModContext },
+    UpdateModList {
+        mod_list: Vec<ModEntry>,
+        mod_hash_cache: HashMap<String, String>,
+    },
+    FetchingMod {
+        context: FetchingModContext,
+    },
 }
 
 pub struct FetchingModContext {

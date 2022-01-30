@@ -4,6 +4,7 @@ use image_utils::ImageTextures;
 use message::{FetchingModContext, Message};
 use mod_entry::ModEntry;
 use std::{
+    collections::HashMap,
     fs,
     sync::mpsc::{Receiver, Sender},
 };
@@ -28,6 +29,7 @@ struct UiApp {
     app_rx: Option<Receiver<Message>>,
     fetching_info: Option<FetchingModContext>,
     images: ImageTextures,
+    mod_hash_cache: HashMap<String, String>,
 }
 
 impl epi::App for UiApp {
@@ -35,31 +37,56 @@ impl epi::App for UiApp {
         "An App"
     }
 
+    fn save(&mut self, storage: &mut dyn epi::Storage) {
+        let mod_hash_cache = serde_json::to_string(&self.mod_hash_cache).unwrap();
+
+        storage.set_string("hash_storage", mod_hash_cache);
+    }
+
+    fn auto_save_interval(&self) -> std::time::Duration {
+        std::time::Duration::from_secs(30)
+    }
+
     fn setup(
         &mut self,
         ctx: &egui::Context,
         _frame: &epi::Frame,
-        _storage: Option<&dyn epi::Storage>,
+        storage: Option<&dyn epi::Storage>,
     ) {
+        if let Some(storage) = storage {
+            if let Some(hash_json) = storage.get_string("hash_storage") {
+                if let Ok(cache) = serde_json::from_str(hash_json.as_str()) {
+                    self.mod_hash_cache = cache;
+                };
+            }
+        }
+
         self.configure_style(ctx);
         self.images.load_images(ctx);
 
         self.scan_mod_folder();
 
         let mut mod_list = self.mod_list.clone();
+        let mut mod_hash_cache = self.mod_hash_cache.clone();
 
         let (tx, rx) = std::sync::mpsc::channel::<Message>();
 
         self.app_rx = Some(rx);
 
         tokio::task::spawn(async move {
-            struct ModrinthManager {
-                client: Ferinth,
+            struct ModManager {
+                modrinth: Ferinth,
             }
 
-            impl ModrinthManager {
-                async fn fetch_mod_data(&self, mod_list: &mut Vec<ModEntry>, tx: Sender<Message>) {
+            impl ModManager {
+                async fn fetch_mod_data(
+                    &self,
+                    mod_list: &mut Vec<ModEntry>,
+                    tx: Sender<Message>,
+                    mod_hash_cache: &mut HashMap<String, String>,
+                ) {
                     let list_length = mod_list.len();
+
                     for (position, entry) in mod_list.iter_mut().enumerate() {
                         tx.send(Message::FetchingMod {
                             context: FetchingModContext {
@@ -70,46 +97,65 @@ impl epi::App for UiApp {
                         })
                         .unwrap();
 
-                        let modrinth_id = self.get_modrinth_id(entry.hashes.sha1.as_str()).await;
+                        entry.modrinth_id = if let Some(id) = mod_hash_cache.get(&entry.hashes.sha1)
+                        {
+                            Some(id.to_owned())
+                        } else {
+                            if let Some(modrinth_id) =
+                                self.get_modrinth_id(entry.hashes.sha1.as_str()).await
+                            {
+                                mod_hash_cache
+                                    .insert(entry.hashes.sha1.to_owned(), modrinth_id.to_owned());
+                                Some(modrinth_id)
+                            } else {
+                                None
+                            }
+                        };
 
-                        entry.modrinth_id = Some(modrinth_id.clone());
+                        if let Some(modrinth_id) = &entry.modrinth_id {
+                            match self.modrinth.list_versions(modrinth_id.as_str()).await {
+                                Ok(version_data) => {
+                                    entry.sourced_from = Source::Modrinth;
+                                    // Assume its outdated unless proven otherwise
+                                    entry.state = FileState::Outdated;
 
-                        match self.client.list_versions(modrinth_id.as_str()).await {
-                            Ok(version_data) => {
-                                entry.sourced_from = Source::Modrinth;
-                                // Assume its outdated unless proven otherwise
-                                entry.state = FileState::Outdated;
-
-                                'outer: for file in &version_data[0].files {
-                                    if let Some(hash) = &file.hashes.sha1 {
-                                        if hash == &entry.hashes.sha1 {
-                                            entry.state = FileState::Current;
-                                            break 'outer;
+                                    'outer: for file in &version_data[0].files {
+                                        if let Some(hash) = &file.hashes.sha1 {
+                                            if hash == &entry.hashes.sha1 {
+                                                entry.state = FileState::Current;
+                                                break 'outer;
+                                            }
                                         }
                                     }
                                 }
-                            }
-                            Err(_err) => entry.state = FileState::Local,
-                        };
+                                Err(_err) => entry.state = FileState::Local,
+                            };
+                        }
                     }
                 }
 
-                async fn get_modrinth_id(&self, mod_hash: &str) -> String {
-                    match self.client.get_version_from_file_hash(mod_hash).await {
-                        Ok(result) => result.mod_id,
-                        Err(_err) => "No".into(),
+                async fn get_modrinth_id(&self, mod_hash: &str) -> Option<String> {
+                    match self.modrinth.get_version_from_file_hash(mod_hash).await {
+                        Ok(result) => Some(result.mod_id),
+                        Err(_err) => None,
                     }
                 }
             }
 
-            let modrinth = ModrinthManager {
-                client: Ferinth::new("Test app"),
+            let modrinth = ModManager {
+                modrinth: Ferinth::new("Test app"),
             };
 
             let tx_clone = tx.clone();
-            modrinth.fetch_mod_data(&mut mod_list, tx_clone).await;
+            modrinth
+                .fetch_mod_data(&mut mod_list, tx_clone, &mut mod_hash_cache)
+                .await;
 
-            tx.send(Message::UpdatedModList { list: mod_list }).unwrap();
+            tx.send(Message::UpdateModList {
+                mod_list,
+                mod_hash_cache,
+            })
+            .unwrap();
         });
     }
 
@@ -119,9 +165,13 @@ impl epi::App for UiApp {
                 Ok(message) => {
                     //A
                     match message {
-                        Message::UpdatedModList { list } => {
+                        Message::UpdateModList {
+                            mod_list,
+                            mod_hash_cache,
+                        } => {
                             self.fetching_info = None;
-                            self.mod_list = list;
+                            self.mod_list = mod_list;
+                            self.mod_hash_cache = mod_hash_cache;
                         }
                         Message::FetchingMod { context: mod_name } => {
                             self.fetching_info = Some(mod_name);

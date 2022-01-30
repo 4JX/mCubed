@@ -1,4 +1,4 @@
-use eframe::egui::{self, ColorImage};
+use eframe::egui;
 
 #[derive(Default, Clone)]
 pub struct ImageTextures {
@@ -62,7 +62,7 @@ impl ImageTextures {
     }
 }
 
-fn load_image_from_memory(image_data: &[u8]) -> Result<ColorImage, image::ImageError> {
+fn load_image_from_memory(image_data: &[u8]) -> Result<egui::ColorImage, image::ImageError> {
     use image::GenericImageView as _;
     let image = image::load_from_memory(image_data)?;
     let size = [image.width() as _, image.height() as _];
