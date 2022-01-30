@@ -70,6 +70,20 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cdb031dd78e28731d87d56cc8ffef4a8f36ca26c38fe2de700543e627f8a464a"
 
 [[package]]
+name = "back"
+version = "0.1.0"
+dependencies = [
+ "ferinth",
+ "hex",
+ "lazy_static",
+ "mc_mod_meta",
+ "regex",
+ "sha-1",
+ "sha2",
+ "tokio",
+]
+
+[[package]]
 name = "base64"
 version = "0.13.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -858,9 +872,9 @@ dependencies = [
 
 [[package]]
 name = "h2"
-version = "0.3.10"
+version = "0.3.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0c9de88456263e249e241fcd211d3954e2c9b0ef7ccfc235a444eb367cae3689"
+checksum = "d9f1f717ddc7b2ba36df7e871fd88db79326551d3d6f1fc406fbfd28b582ff8e"
 dependencies = [
  "bytes",
  "fnv",
@@ -1146,18 +1160,12 @@ dependencies = [
 name = "main"
 version = "0.1.0"
 dependencies = [
+ "back",
  "eframe",
- "ferinth",
- "hex",
  "image",
- "lazy_static",
  "mc_mod_meta",
- "regex",
  "serde",
  "serde_json",
- "sha-1",
- "sha2",
- "tokio",
 ]
 
 [[package]]
@@ -2000,19 +2008,7 @@ dependencies = [
  "mio 0.7.14",
  "num_cpus",
  "pin-project-lite",
- "tokio-macros",
  "winapi",
-]
-
-[[package]]
-name = "tokio-macros"
-version = "1.7.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b557f72f448c511a979e2564e55d74e6c4432fc96ff4f6241bc6bded342643b7"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn",
 ]
 
 [[package]]
