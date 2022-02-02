@@ -7,8 +7,8 @@ edition = "2021"
 
 [dependencies]
 tokio = { version = "1.16.1", features = ["rt", "rt-multi-thread"] }
-ferinth = "1.4.1"
-# ferinth = { path = "../../ferinth" }
+# ferinth = "1.4.1"
+ferinth = { path = "../../ferinth" }
 sha-1 = "0.10.0"
 sha2 = "0.10.1"
 mc_mod_meta = { path = "../mc_mod_meta" }

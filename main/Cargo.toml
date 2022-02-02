@@ -6,7 +6,6 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-mc_mod_meta = { path = "../mc_mod_meta" }
 # eframe = "0.16.0"
 # eframe = { git = "https://github.com/emilk/egui", rev = "366f544" }
 eframe = { path = "../../../Rust/egui/eframe", features = ["persistence"] }

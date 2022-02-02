@@ -1,40 +1,22 @@
-use std::collections::HashMap;
-
 use crate::mod_entry::ModEntry;
 
-pub enum ToFrontend {
-    // Emitted when starting and ending a list update
-    UpdateModList {
-        mod_list: Vec<ModEntry>,
-        mod_hash_cache: HashMap<String, String>,
-    },
-
-    // Gives information about the mod whose information is being fetched
-    FetchingMod {
-        context: FetchingModContext,
-    },
-}
-
 pub enum ToBackend {
-    // Emitted when starting and ending a list update
-    UpdateModList {
-        mod_list: Vec<ModEntry>,
-        mod_hash_cache: HashMap<String, String>,
-    },
-
-    UpdateMod {
-        version_id: String,
-        modloader: mc_mod_meta::ModLoader,
-    },
+    CheckForUpdates { mod_list: Vec<ModEntry> },
 }
 
-pub struct FetchingModContext {
-    // The name of the mod
+pub enum ToFrontend {
+    UpdateModList { mod_list: Vec<ModEntry> },
+
+    CheckForUpdatesProgress { progress: CheckProgress },
+}
+
+pub struct CheckProgress {
+    // The name of the project
     pub name: String,
 
     // What position is it in
     pub position: usize,
 
-    // The total amount of mods being fetched
-    pub total: usize,
+    // The total amount of projects being fetched
+    pub total_len: usize,
 }

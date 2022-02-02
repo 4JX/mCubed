@@ -651,9 +651,7 @@ dependencies = [
 
 [[package]]
 name = "ferinth"
-version = "1.4.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ef273e83f622315cfcea9f2e7e273e889ffec36bc20f5ae167e7dcecf3e39e99"
+version = "2.0.0"
 dependencies = [
  "bytes",
  "chrono",
@@ -1164,7 +1162,6 @@ dependencies = [
  "back",
  "eframe",
  "image",
- "mc_mod_meta",
  "serde",
  "serde_json",
 ]

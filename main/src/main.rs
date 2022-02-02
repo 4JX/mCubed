@@ -1,7 +1,7 @@
 use app_theme::AppTheme;
 use back::{
-    messages::{FetchingModContext, ToBackend, ToFrontend},
-    mod_entry::{FileState, ModEntry, Source},
+    messages::{CheckProgress, ToBackend, ToFrontend},
+    mod_entry::{FileState, ModEntry, ModLoader, Source},
     Back,
 };
 use image_utils::ImageTextures;
@@ -27,11 +27,16 @@ struct UiApp {
     theme: AppTheme,
     mod_list: Vec<ModEntry>,
     search_buf: String,
-    receiver: Option<Receiver<ToFrontend>>,
-    sender: Option<Sender<ToBackend>>,
-    fetching_info: Option<FetchingModContext>,
     images: ImageTextures,
     mod_hash_cache: HashMap<String, String>,
+    front_tx: Option<Sender<ToBackend>>,
+    back_rx: Option<Receiver<ToFrontend>>,
+    backend_context: BackendContext,
+}
+
+#[derive(Default)]
+struct BackendContext {
+    check_for_update_progress: Option<CheckProgress>,
 }
 
 impl epi::App for UiApp {
@@ -66,60 +71,44 @@ impl epi::App for UiApp {
         self.configure_style(ctx);
         self.images.load_images(ctx);
 
-        self.scan_mod_folder();
+        let (front_tx, front_rx) = std::sync::mpsc::channel::<ToBackend>();
+        let (back_tx, back_rx) = std::sync::mpsc::channel::<ToFrontend>();
 
-        let (backend_sender, frontend_reciever) = std::sync::mpsc::channel::<ToFrontend>();
-        let (frontend_sender, backend_reciever) = std::sync::mpsc::channel::<ToBackend>();
-
-        let backend = Back::new(backend_sender, backend_reciever);
-
+        let backend = Back::new(back_tx, front_rx);
         thread::spawn(move || {
             backend.init();
         });
 
-        self.sender = Some(frontend_sender);
-        self.receiver = Some(frontend_reciever);
+        self.front_tx = Some(front_tx);
+        self.back_rx = Some(back_rx);
 
-        if let Some(front_tx) = &self.sender {
-            front_tx
-                .send(ToBackend::UpdateModList {
+        self.scan_mod_folder();
+
+        if let Some(sender) = &self.front_tx {
+            sender
+                .send(ToBackend::CheckForUpdates {
                     mod_list: self.mod_list.clone(),
-                    mod_hash_cache: self.mod_hash_cache.clone(),
                 })
                 .unwrap();
         }
     }
 
     fn update(&mut self, ctx: &egui::Context, _frame: &epi::Frame) {
-        if let Some(rx) = &self.receiver {
+        if let Some(rx) = &self.back_rx {
             match rx.try_recv() {
-                Ok(message) => {
-                    //A
-                    match message {
-                        ToFrontend::UpdateModList {
-                            mod_list,
-                            mod_hash_cache,
-                        } => {
-                            self.fetching_info = None;
-                            self.mod_list = mod_list;
-                            self.mod_hash_cache = mod_hash_cache;
-                        }
-                        ToFrontend::FetchingMod { context: mod_name } => {
-                            self.fetching_info = Some(mod_name);
-                        }
+                Ok(message) => match message {
+                    ToFrontend::UpdateModList { mod_list } => {
+                        self.backend_context.check_for_update_progress = None;
+                        self.mod_list = mod_list;
                     }
-                }
+                    ToFrontend::CheckForUpdatesProgress { progress } => {
+                        self.backend_context.check_for_update_progress = Some(progress);
+                    }
+                },
                 Err(err) => {
-                    match err {
-                        std::sync::mpsc::TryRecvError::Empty => {
-                            //Non issue
-                        }
-                        std::sync::mpsc::TryRecvError::Disconnected => {
-                            // Eventually handle
-                        }
-                    }
+                    let _ = err;
                 }
-            };
+            }
         }
 
         egui::SidePanel::left("options_panel")
@@ -143,15 +132,15 @@ impl epi::App for UiApp {
 
             ui.add_space(5.);
 
-            if let Some(context) = &self.fetching_info {
-                let count = context.position as f32;
-                let total = context.total as f32;
+            if let Some(progress) = &self.backend_context.check_for_update_progress {
+                let count = progress.position as f32;
+                let total = progress.total_len as f32;
 
                 ui.vertical_centered(|ui| {
                     ui.style_mut().spacing.interact_size.y = 20.;
 
                     ProgressBar::new(count / total)
-                        .text(format!("Fetching info for mod \"{}\"", context.name))
+                        .text(format!("Fetching info for mod \"{}\"", progress.name))
                         .ui(ui);
                 });
 
@@ -265,7 +254,7 @@ impl epi::App for UiApp {
                                                 );
 
                                                 let text = match mod_entry.modloader {
-                                                    mc_mod_meta::ModLoader::Forge => {
+                                                    ModLoader::Forge => {
                                                         ui.image(
                                                             self.images.forge.as_mut().unwrap(),
                                                             Vec2::splat(image_size),
@@ -279,7 +268,7 @@ impl epi::App for UiApp {
                                                                 .forge,
                                                         )
                                                     }
-                                                    mc_mod_meta::ModLoader::Fabric => {
+                                                    ModLoader::Fabric => {
                                                         ui.image(
                                                             self.images.fabric.as_mut().unwrap(),
                                                             Vec2::splat(image_size),
@@ -306,7 +295,7 @@ impl epi::App for UiApp {
                                                 );
 
                                                 let text = match mod_entry.sourced_from {
-                                                    Source::Local => {
+                                                    Source::Local | Source::ExplicitLocal => {
                                                         ui.image(
                                                             self.images.local.as_mut().unwrap(),
                                                             Vec2::splat(image_size),
@@ -371,19 +360,6 @@ impl epi::App for UiApp {
                                                         ))
                                                         .clicked()
                                                     {
-                                                        self.sender
-                                                            .as_ref()
-                                                            .unwrap()
-                                                            .send(ToBackend::UpdateMod {
-                                                                version_id: mod_entry
-                                                                    .modrinth_data
-                                                                    .as_ref()
-                                                                    .unwrap()
-                                                                    .lastest_valid_version
-                                                                    .clone(),
-                                                                modloader: mod_entry.modloader,
-                                                            })
-                                                            .unwrap();
                                                     }
                                                 }
                                             });

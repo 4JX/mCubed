@@ -1,8 +1,11 @@
 use core::fmt;
 use std::{fs::File, io::Read};
 
+use ferinth::structures::version_structs::ModLoader as FeModLoader;
 use lazy_static::lazy_static;
-use mc_mod_meta::{common::MinecraftMod, fabric::FabricManifest, forge::ForgeManifest, ModLoader};
+use mc_mod_meta::{
+    common::MinecraftMod, fabric::FabricManifest, forge::ForgeManifest, ModLoader as McModLoader,
+};
 use regex::Regex;
 use sha2::Digest;
 
@@ -18,11 +21,43 @@ pub struct ModEntry {
     pub sourced_from: Source,
 }
 
+// Middleman "ModLoader" enum to convert between those of the other crates
+#[derive(Clone, Debug)]
+pub enum ModLoader {
+    Forge,
+    Fabric,
+}
+
+impl fmt::Display for ModLoader {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        fmt::Debug::fmt(self, f)
+    }
+}
+
+impl From<ModLoader> for FeModLoader {
+    fn from(modloader: ModLoader) -> Self {
+        match modloader {
+            ModLoader::Forge => FeModLoader::Forge,
+            ModLoader::Fabric => FeModLoader::Fabric,
+        }
+    }
+}
+
+impl From<McModLoader> for ModLoader {
+    fn from(modloader: McModLoader) -> Self {
+        match modloader {
+            McModLoader::Forge => ModLoader::Forge,
+            McModLoader::Fabric => ModLoader::Fabric,
+        }
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct ModrinthData {
     pub id: String,
-    pub lastest_valid_version: String,
+    pub latest_valid_version: Option<String>,
 }
+
 #[derive(Clone, Debug)]
 pub struct Hashes {
     pub sha1: String,
@@ -39,9 +74,10 @@ pub enum FileState {
 }
 
 #[allow(dead_code)]
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Source {
     Local,
+    ExplicitLocal,
     Modrinth,
     CurseForge,
 }
@@ -65,7 +101,7 @@ impl ModEntry {
             id,
             version,
             display_name,
-            modloader,
+            modloader: modloader.into(),
             hashes: hashes.clone(),
             modrinth_data,
             state: FileState::Local,
@@ -114,7 +150,7 @@ impl ModEntry {
         };
 
         let version: String = VERSION_REGEX.captures(self.version.as_str()).map_or_else(
-            || "Invalid".to_string(),
+            || self.version.clone(),
             |matches| matches.get(0).unwrap().as_str().to_string(),
         );
 
