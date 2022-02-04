@@ -13,6 +13,8 @@ mod modrinth;
 pub mod messages;
 pub mod mod_entry;
 
+pub use daedalus::minecraft::Version as GameVersion;
+
 pub struct Back {
     mod_list: Vec<ModEntry>,
     folder_path: PathBuf,
@@ -45,9 +47,9 @@ impl Back {
             loop {
                 match self.front_rx.recv() {
                     Ok(message) => match message {
-                        ToBackend::CheckForUpdates { mut mod_list } => {
-                            let total_len = mod_list.len();
-                            for (position, mod_entry) in mod_list.iter_mut().enumerate() {
+                        ToBackend::CheckForUpdates { game_version } => {
+                            let total_len = self.mod_list.len();
+                            for (position, mod_entry) in self.mod_list.iter_mut().enumerate() {
                                 // Update the frontend on whats happening
                                 self.back_tx
                                     .send(ToFrontend::CheckForUpdatesProgress {
@@ -59,13 +61,18 @@ impl Back {
                                     })
                                     .unwrap();
 
-                                self.modrinth.check_for_updates(mod_entry).await;
+                                self.modrinth
+                                    .check_for_updates(&game_version, mod_entry)
+                                    .await;
                             }
 
                             self.back_tx
-                                .send(ToFrontend::UpdateModList { mod_list })
+                                .send(ToFrontend::UpdateModList {
+                                    mod_list: self.mod_list.clone(),
+                                })
                                 .unwrap();
                         }
+
                         ToBackend::ScanFolder => {
                             self.mod_list.clear();
 
@@ -73,7 +80,6 @@ impl Back {
 
                             for entry in read_dir {
                                 let path = entry.unwrap().path();
-                                dbg!(&path);
 
                                 // Minecraft does not really care about mods within folders, therefore skip anything that is not a file
                                 if path.is_file() {
@@ -86,6 +92,18 @@ impl Back {
                             self.back_tx
                                 .send(ToFrontend::UpdateModList {
                                     mod_list: self.mod_list.clone(),
+                                })
+                                .unwrap();
+                        }
+
+                        ToBackend::GetVersionMetadata => {
+                            let manifest = daedalus::minecraft::fetch_version_manifest(None)
+                                .await
+                                .unwrap();
+
+                            self.back_tx
+                                .send(ToFrontend::SetVersionMetadata {
+                                    version_list: manifest.versions,
                                 })
                                 .unwrap();
                         }

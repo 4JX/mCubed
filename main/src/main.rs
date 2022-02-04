@@ -2,7 +2,7 @@ use app_theme::AppTheme;
 use back::{
     messages::{CheckProgress, ToBackend, ToFrontend},
     mod_entry::{FileState, ModEntry, ModLoader, Source},
-    Back,
+    Back, GameVersion,
 };
 use image_utils::ImageTextures;
 
@@ -26,7 +26,9 @@ mod text_utils;
 struct UiApp {
     theme: AppTheme,
     mod_list: Vec<ModEntry>,
+    game_version_list: Vec<GameVersion>,
     search_buf: String,
+    selected_version: Option<GameVersion>,
     images: ImageTextures,
     mod_hash_cache: HashMap<String, String>,
     front_tx: Option<Sender<ToBackend>>,
@@ -94,17 +96,13 @@ impl epi::App for UiApp {
                             self.mod_list = mod_list;
                         }
                         _ => {
-                            unreachable!()
+                            unreachable!();
                         }
                     }
                 }
             }
 
-            sender
-                .send(ToBackend::CheckForUpdates {
-                    mod_list: self.mod_list.clone(),
-                })
-                .unwrap();
+            sender.send(ToBackend::GetVersionMetadata).unwrap();
         }
     }
 
@@ -112,6 +110,10 @@ impl epi::App for UiApp {
         if let Some(rx) = &self.back_rx {
             match rx.try_recv() {
                 Ok(message) => match message {
+                    ToFrontend::SetVersionMetadata { version_list } => {
+                        self.selected_version = Some(version_list[0].clone());
+                        self.game_version_list = version_list;
+                    }
                     ToFrontend::UpdateModList { mod_list } => {
                         self.backend_context.check_for_update_progress = None;
                         self.mod_list = mod_list;
@@ -131,8 +133,43 @@ impl epi::App for UiApp {
             .max_width(180.)
             .show(ctx, |ui| {
                 ui.vertical_centered_justified(|ui| {
-                    ui.label("Placeholder");
+                    egui::ComboBox::from_id_source("version-combo")
+                        .selected_text(format!("{:?}", {
+                            if let Some(selected_value) = self.selected_version.as_ref() {
+                                selected_value.id.as_str()
+                            } else if self.game_version_list.is_empty() {
+                                "No"
+                            } else {
+                                self.selected_version = Some(self.game_version_list[0].clone());
+                                self.selected_version.as_ref().unwrap().id.as_str()
+                            }
+                        }))
+                        .show_ui(ui, |ui| {
+                            for version in &self.game_version_list {
+                                ui.selectable_value(
+                                    &mut self.selected_version,
+                                    Some(version.clone()),
+                                    &version.id,
+                                );
+                            }
+                        });
                 });
+
+                if ui.button("Refresh").clicked() {
+                    if let Some(tx) = &self.front_tx {
+                        if let Some(version) = &self.selected_version {
+                            tx.send(ToBackend::CheckForUpdates {
+                                game_version: version.id.clone(),
+                            })
+                            .unwrap();
+                        } else {
+                            tx.send(ToBackend::CheckForUpdates {
+                                game_version: self.game_version_list[0].id.clone(),
+                            })
+                            .unwrap();
+                        }
+                    }
+                }
             });
 
         egui::CentralPanel::default().show(ctx, |ui| {
@@ -148,7 +185,7 @@ impl epi::App for UiApp {
             ui.add_space(5.);
 
             if let Some(progress) = &self.backend_context.check_for_update_progress {
-                let count = progress.position as f32;
+                let count = progress.position as f32 + 1.0;
                 let total = progress.total_len as f32;
 
                 ui.vertical_centered(|ui| {

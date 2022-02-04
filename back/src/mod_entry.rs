@@ -37,8 +37,8 @@ impl fmt::Display for ModLoader {
 impl From<ModLoader> for FeModLoader {
     fn from(modloader: ModLoader) -> Self {
         match modloader {
-            ModLoader::Forge => FeModLoader::Forge,
-            ModLoader::Fabric => FeModLoader::Fabric,
+            ModLoader::Forge => Self::Forge,
+            ModLoader::Fabric => Self::Fabric,
         }
     }
 }
@@ -46,8 +46,8 @@ impl From<ModLoader> for FeModLoader {
 impl From<McModLoader> for ModLoader {
     fn from(modloader: McModLoader) -> Self {
         match modloader {
-            McModLoader::Forge => ModLoader::Forge,
-            McModLoader::Fabric => ModLoader::Fabric,
+            McModLoader::Forge => Self::Forge,
+            McModLoader::Fabric => Self::Fabric,
         }
     }
 }

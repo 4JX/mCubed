@@ -1,11 +1,18 @@
+use daedalus::minecraft::Version;
+
 use crate::mod_entry::ModEntry;
 
 pub enum ToBackend {
     ScanFolder,
-    CheckForUpdates { mod_list: Vec<ModEntry> },
+
+    CheckForUpdates { game_version: String },
+
+    GetVersionMetadata,
 }
 
 pub enum ToFrontend {
+    SetVersionMetadata { version_list: Vec<Version> },
+
     UpdateModList { mod_list: Vec<ModEntry> },
 
     CheckForUpdatesProgress { progress: CheckProgress },

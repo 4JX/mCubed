@@ -25,7 +25,7 @@ impl Modrinth {
         }
     }
 
-    pub async fn check_for_updates(&self, mod_entry: &mut ModEntry) {
+    pub async fn check_for_updates(&self, game_version: &str, mod_entry: &mut ModEntry) {
         if mod_entry.sourced_from == Source::Modrinth || mod_entry.sourced_from == Source::Local {
             // Get and set the modrinth ID, without one the operation cannot proceed
             if mod_entry.modrinth_data.is_none() {
@@ -34,7 +34,9 @@ impl Modrinth {
                     mod_entry.modrinth_data = Some(ModrinthData {
                         id,
                         latest_valid_version: None,
-                    })
+                    });
+
+                    mod_entry.sourced_from = Source::Modrinth;
                 }
             }
 
@@ -42,7 +44,9 @@ impl Modrinth {
             if let Some(modrinth_data) = &mut mod_entry.modrinth_data {
                 let query_params = ListVersionsParams {
                     loaders: Some(mod_entry.modloader.clone().into()),
-                    game_versions: Some(vec!["1.18.1"].iter().map(ToString::to_string).collect()),
+                    game_versions: Some(
+                        vec![game_version].iter().map(ToString::to_string).collect(),
+                    ),
                     featured: None,
                 };
 
@@ -54,8 +58,7 @@ impl Modrinth {
                 {
                     Ok(version_list) => {
                         if !version_list.is_empty() {
-                            // There are results, set the source to Modrinth and consider the state to be up to date unless proven otherwise
-                            mod_entry.sourced_from = Source::Modrinth;
+                            // There are results, consider the state to be up to date unless proven otherwise
                             mod_entry.state = FileState::Current;
 
                             let filtered_list: Vec<&Version> = version_list
