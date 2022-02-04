@@ -1,6 +1,7 @@
 use crate::mod_entry::ModEntry;
 
 pub enum ToBackend {
+    ScanFolder,
     CheckForUpdates { mod_list: Vec<ModEntry> },
 }
 

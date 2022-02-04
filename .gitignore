@@ -2,4 +2,5 @@ target
 .history
 .vscode
 mods/*
+mods-bak/*
 main/fonts/inter/original_zip

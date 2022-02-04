@@ -74,17 +74,32 @@ impl epi::App for UiApp {
         let (front_tx, front_rx) = std::sync::mpsc::channel::<ToBackend>();
         let (back_tx, back_rx) = std::sync::mpsc::channel::<ToFrontend>();
 
-        let backend = Back::new(back_tx, front_rx);
-        thread::spawn(move || {
-            backend.init();
+        let dir = fs::canonicalize("./mods/").unwrap();
+
+        thread::spawn(|| {
+            Back::new(dir, back_tx, front_rx).init();
         });
 
         self.front_tx = Some(front_tx);
         self.back_rx = Some(back_rx);
 
-        self.scan_mod_folder();
-
         if let Some(sender) = &self.front_tx {
+            sender.send(ToBackend::ScanFolder).unwrap();
+
+            if let Some(rx) = &self.back_rx {
+                if let Ok(message) = rx.recv() {
+                    match message {
+                        ToFrontend::UpdateModList { mod_list } => {
+                            self.backend_context.check_for_update_progress = None;
+                            self.mod_list = mod_list;
+                        }
+                        _ => {
+                            unreachable!()
+                        }
+                    }
+                }
+            }
+
             sender
                 .send(ToBackend::CheckForUpdates {
                     mod_list: self.mod_list.clone(),
@@ -140,7 +155,10 @@ impl epi::App for UiApp {
                     ui.style_mut().spacing.interact_size.y = 20.;
 
                     ProgressBar::new(count / total)
-                        .text(format!("Fetching info for mod \"{}\"", progress.name))
+                        .text(format!(
+                            "({}/{}) Fetching info for mod \"{}\"",
+                            count, total, progress.name,
+                        ))
                         .ui(ui);
                 });
 
@@ -156,6 +174,8 @@ impl epi::App for UiApp {
                     ..Default::default()
                 }
                 .show(ui, |ui| {
+                    ui.set_height(ui.available_height());
+
                     let filtered_list: Vec<&ModEntry> = self
                         .mod_list
                         .iter()
@@ -168,9 +188,13 @@ impl epi::App for UiApp {
                         .collect();
 
                     if self.mod_list.is_empty() {
-                        ui.label("There are no mods to display");
+                        ui.centered_and_justified(|ui| {
+                            ui.label("There are no mods to display");
+                        });
                     } else if filtered_list.is_empty() {
-                        ui.label("No mods match your search");
+                        ui.centered_and_justified(|ui| {
+                            ui.label("No mods match your search");
+                        });
                     } else {
                         egui::ScrollArea::vertical().show(ui, |ui| {
                             ui.style_mut().spacing.item_spacing.y = 10.0;
@@ -376,22 +400,6 @@ impl epi::App for UiApp {
 }
 
 impl UiApp {
-    fn scan_mod_folder(&mut self) {
-        self.mod_list.clear();
-
-        let dir = fs::canonicalize("./mods/").unwrap();
-
-        let read_dir = fs::read_dir(dir).unwrap();
-
-        for path in read_dir {
-            let path = path.unwrap().path();
-
-            let file = fs::File::open(&path).unwrap();
-
-            self.mod_list.append(&mut ModEntry::from_file(file));
-        }
-    }
-
     fn configure_style(&self, ctx: &Context) {
         let style = Style {
             text_styles: text_utils::default_text_styles(),

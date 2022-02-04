@@ -1,6 +1,11 @@
-use std::sync::mpsc::{Receiver, Sender};
+use std::{
+    fs,
+    path::PathBuf,
+    sync::mpsc::{Receiver, Sender},
+};
 
 use messages::{CheckProgress, ToBackend, ToFrontend};
+use mod_entry::ModEntry;
 use modrinth::Modrinth;
 use tokio::runtime::Runtime;
 mod modrinth;
@@ -9,6 +14,8 @@ pub mod messages;
 pub mod mod_entry;
 
 pub struct Back {
+    mod_list: Vec<ModEntry>,
+    folder_path: PathBuf,
     rt: Runtime,
     modrinth: Modrinth,
     back_tx: Sender<ToFrontend>,
@@ -16,10 +23,16 @@ pub struct Back {
 }
 
 impl Back {
-    pub fn new(back_tx: Sender<ToFrontend>, front_rx: Receiver<ToBackend>) -> Self {
+    pub fn new(
+        folder_path: PathBuf,
+        back_tx: Sender<ToFrontend>,
+        front_rx: Receiver<ToBackend>,
+    ) -> Self {
         let rt = tokio::runtime::Runtime::new().unwrap();
 
         Self {
+            mod_list: Default::default(),
+            folder_path,
             rt,
             modrinth: Default::default(),
             back_tx,
@@ -27,7 +40,7 @@ impl Back {
         }
     }
 
-    pub fn init(&self) {
+    pub fn init(&mut self) {
         self.rt.block_on(async {
             loop {
                 match self.front_rx.recv() {
@@ -51,6 +64,29 @@ impl Back {
 
                             self.back_tx
                                 .send(ToFrontend::UpdateModList { mod_list })
+                                .unwrap();
+                        }
+                        ToBackend::ScanFolder => {
+                            self.mod_list.clear();
+
+                            let read_dir = fs::read_dir(&self.folder_path).unwrap();
+
+                            for entry in read_dir {
+                                let path = entry.unwrap().path();
+                                dbg!(&path);
+
+                                // Minecraft does not really care about mods within folders, therefore skip anything that is not a file
+                                if path.is_file() {
+                                    let file = fs::File::open(&path).unwrap();
+
+                                    self.mod_list.append(&mut ModEntry::from_file(file));
+                                }
+                            }
+
+                            self.back_tx
+                                .send(ToFrontend::UpdateModList {
+                                    mod_list: self.mod_list.clone(),
+                                })
                                 .unwrap();
                         }
                     },

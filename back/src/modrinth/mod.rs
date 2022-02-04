@@ -1,5 +1,5 @@
 use ferinth::{
-    structures::version_structs::{ListVersionsParams, VersionType},
+    structures::version_structs::{ListVersionsParams, Version, VersionType},
     Ferinth,
 };
 
@@ -18,12 +18,8 @@ impl Default for Modrinth {
 }
 
 impl Modrinth {
-    async fn get_modrinth_id(&self, mod_hash: &String) -> Option<String> {
-        match self
-            .ferinth
-            .get_version_from_file_hash(mod_hash.as_str())
-            .await
-        {
+    async fn get_modrinth_id(&self, mod_hash: &str) -> Option<String> {
+        match self.ferinth.get_version_from_file_hash(mod_hash).await {
             Ok(result) => Some(result.project_id),
             Err(_err) => None,
         }
@@ -32,7 +28,7 @@ impl Modrinth {
     pub async fn check_for_updates(&self, mod_entry: &mut ModEntry) {
         if mod_entry.sourced_from == Source::Modrinth || mod_entry.sourced_from == Source::Local {
             // Get and set the modrinth ID, without one the operation cannot proceed
-            if let None = &mod_entry.modrinth_data {
+            if mod_entry.modrinth_data.is_none() {
                 let modrinth_id = self.get_modrinth_id(&mod_entry.hashes.sha1).await;
                 if let Some(id) = modrinth_id {
                     mod_entry.modrinth_data = Some(ModrinthData {
@@ -46,7 +42,7 @@ impl Modrinth {
             if let Some(modrinth_data) = &mut mod_entry.modrinth_data {
                 let query_params = ListVersionsParams {
                     loaders: Some(mod_entry.modloader.clone().into()),
-                    game_versions: None,
+                    game_versions: Some(vec!["1.18.1"].iter().map(ToString::to_string).collect()),
                     featured: None,
                 };
 
@@ -62,16 +58,26 @@ impl Modrinth {
                             mod_entry.sourced_from = Source::Modrinth;
                             mod_entry.state = FileState::Current;
 
-                            'find_version_loop: for version in version_list {
-                                if version
-                                    .loaders
-                                    .contains(&mod_entry.modloader.to_string().to_lowercase())
-                                    && version.version_type == VersionType::Release
+                            let filtered_list: Vec<&Version> = version_list
+                                .iter()
+                                .filter(|version| {
+                                    version.version_type == VersionType::Release
+                                        && version.loaders.contains(
+                                            &mod_entry.modloader.to_string().to_lowercase(),
+                                        )
+                                        && !version.files.is_empty()
+                                })
+                                .collect();
+
+                            if !filtered_list.is_empty() {
                                 {
-                                    if !version.files.is_empty() {
-                                        modrinth_data.latest_valid_version = Some(version.id);
+                                    // If the version being checked contains a file with the hash of our local copy, it means it is already on the latest possible version
+                                    if !filtered_list[0].files.iter().any(|file| {
+                                        file.hashes.sha1 == Some(mod_entry.hashes.sha1.clone())
+                                    }) {
+                                        modrinth_data.latest_valid_version =
+                                            Some(filtered_list[0].id.clone());
                                         mod_entry.state = FileState::Outdated;
-                                        break 'find_version_loop;
                                     }
                                 }
                             }
