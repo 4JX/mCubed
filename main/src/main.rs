@@ -61,7 +61,7 @@ impl epi::App for UiApp {
     fn setup(
         &mut self,
         ctx: &egui::Context,
-        _frame: &epi::Frame,
+        frame: &epi::Frame,
         storage: Option<&dyn epi::Storage>,
     ) {
         if let Some(storage) = storage {
@@ -80,8 +80,9 @@ impl epi::App for UiApp {
 
         let dir = fs::canonicalize("./mods/").unwrap();
 
-        thread::spawn(|| {
-            Back::new(dir, back_tx, front_rx).init();
+        let frame_clone = frame.clone();
+        thread::spawn(move || {
+            Back::new(dir, back_tx, front_rx, Some(frame_clone)).init();
         });
 
         self.front_tx = Some(front_tx);
@@ -115,7 +116,6 @@ impl epi::App for UiApp {
                     ToFrontend::SetVersionMetadata { version_list } => {
                         self.selected_version = Some(version_list[0].clone());
                         self.game_version_list = version_list;
-                        ctx.request_repaint();
                     }
                     ToFrontend::UpdateModList { mod_list } => {
                         self.backend_context.check_for_update_progress = None;
@@ -204,7 +204,6 @@ impl epi::App for UiApp {
                 });
 
                 ui.add_space(5.);
-                ctx.request_repaint();
             }
 
             ui.vertical_centered_justified(|ui| {

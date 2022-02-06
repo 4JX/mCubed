@@ -18,3 +18,4 @@ hex = "0.4.3"
 bytes = "1.1.0"
 # daedalus = "0.1.14"
 daedalus = { path = "../../daedalus/daedalus" }
+epi = { path = "../../../Rust/egui/epi" }
