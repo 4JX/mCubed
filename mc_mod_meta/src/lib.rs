@@ -19,12 +19,14 @@ pub fn get_modloader(file: &File) -> AppResult<ModLoader> {
 
     let names: Vec<String> = archive.file_names().map(ToString::to_string).collect();
 
-    if names.contains(&FORGE_META_PATH.to_string()) {
-        Ok(ModLoader::Forge)
-    } else if names.contains(&FABRIC_META_PATH.to_string()) {
-        Ok(ModLoader::Fabric)
-    } else {
-        Err(error::Error::InvalidModFile)
+    match (
+        names.contains(&FORGE_META_PATH.to_string()),
+        names.contains(&FABRIC_META_PATH.to_string()),
+    ) {
+        (true, true) => Ok(ModLoader::Both),
+        (true, false) => Ok(ModLoader::Forge),
+        (false, true) => Ok(ModLoader::Fabric),
+        (false, false) => Err(error::Error::InvalidModFile),
     }
 }
 
@@ -32,6 +34,7 @@ pub fn get_modloader(file: &File) -> AppResult<ModLoader> {
 pub enum ModLoader {
     Forge,
     Fabric,
+    Both,
 }
 
 impl fmt::Display for ModLoader {

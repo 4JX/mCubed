@@ -27,6 +27,7 @@ pub struct ModEntry {
 pub enum ModLoader {
     Forge,
     Fabric,
+    Both,
 }
 
 impl fmt::Display for ModLoader {
@@ -40,6 +41,7 @@ impl From<ModLoader> for FeModLoader {
         match modloader {
             ModLoader::Forge => Self::Forge,
             ModLoader::Fabric => Self::Fabric,
+            ModLoader::Both => Self::Fabric,
         }
     }
 }
@@ -49,6 +51,7 @@ impl From<McModLoader> for ModLoader {
         match modloader {
             McModLoader::Forge => Self::Forge,
             McModLoader::Fabric => Self::Fabric,
+            McModLoader::Both => Self::Both,
         }
     }
 }
@@ -121,6 +124,16 @@ impl ModEntry {
                 mc_mod_meta::ModLoader::Fabric => {
                     let mod_meta = FabricManifest::from_file(file).unwrap();
                     let mc_mod = MinecraftMod::from(mod_meta);
+                    mod_vec.push(Self::new(mc_mod, &hashes, None));
+                }
+
+                mc_mod_meta::ModLoader::Both => {
+                    // Given the mod has entries for both forge and fabric, simplify things by just displaying one entry with the fabric data
+                    let mod_meta = FabricManifest::from_file(file).unwrap();
+                    let mut mc_mod = MinecraftMod::from(mod_meta);
+
+                    // However, we are going to replace the modloader with the "Both" type
+                    mc_mod.modloader = mc_mod_meta::ModLoader::Both;
                     mod_vec.push(Self::new(mc_mod, &hashes, None));
                 }
             },

@@ -151,6 +151,7 @@ impl Default for SourceTheme {
 pub struct ModloaderTheme {
     pub forge: Color32,
     pub fabric: Color32,
+    pub forge_and_fabric: Color32,
 }
 
 impl Default for ModloaderTheme {
@@ -158,6 +159,7 @@ impl Default for ModloaderTheme {
         Self {
             forge: Color32::from_rgb(233, 175, 110),
             fabric: Color32::from_rgb(232, 221, 186),
+            forge_and_fabric: Color32::from_rgb(234, 201, 123),
         }
     }
 }

@@ -347,6 +347,23 @@ impl epi::App for UiApp {
                                                                 .fabric,
                                                         )
                                                     }
+                                                    ModLoader::Both => {
+                                                        ui.image(
+                                                            self.images
+                                                                .forge_and_fabric
+                                                                .as_mut()
+                                                                .unwrap(),
+                                                            Vec2::splat(image_size),
+                                                        );
+
+                                                        raw_text.color(
+                                                            self.theme
+                                                                .colors
+                                                                .mod_card
+                                                                .modloader
+                                                                .forge_and_fabric,
+                                                        )
+                                                    }
                                                 };
 
                                                 ui.add_space(5.);

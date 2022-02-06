@@ -42,7 +42,7 @@ impl ForgeManifest {
     pub fn from_file(file: &mut File) -> AppResult<Self> {
         let modloader = get_modloader(file)?;
 
-        if modloader == ModLoader::Forge {
+        if modloader == ModLoader::Forge || modloader == ModLoader::Both {
             let reader = BufReader::new(file);
 
             let mut archive = zip::ZipArchive::new(reader)?;

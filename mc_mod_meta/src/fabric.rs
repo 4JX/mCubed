@@ -66,7 +66,7 @@ impl FabricManifest {
     pub fn from_file(file: &mut File) -> AppResult<Self> {
         let modloader = get_modloader(file)?;
 
-        if modloader == ModLoader::Fabric {
+        if modloader == ModLoader::Fabric || modloader == ModLoader::Both {
             let reader = BufReader::new(file);
 
             let mut archive = zip::ZipArchive::new(reader)?;
