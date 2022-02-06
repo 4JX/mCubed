@@ -8,6 +8,8 @@ pub enum ToBackend {
     CheckForUpdates { game_version: String },
 
     GetVersionMetadata,
+
+    UpdateMod { mod_entry: ModEntry },
 }
 
 pub enum ToFrontend {

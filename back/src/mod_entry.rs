@@ -1,13 +1,14 @@
 use core::fmt;
-use std::{fs::File, io::Read};
+use std::fs::File;
 
-use ferinth::structures::version_structs::ModLoader as FeModLoader;
+use ferinth::structures::version_structs::{ModLoader as FeModLoader, VersionFile};
 use lazy_static::lazy_static;
 use mc_mod_meta::{
     common::MinecraftMod, fabric::FabricManifest, forge::ForgeManifest, ModLoader as McModLoader,
 };
 use regex::Regex;
-use sha2::Digest;
+
+use crate::hash::Hashes;
 
 #[derive(Clone, Debug)]
 pub struct ModEntry {
@@ -55,13 +56,7 @@ impl From<McModLoader> for ModLoader {
 #[derive(Clone, Debug)]
 pub struct ModrinthData {
     pub id: String,
-    pub latest_valid_version: Option<String>,
-}
-
-#[derive(Clone, Debug)]
-pub struct Hashes {
-    pub sha1: String,
-    pub sha512: String,
+    pub latest_valid_version: Option<VersionFile>,
 }
 
 #[allow(dead_code)]
@@ -109,19 +104,12 @@ impl ModEntry {
         }
     }
 
-    pub fn from_file(mut file: File) -> Vec<Self> {
-        let metadata = file.metadata().unwrap();
-        let mut buf = vec![0; metadata.len() as usize];
-
-        std::fs::File::read(&mut file, &mut buf).unwrap();
-
-        let sha1 = hex::encode(sha1::Sha1::digest(&buf));
-        let sha512 = hex::encode(sha2::Sha512::digest(&buf));
-        let hashes = Hashes { sha1, sha512 };
+    pub fn from_file(file: &mut File) -> Vec<Self> {
+        let hashes = Hashes::get_hashes_from_file(file);
 
         let mut mod_vec = Vec::new();
 
-        match mc_mod_meta::get_modloader(&file) {
+        match mc_mod_meta::get_modloader(file) {
             Ok(modloader) => match modloader {
                 mc_mod_meta::ModLoader::Forge => {
                     let forge_meta = ForgeManifest::from_file(file).unwrap();

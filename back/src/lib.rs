@@ -1,15 +1,18 @@
 use std::{
-    fs,
+    fs::{self, OpenOptions},
+    io::Write,
     path::PathBuf,
     sync::mpsc::{Receiver, Sender},
 };
 
+use hash::Hashes;
 use messages::{CheckProgress, ToBackend, ToFrontend};
 use mod_entry::ModEntry;
 use modrinth::Modrinth;
 use tokio::runtime::Runtime;
 mod modrinth;
 
+mod hash;
 pub mod messages;
 pub mod mod_entry;
 
@@ -78,14 +81,14 @@ impl Back {
 
                             let read_dir = fs::read_dir(&self.folder_path).unwrap();
 
-                            for entry in read_dir {
-                                let path = entry.unwrap().path();
+                            for file_entry in read_dir {
+                                let path = file_entry.unwrap().path();
 
                                 // Minecraft does not really care about mods within folders, therefore skip anything that is not a file
                                 if path.is_file() {
-                                    let file = fs::File::open(&path).unwrap();
+                                    let mut file = fs::File::open(&path).unwrap();
 
-                                    self.mod_list.append(&mut ModEntry::from_file(file));
+                                    self.mod_list.append(&mut ModEntry::from_file(&mut file));
                                 }
                             }
 
@@ -106,6 +109,80 @@ impl Back {
                                     version_list: manifest.versions,
                                 })
                                 .unwrap();
+                        }
+
+                        ToBackend::UpdateMod { mod_entry } => {
+                            if let Some(bytes) = self.modrinth.update_mod(&mod_entry).await {
+                                let read_dir = fs::read_dir(&self.folder_path).unwrap();
+
+                                'file_loop: for file_entry in read_dir {
+                                    let path = file_entry.unwrap().path();
+
+                                    if path.is_file() {
+                                        let mut file = fs::File::open(&path).unwrap();
+
+                                        let hashes = Hashes::get_hashes_from_file(&mut file);
+
+                                        // We found the file the mod_entry belongs to
+                                        if mod_entry.hashes.sha1 == hashes.sha1 {
+                                            std::fs::remove_file(path).unwrap();
+
+                                            // The data is guaranteed to exist, unwrapping here is fine
+                                            let path = self.folder_path.join(format!(
+                                                "{}-{}.jar",
+                                                mod_entry.id,
+                                                mod_entry
+                                                    .modrinth_data
+                                                    .as_ref()
+                                                    .unwrap()
+                                                    .latest_valid_version
+                                                    .as_ref()
+                                                    .unwrap()
+                                                    .filename
+                                            ));
+
+                                            // Essentially fs::File::create(path) but with read access as well
+                                            let mut new_mod_file = OpenOptions::new()
+                                                .read(true)
+                                                .write(true)
+                                                .create(true)
+                                                .truncate(true)
+                                                .open(path)
+                                                .unwrap();
+
+                                            new_mod_file.write_all(&bytes).unwrap();
+
+                                            let mut new_entries =
+                                                ModEntry::from_file(&mut new_mod_file);
+
+                                            for new_mod_entry in new_entries.iter_mut() {
+                                                // Ensure the data for the entry is kept
+                                                new_mod_entry.modrinth_data =
+                                                    mod_entry.modrinth_data.clone();
+                                                new_mod_entry.sourced_from =
+                                                    mod_entry.sourced_from.clone();
+
+                                                for list_entry in self.mod_list.iter_mut() {
+                                                    if list_entry.hashes.sha1
+                                                        == mod_entry.hashes.sha1
+                                                        && list_entry.id == new_mod_entry.id.clone()
+                                                    {
+                                                        *list_entry = new_mod_entry.clone();
+                                                    }
+                                                }
+                                            }
+
+                                            self.back_tx
+                                                .send(ToFrontend::UpdateModList {
+                                                    mod_list: self.mod_list.clone(),
+                                                })
+                                                .unwrap();
+
+                                            break 'file_loop;
+                                        }
+                                    }
+                                }
+                            };
                         }
                     },
                     Err(err) => {

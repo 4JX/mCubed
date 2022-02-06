@@ -35,11 +35,11 @@ pub struct FabricManifest {
     pub access_widener: Option<String>,
 
     //Dependency resolution
-    pub depends: Option<HashMap<String, String>>,
-    pub recommends: Option<HashMap<String, String>>,
-    pub suggests: Option<HashMap<String, String>>,
-    pub breaks: Option<HashMap<String, String>>,
-    pub conflicts: Option<HashMap<String, String>>,
+    pub depends: Option<HashMap<String, DependencyVersion>>,
+    pub recommends: Option<HashMap<String, DependencyVersion>>,
+    pub suggests: Option<HashMap<String, DependencyVersion>>,
+    pub breaks: Option<HashMap<String, DependencyVersion>>,
+    pub conflicts: Option<HashMap<String, DependencyVersion>>,
 
     //Metadata
     pub name: Option<String>,
@@ -63,8 +63,8 @@ impl FabricManifest {
         }
     }
 
-    pub fn from_file(file: File) -> AppResult<Self> {
-        let modloader = get_modloader(&file)?;
+    pub fn from_file(file: &mut File) -> AppResult<Self> {
+        let modloader = get_modloader(file)?;
 
         if modloader == ModLoader::Fabric {
             let reader = BufReader::new(file);
@@ -147,6 +147,14 @@ pub struct MixinObject {
     pub environment: Environment,
 }
 
+//* Dependency resolution
+#[derive(Deserialize, Clone)]
+#[serde(untagged)]
+pub enum DependencyVersion {
+    Single(String),
+    Multiple(Vec<String>),
+}
+
 //* Metadata
 #[derive(Deserialize, Clone)]
 pub struct ContactObject {
@@ -176,6 +184,6 @@ pub struct AuthorObject {
 #[derive(Deserialize, Clone)]
 #[serde(untagged)]
 pub enum License {
-    Simple(String),
+    Single(String),
     Multiple(Vec<String>),
 }

@@ -14,7 +14,9 @@ use std::{
 };
 
 use eframe::{
-    egui::{self, style::DebugOptions, Context, ProgressBar, RichText, Style, Vec2, Widget},
+    egui::{
+        self, style::DebugOptions, Context, ProgressBar, RichText, Rounding, Style, Vec2, Widget,
+    },
     epi,
 };
 
@@ -113,10 +115,12 @@ impl epi::App for UiApp {
                     ToFrontend::SetVersionMetadata { version_list } => {
                         self.selected_version = Some(version_list[0].clone());
                         self.game_version_list = version_list;
+                        ctx.request_repaint();
                     }
                     ToFrontend::UpdateModList { mod_list } => {
                         self.backend_context.check_for_update_progress = None;
                         self.mod_list = mod_list;
+                        ctx.request_repaint();
                     }
                     ToFrontend::CheckForUpdatesProgress { progress } => {
                         self.backend_context.check_for_update_progress = Some(progress);
@@ -138,7 +142,7 @@ impl epi::App for UiApp {
                             if let Some(selected_value) = self.selected_version.as_ref() {
                                 selected_value.id.as_str()
                             } else if self.game_version_list.is_empty() {
-                                "No"
+                                "Fetching version list..."
                             } else {
                                 self.selected_version = Some(self.game_version_list[0].clone());
                                 self.selected_version.as_ref().unwrap().id.as_str()
@@ -207,7 +211,7 @@ impl epi::App for UiApp {
                 egui::Frame {
                     fill: self.theme.colors.darker_gray,
                     margin: Vec2::new(10., 10.),
-                    corner_radius: 4.,
+                    rounding: Rounding::same(4.),
                     ..Default::default()
                 }
                 .show(ui, |ui| {
@@ -421,6 +425,12 @@ impl epi::App for UiApp {
                                                         ))
                                                         .clicked()
                                                     {
+                                                        if let Some(tx) = &self.front_tx {
+                                                            tx.send(ToBackend::UpdateMod {
+                                                                mod_entry: mod_entry.clone(),
+                                                            })
+                                                            .unwrap();
+                                                        }
                                                     }
                                                 }
                                             });

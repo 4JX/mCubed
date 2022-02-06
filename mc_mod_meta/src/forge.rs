@@ -39,8 +39,8 @@ impl ForgeManifest {
         }
     }
 
-    pub fn from_file(file: File) -> AppResult<Self> {
-        let modloader = get_modloader(&file)?;
+    pub fn from_file(file: &mut File) -> AppResult<Self> {
+        let modloader = get_modloader(file)?;
 
         if modloader == ModLoader::Forge {
             let reader = BufReader::new(file);
@@ -73,7 +73,7 @@ pub struct ForgeModEntry {
     pub display_name: String,
     #[serde(rename = "updateJSONURL")]
     pub update_json_url: Option<String>,
-    #[serde(rename = "logoFile")]
+    #[serde(rename = "displayURL")]
     pub display_url: Option<String>,
     #[serde(rename = "logoFile")]
     pub logo_file: Option<String>,

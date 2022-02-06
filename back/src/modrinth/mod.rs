@@ -1,3 +1,4 @@
+use bytes::Bytes;
 use ferinth::{
     structures::version_structs::{ListVersionsParams, Version, VersionType},
     Ferinth,
@@ -57,7 +58,10 @@ impl Modrinth {
                     .await
                 {
                     Ok(version_list) => {
-                        if !version_list.is_empty() {
+                        if version_list.is_empty() {
+                            // No versions could be found that match the criteria, therefore the mod is incompatible for this version
+                            mod_entry.state = FileState::Invalid;
+                        } else {
                             // There are results, consider the state to be up to date unless proven otherwise
                             mod_entry.state = FileState::Current;
 
@@ -79,7 +83,7 @@ impl Modrinth {
                                         file.hashes.sha1 == Some(mod_entry.hashes.sha1.clone())
                                     }) {
                                         modrinth_data.latest_valid_version =
-                                            Some(filtered_list[0].id.clone());
+                                            Some(filtered_list[0].files[0].clone());
                                         mod_entry.state = FileState::Outdated;
                                     }
                                 }
@@ -91,6 +95,23 @@ impl Modrinth {
                     }
                 };
             }
+        }
+    }
+
+    pub async fn update_mod(&self, mod_entry: &ModEntry) -> Option<Bytes> {
+        if let Some(data) = &mod_entry.modrinth_data {
+            if let Some(version_file) = &data.latest_valid_version {
+                Some(
+                    self.ferinth
+                        .download_version_file(version_file)
+                        .await
+                        .unwrap(),
+                )
+            } else {
+                None
+            }
+        } else {
+            None
         }
     }
 }
