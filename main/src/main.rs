@@ -15,7 +15,8 @@ use std::{
 
 use eframe::{
     egui::{
-        self, style::DebugOptions, Context, ProgressBar, RichText, Rounding, Style, Vec2, Widget,
+        self, style::DebugOptions, Align, Context, Layout, ProgressBar, RichText, Rounding, Style,
+        Vec2, Widget,
     },
     epi,
 };
@@ -132,7 +133,14 @@ impl epi::App for UiApp {
             }
         }
 
+        let frame = egui::Frame {
+            margin: Vec2::splat(8.0).into(),
+            fill: self.theme.colors.gray,
+            ..Default::default()
+        };
+
         egui::SidePanel::left("options_panel")
+            .frame(frame)
             .resizable(false)
             .max_width(180.)
             .show(ctx, |ui| {
@@ -159,24 +167,27 @@ impl epi::App for UiApp {
                         });
                 });
 
-                if ui.button("Refresh").clicked() {
-                    if let Some(tx) = &self.front_tx {
-                        if let Some(version) = &self.selected_version {
-                            tx.send(ToBackend::CheckForUpdates {
-                                game_version: version.id.clone(),
-                            })
-                            .unwrap();
-                        } else {
-                            tx.send(ToBackend::CheckForUpdates {
-                                game_version: self.game_version_list[0].id.clone(),
-                            })
-                            .unwrap();
+                ui.with_layout(Layout::bottom_up(Align::Center), |ui| {
+                    if ui.button("Refresh").clicked() {
+                        if let Some(tx) = &self.front_tx {
+                            if let Some(version) = &self.selected_version {
+                                tx.send(ToBackend::CheckForUpdates {
+                                    game_version: version.id.clone(),
+                                })
+                                .unwrap();
+                            } else {
+                                tx.send(ToBackend::CheckForUpdates {
+                                    game_version: self.game_version_list[0].id.clone(),
+                                })
+                                .unwrap();
+                            }
                         }
                     }
-                }
+                });
             });
 
         egui::CentralPanel::default().show(ctx, |ui| {
+            ui.style_mut().spacing.item_spacing = Vec2::new(8.0, 8.0);
             ui.horizontal(|ui| {
                 ui.vertical_centered_justified(|ui| {
                     let edit = egui::TextEdit::singleline(&mut self.search_buf).hint_text(
@@ -185,8 +196,6 @@ impl epi::App for UiApp {
                     ui.add(edit);
                 });
             });
-
-            ui.add_space(5.);
 
             if let Some(progress) = &self.backend_context.check_for_update_progress {
                 let count = progress.position as f32 + 1.0;
@@ -202,14 +211,12 @@ impl epi::App for UiApp {
                         ))
                         .ui(ui);
                 });
-
-                ui.add_space(5.);
             }
 
             ui.vertical_centered_justified(|ui| {
                 egui::Frame {
                     fill: self.theme.colors.darker_gray,
-                    margin: Vec2::new(10., 10.),
+                    margin: Vec2::new(10., 10.).into(),
                     rounding: Rounding::same(4.),
                     ..Default::default()
                 }
@@ -252,7 +259,7 @@ impl epi::App for UiApp {
 
                                         let version = mod_entry.normalized_version();
                                         egui::Frame {
-                                            margin: Vec2::new(10.0, 0.0),
+                                            margin: Vec2::new(10.0, 0.0).into(),
                                             ..Default::default()
                                         }
                                         .show(ui, |ui| {
@@ -425,31 +432,30 @@ impl epi::App for UiApp {
                                             });
                                         });
 
-                                        ui.centered_and_justified(|ui| {
-                                            ui.with_layout(egui::Layout::right_to_left(), |ui| {
-                                                ui.add_space(10.);
-                                                ui.image(
-                                                    self.images.bin.as_mut().unwrap(),
-                                                    Vec2::splat(12.),
-                                                );
+                                        ui.with_layout(egui::Layout::right_to_left(), |ui| {
+                                            ui.add_space(10.);
+                                            ui.image(
+                                                self.images.bin.as_mut().unwrap(),
+                                                Vec2::splat(12.),
+                                            );
 
-                                                if mod_entry.state == FileState::Outdated {
-                                                    ui.add_space(5.0);
-                                                    if ui
-                                                        .button(text_utils::update_button_text(
-                                                            "Update",
-                                                        ))
-                                                        .clicked()
-                                                    {
-                                                        if let Some(tx) = &self.front_tx {
-                                                            tx.send(ToBackend::UpdateMod {
-                                                                mod_entry: mod_entry.clone(),
-                                                            })
-                                                            .unwrap();
-                                                        }
+                                            ui.add_space(5.0);
+
+                                            if mod_entry.state == FileState::Outdated {
+                                                if ui
+                                                    .button(text_utils::update_button_text(
+                                                        "Update",
+                                                    ))
+                                                    .clicked()
+                                                {
+                                                    if let Some(tx) = &self.front_tx {
+                                                        tx.send(ToBackend::UpdateMod {
+                                                            mod_entry: mod_entry.clone(),
+                                                        })
+                                                        .unwrap();
                                                     }
                                                 }
-                                            });
+                                            }
                                         });
                                     });
                                 });

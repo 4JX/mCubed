@@ -21,7 +21,7 @@ impl Default for AppTheme {
                 expansion: 0.0,
             },
             inactive: WidgetVisuals {
-                bg_fill: Color32::from_gray(60), // button background
+                bg_fill: colors.dark_gray, // button background
                 bg_stroke: Default::default(),
                 fg_stroke: Stroke::new(1.0, Color32::from_gray(180)), // button text
                 rounding: Rounding::same(2.0),
@@ -85,7 +85,7 @@ impl Default for Colors {
         Self {
             white: Color32::from_rgb(255, 255, 255),
             gray: Color32::from_rgb(58, 58, 58),
-            dark_gray: Color32::from_rgb(34, 34, 34),
+            dark_gray: Color32::from_rgb(38, 38, 38),
             darker_gray: Color32::from_rgb(22, 22, 22),
             light_gray: Color32::from_rgb(85, 85, 85),
             lighter_gray: Color32::from_rgb(120, 120, 120),
