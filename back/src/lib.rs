@@ -250,22 +250,22 @@ impl Back {
                                                 })
                                                 .unwrap();
                                         } else {
-                                            // Temporary naming format due to lack of data
-                                            let path = self.folder_path.join(format!(
-                                                "{}-{}-{}-from_search.jar",
-                                                &modrinth_id, &game_version, modloader
-                                            ));
-
                                             match self
                                                 .modrinth
-                                                .get_mod(
+                                                .get_mod_bytes(
                                                     modrinth_id.clone(),
-                                                    game_version,
+                                                    game_version.clone(),
                                                     modloader,
                                                 )
                                                 .await
                                             {
-                                                Ok(bytes) => {
+                                                Ok((bytes, filename_details)) => {
+                                                    let path = self.folder_path.join(format!(
+                                                        "{}-{}",
+                                                        &filename_details.project_id,
+                                                        &filename_details.file_name
+                                                    ));
+
                                                     // Essentially fs::File::create(path) but with read access as well
                                                     let mut new_mod_file = OpenOptions::new()
                                                         .read(true)

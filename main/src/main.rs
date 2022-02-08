@@ -213,21 +213,33 @@ impl epi::App for UiApp {
                 });
 
                 ui.with_layout(Layout::bottom_up(Align::Center), |ui| {
-                    if ui.button("Refresh").clicked() {
-                        if let Some(tx) = &self.front_tx {
-                            if let Some(version) = &self.selected_version {
-                                tx.send(ToBackend::CheckForUpdates {
-                                    game_version: version.id.clone(),
-                                })
-                                .unwrap();
-                            } else {
-                                tx.send(ToBackend::CheckForUpdates {
-                                    game_version: self.game_version_list[0].id.clone(),
-                                })
-                                .unwrap();
-                            }
-                        }
-                    }
+                    ui.horizontal(|ui| {
+                        ui.vertical_centered(|ui| {
+                            ui.horizontal(|ui| {
+                                if ui.button("Rescan Folder").clicked() {
+                                    if let Some(tx) = &self.front_tx {
+                                        tx.send(ToBackend::ScanFolder).unwrap();
+                                    }
+                                }
+
+                                if ui.button("Refresh").clicked() {
+                                    if let Some(tx) = &self.front_tx {
+                                        if let Some(version) = &self.selected_version {
+                                            tx.send(ToBackend::CheckForUpdates {
+                                                game_version: version.id.clone(),
+                                            })
+                                            .unwrap();
+                                        } else {
+                                            tx.send(ToBackend::CheckForUpdates {
+                                                game_version: self.game_version_list[0].id.clone(),
+                                            })
+                                            .unwrap();
+                                        }
+                                    }
+                                }
+                            });
+                        });
+                    });
                 });
             });
 

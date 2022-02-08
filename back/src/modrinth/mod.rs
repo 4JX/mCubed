@@ -109,12 +109,12 @@ impl Modrinth {
         }
     }
 
-    pub(crate) async fn get_mod(
+    pub(crate) async fn get_mod_bytes(
         &self,
         modrinth_id: String,
         game_version: String,
         modloader: ModLoader,
-    ) -> LibResult<Bytes> {
+    ) -> LibResult<(Bytes, FilenameDetails)> {
         let query_params = ListVersionsParams {
             loaders: Some(modloader.into()),
             game_versions: Some(vec![game_version].iter().map(ToString::to_string).collect()),
@@ -136,10 +136,17 @@ impl Modrinth {
                     if version_list[0].files.is_empty() {
                         Err(error::Error::ModrinthEmptyFileList)
                     } else {
-                        Ok(self
+                        let bytes = self
                             .ferinth
                             .download_version_file(&version_list[0].files[0])
-                            .await?)
+                            .await?;
+
+                        let filename_details = FilenameDetails {
+                            project_id: version_list[0].project_id.clone(),
+                            file_name: version_list[0].files[0].filename.clone(),
+                        };
+
+                        Ok((bytes, filename_details))
                     }
                 }
             }
@@ -158,4 +165,9 @@ impl Modrinth {
             Err(error::Error::NoModrinthDataError)
         }
     }
+}
+
+pub(crate) struct FilenameDetails {
+    pub project_id: String,
+    pub file_name: String,
 }
