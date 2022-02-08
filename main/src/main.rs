@@ -31,7 +31,9 @@ struct UiApp {
     mod_list: Vec<ModEntry>,
     game_version_list: Vec<GameVersion>,
     search_buf: String,
+    add_mod_buf: String,
     selected_version: Option<GameVersion>,
+    selected_modloader: ModLoader,
     images: ImageTextures,
     mod_hash_cache: HashMap<String, String>,
     front_tx: Option<Sender<ToBackend>>,
@@ -98,6 +100,10 @@ impl epi::App for UiApp {
                         ToFrontend::UpdateModList { mod_list } => {
                             self.backend_context.check_for_update_progress = None;
                             self.mod_list = mod_list;
+                        }
+                        ToFrontend::BackendError { error } => {
+                            let _ = error;
+                            // Eventually handle
                         }
                         _ => {
                             unreachable!();
@@ -169,6 +175,41 @@ impl epi::App for UiApp {
                                 );
                             }
                         });
+                });
+
+                ui.horizontal(|ui| {
+                    ui.vertical_centered_justified(|ui| {
+                        let edit = egui::TextEdit::singleline(&mut self.add_mod_buf).hint_text(
+                            RichText::new("Modrinth ID or Slug").color(self.theme.colors.gray),
+                        );
+                        ui.add(edit);
+                    });
+
+                    if ui.button("Fetch Mod").clicked() {
+                        if let Some(tx) = &self.front_tx {
+                            if let Some(version) = &self.selected_version {
+                                tx.send(ToBackend::AddMod {
+                                    modrinth_id: self.add_mod_buf.clone(),
+                                    game_version: version.id.clone(),
+                                    modloader: self.selected_modloader,
+                                })
+                                .unwrap();
+                            } else {
+                                tx.send(ToBackend::AddMod {
+                                    modrinth_id: self.add_mod_buf.clone(),
+                                    game_version: self.game_version_list[0].id.clone(),
+                                    modloader: self.selected_modloader,
+                                })
+                                .unwrap();
+                            }
+                        }
+                    }
+                });
+
+                ui.horizontal(|ui| {
+                    ui.radio_value(&mut self.selected_modloader, ModLoader::Both, "Both");
+                    ui.radio_value(&mut self.selected_modloader, ModLoader::Forge, "Forge");
+                    ui.radio_value(&mut self.selected_modloader, ModLoader::Fabric, "Fabric");
                 });
 
                 ui.with_layout(Layout::bottom_up(Align::Center), |ui| {

@@ -7,7 +7,7 @@ use std::{
 
 use hash::Hashes;
 use messages::{CheckProgress, ToBackend, ToFrontend};
-use mod_entry::ModEntry;
+use mod_entry::{ModEntry, ModrinthData, Source};
 use modrinth::Modrinth;
 mod modrinth;
 
@@ -58,11 +58,11 @@ impl Back {
 
                 match ModEntry::from_file(&mut file) {
                     Ok(mut entry) => self.mod_list.append(&mut entry),
-                    Err(err) => {
+                    Err(error) => {
                         // In the case of an error the mod list will be cleared
                         self.mod_list.clear();
                         self.back_tx
-                            .send(ToFrontend::BackendError { error: err.into() })
+                            .send(ToFrontend::BackendError { error })
                             .unwrap();
                         break 'file_loop;
                     }
@@ -153,7 +153,7 @@ impl Back {
 
                                                 // The data is guaranteed to exist, unwrapping here is fine
                                                 let path = self.folder_path.join(format!(
-                                                    "{}-{}.jar",
+                                                    "{}-{}",
                                                     mod_entry.id,
                                                     mod_entry
                                                         .modrinth_data
@@ -206,6 +206,124 @@ impl Back {
                                                 break 'file_loop;
                                             }
                                         }
+                                    }
+                                };
+                            }
+
+                            ToBackend::AddMod {
+                                modrinth_id,
+                                game_version,
+                                modloader,
+                            } => {
+                                match self
+                                    .modrinth
+                                    .normalize_modrinth_id(modrinth_id.as_str())
+                                    .await
+                                {
+                                    Some(modrinth_id) => {
+                                        // Ensure the entry does not already exist
+                                        let mut entry_exists = false;
+
+                                        for mod_entry in &self.mod_list {
+                                            if let Some(modrinth_data) = &mod_entry.modrinth_data {
+                                                if modrinth_data.id == modrinth_id {
+                                                    entry_exists = true
+                                                };
+                                            } else if let Some(fetched_id) = self
+                                                .modrinth
+                                                .get_modrinth_id_from_hash(
+                                                    mod_entry.hashes.sha1.as_str(),
+                                                )
+                                                .await
+                                            {
+                                                if fetched_id == modrinth_id {
+                                                    entry_exists = true;
+                                                }
+                                            };
+                                        }
+
+                                        if entry_exists {
+                                            // A collision happened, the mod should be updated through standard procedures
+                                            self.back_tx
+                                                .send(ToFrontend::BackendError {
+                                                    error: error::Error::EntryAlreadyInList,
+                                                })
+                                                .unwrap();
+                                        } else {
+                                            // Temporary naming format due to lack of data
+                                            let path = self.folder_path.join(format!(
+                                                "{}-{}-{}-from_search.jar",
+                                                &modrinth_id, &game_version, modloader
+                                            ));
+
+                                            match self
+                                                .modrinth
+                                                .get_mod(
+                                                    modrinth_id.clone(),
+                                                    game_version,
+                                                    modloader,
+                                                )
+                                                .await
+                                            {
+                                                Ok(bytes) => {
+                                                    // Essentially fs::File::create(path) but with read access as well
+                                                    let mut new_mod_file = OpenOptions::new()
+                                                        .read(true)
+                                                        .write(true)
+                                                        .create(true)
+                                                        .truncate(true)
+                                                        .open(path)
+                                                        .unwrap();
+
+                                                    new_mod_file.write_all(&bytes).unwrap();
+
+                                                    let mut new_entries =
+                                                        ModEntry::from_file(&mut new_mod_file)
+                                                            .unwrap();
+
+                                                    for new_mod_entry in new_entries.iter_mut() {
+                                                        // Update the entry information
+                                                        let modrinth_data = ModrinthData {
+                                                            id: modrinth_id.clone(),
+                                                            latest_valid_version: None,
+                                                        };
+                                                        new_mod_entry.modrinth_data =
+                                                            Some(modrinth_data);
+                                                        new_mod_entry.sourced_from =
+                                                            Source::Modrinth;
+
+                                                        for list_entry in self.mod_list.iter_mut() {
+                                                            if list_entry.id
+                                                                == new_mod_entry.id.clone()
+                                                            {
+                                                                *list_entry = new_mod_entry.clone();
+                                                            }
+                                                        }
+
+                                                        self.mod_list.push(new_mod_entry.clone());
+                                                    }
+
+                                                    self.back_tx
+                                                        .send(ToFrontend::UpdateModList {
+                                                            mod_list: self.mod_list.clone(),
+                                                        })
+                                                        .unwrap();
+                                                }
+
+                                                Err(error) => {
+                                                    self.back_tx
+                                                        .send(ToFrontend::BackendError { error })
+                                                        .unwrap();
+                                                }
+                                            };
+                                        };
+                                    }
+                                    None => {
+                                        self.back_tx
+                                            .send(ToFrontend::BackendError {
+                                                error: error::Error::NotValidModrinthId,
+                                            })
+                                            .unwrap();
                                     }
                                 };
                             }

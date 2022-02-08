@@ -6,7 +6,7 @@ use ferinth::{
 
 use crate::{
     error::{self, LibResult},
-    mod_entry::{FileState, ModEntry, ModrinthData, Source},
+    mod_entry::{FileState, ModEntry, ModLoader, ModrinthData, Source},
 };
 
 pub struct Modrinth {
@@ -22,18 +22,26 @@ impl Default for Modrinth {
 }
 
 impl Modrinth {
-    async fn get_modrinth_id(&self, mod_hash: &str) -> Option<String> {
+    /// Ensures you are working with IDs and not slugs
+    pub(crate) async fn normalize_modrinth_id(&self, slug_or_id: &str) -> Option<String> {
+        match self.ferinth.get_project(slug_or_id).await {
+            Ok(project) => Some(project.id),
+            Err(_err) => None,
+        }
+    }
+
+    pub(crate) async fn get_modrinth_id_from_hash(&self, mod_hash: &str) -> Option<String> {
         match self.ferinth.get_version_from_file_hash(mod_hash).await {
             Ok(result) => Some(result.project_id),
             Err(_err) => None,
         }
     }
 
-    pub async fn check_for_updates(&self, game_version: &str, mod_entry: &mut ModEntry) {
+    pub(crate) async fn check_for_updates(&self, game_version: &str, mod_entry: &mut ModEntry) {
         if mod_entry.sourced_from == Source::Modrinth || mod_entry.sourced_from == Source::Local {
             // Get and set the modrinth ID, without one the operation cannot proceed
             if mod_entry.modrinth_data.is_none() {
-                let modrinth_id = self.get_modrinth_id(&mod_entry.hashes.sha1).await;
+                let modrinth_id = self.get_modrinth_id_from_hash(&mod_entry.hashes.sha1).await;
                 if let Some(id) = modrinth_id {
                     mod_entry.modrinth_data = Some(ModrinthData {
                         id,
@@ -47,7 +55,7 @@ impl Modrinth {
             // This will not always give a result, therefore the data needs to be checked again (In case it is "Some", assume its correct)
             if let Some(modrinth_data) = &mut mod_entry.modrinth_data {
                 let query_params = ListVersionsParams {
-                    loaders: Some(mod_entry.modloader.clone().into()),
+                    loaders: Some(mod_entry.modloader.into()),
                     game_versions: Some(
                         vec![game_version].iter().map(ToString::to_string).collect(),
                     ),
@@ -101,7 +109,45 @@ impl Modrinth {
         }
     }
 
-    pub async fn update_mod(&self, mod_entry: &ModEntry) -> LibResult<Bytes> {
+    pub(crate) async fn get_mod(
+        &self,
+        modrinth_id: String,
+        game_version: String,
+        modloader: ModLoader,
+    ) -> LibResult<Bytes> {
+        let query_params = ListVersionsParams {
+            loaders: Some(modloader.into()),
+            game_versions: Some(vec![game_version].iter().map(ToString::to_string).collect()),
+            featured: None,
+        };
+
+        // Get the candidate versions based on the ID
+        match self
+            .ferinth
+            .list_versions(modrinth_id.as_str(), Some(query_params))
+            .await
+        {
+            Ok(version_list) => {
+                if version_list.is_empty() {
+                    // No versions could be found that match the criteria
+                    Err(error::Error::ModrinthEmptyVersionSearchResult)
+                } else {
+                    // Ensure there is something that can be downloaded
+                    if version_list[0].files.is_empty() {
+                        Err(error::Error::ModrinthEmptyFileList)
+                    } else {
+                        Ok(self
+                            .ferinth
+                            .download_version_file(&version_list[0].files[0])
+                            .await?)
+                    }
+                }
+            }
+            Err(err) => Err(err.into()),
+        }
+    }
+
+    pub(crate) async fn update_mod(&self, mod_entry: &ModEntry) -> LibResult<Bytes> {
         if let Some(data) = &mod_entry.modrinth_data {
             if let Some(version_file) = &data.latest_valid_version {
                 Ok(self.ferinth.download_version_file(version_file).await?)

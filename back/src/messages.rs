@@ -1,15 +1,28 @@
 use daedalus::minecraft::VersionManifest;
 
-use crate::{error, mod_entry::ModEntry};
+use crate::{
+    error,
+    mod_entry::{ModEntry, ModLoader},
+};
 
 pub enum ToBackend {
     ScanFolder,
 
-    CheckForUpdates { game_version: String },
+    CheckForUpdates {
+        game_version: String,
+    },
 
     GetVersionMetadata,
 
-    UpdateMod { mod_entry: ModEntry },
+    UpdateMod {
+        mod_entry: ModEntry,
+    },
+
+    AddMod {
+        modrinth_id: String,
+        game_version: String,
+        modloader: ModLoader,
+    },
 }
 
 pub enum ToFrontend {

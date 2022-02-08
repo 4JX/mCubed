@@ -14,6 +14,18 @@ pub enum Error {
     #[error("There is no valid version for this entry")]
     InvalidLatestVersionError,
 
+    #[error("No mods were found meeting the specified requirements")]
+    ModrinthEmptyVersionSearchResult,
+
+    #[error("No mods were found meeting the specified requirements")]
+    ModrinthEmptyFileList,
+
+    #[error("The mod already exists on the folder")]
+    EntryAlreadyInList,
+
+    #[error("The id or slug provided is not valid")]
+    NotValidModrinthId,
+
     // Shared errors
     #[error("Encountered an I/O error while handling the file: {}", .0)]
     IoError(#[from] IoError),

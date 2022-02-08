@@ -23,11 +23,17 @@ pub struct ModEntry {
 }
 
 // Middleman "ModLoader" enum to convert between those of the other crates
-#[derive(Clone, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum ModLoader {
     Forge,
     Fabric,
     Both,
+}
+
+impl Default for ModLoader {
+    fn default() -> Self {
+        Self::Both
+    }
 }
 
 impl fmt::Display for ModLoader {
