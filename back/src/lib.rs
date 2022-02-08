@@ -49,15 +49,24 @@ impl Back {
 
         let read_dir = fs::read_dir(&self.folder_path).unwrap();
 
-        for file_entry in read_dir {
+        'file_loop: for file_entry in read_dir {
             let path = file_entry.unwrap().path();
 
             // Minecraft does not really care about mods within folders, therefore skip anything that is not a file
             if path.is_file() {
                 let mut file = fs::File::open(&path).unwrap();
 
-                self.mod_list
-                    .append(&mut ModEntry::from_file(&mut file).unwrap());
+                match ModEntry::from_file(&mut file) {
+                    Ok(mut entry) => self.mod_list.append(&mut entry),
+                    Err(err) => {
+                        // In the case of an error the mod list will be cleared
+                        self.mod_list.clear();
+                        self.back_tx
+                            .send(ToFrontend::BackendError { error: err.into() })
+                            .unwrap();
+                        break 'file_loop;
+                    }
+                }
             }
         }
 
@@ -116,15 +125,11 @@ impl Back {
                                 match daedalus::minecraft::fetch_version_manifest(None).await {
                                     Ok(manifest) => self
                                         .back_tx
-                                        .send(ToFrontend::SetVersionMetadata {
-                                            manifest: Ok(manifest),
-                                        })
+                                        .send(ToFrontend::SetVersionMetadata { manifest })
                                         .unwrap(),
                                     Err(err) => self
                                         .back_tx
-                                        .send(ToFrontend::SetVersionMetadata {
-                                            manifest: Err(err.into()),
-                                        })
+                                        .send(ToFrontend::BackendError { error: err.into() })
                                         .unwrap(),
                                 };
                             }

@@ -115,9 +115,8 @@ impl epi::App for UiApp {
             match rx.try_recv() {
                 Ok(message) => match message {
                     ToFrontend::SetVersionMetadata { manifest } => {
-                        let version_list = manifest.unwrap().versions;
-                        self.selected_version = Some(version_list[0].clone());
-                        self.game_version_list = version_list;
+                        self.selected_version = Some(manifest.versions[0].clone());
+                        self.game_version_list = manifest.versions;
                     }
                     ToFrontend::UpdateModList { mod_list } => {
                         self.backend_context.check_for_update_progress = None;
@@ -126,6 +125,10 @@ impl epi::App for UiApp {
                     }
                     ToFrontend::CheckForUpdatesProgress { progress } => {
                         self.backend_context.check_for_update_progress = Some(progress);
+                    }
+                    ToFrontend::BackendError { error } => {
+                        // Eventually handle backend errors fully
+                        dbg!(error);
                     }
                 },
                 Err(err) => {

@@ -132,7 +132,7 @@ impl ModEntry {
                 let mod_meta = FabricManifest::from_file(file)?;
                 let mut mc_mod = MinecraftMod::from(mod_meta);
 
-                // However, we are going to replace the modloader with the "Both" type
+                // However, the modloader is replaced with the "Both" type
                 mc_mod.modloader = mc_mod_meta::ModLoader::Both;
                 mod_vec.push(Self::new(mc_mod, &hashes, None));
             }
