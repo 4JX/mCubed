@@ -3,6 +3,8 @@ use sha1::Digest;
 use std::fs::File;
 use std::io::Read;
 
+use crate::error::LibResult;
+
 #[derive(Clone, Debug)]
 pub struct Hashes {
     pub sha1: String,
@@ -10,13 +12,13 @@ pub struct Hashes {
 }
 
 impl Hashes {
-    pub fn get_hashes_from_file(file: &mut File) -> Hashes {
-        let metadata = file.metadata().unwrap();
+    pub fn get_hashes_from_file(file: &mut File) -> LibResult<Hashes> {
+        let metadata = file.metadata()?;
         let mut buf = vec![0; metadata.len() as usize];
 
-        std::fs::File::read(file, &mut buf).unwrap();
+        std::fs::File::read(file, &mut buf)?;
 
-        get_hashes_from_vec(buf)
+        Ok(get_hashes_from_vec(buf))
     }
 
     pub fn get_hashes_from_bytes(bytes: &Bytes) -> Hashes {

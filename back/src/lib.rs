@@ -11,6 +11,7 @@ use mod_entry::ModEntry;
 use modrinth::Modrinth;
 mod modrinth;
 
+mod error;
 mod hash;
 pub mod messages;
 pub mod mod_entry;
@@ -55,7 +56,8 @@ impl Back {
             if path.is_file() {
                 let mut file = fs::File::open(&path).unwrap();
 
-                self.mod_list.append(&mut ModEntry::from_file(&mut file));
+                self.mod_list
+                    .append(&mut ModEntry::from_file(&mut file).unwrap());
             }
         }
 
@@ -111,19 +113,24 @@ impl Back {
                             }
 
                             ToBackend::GetVersionMetadata => {
-                                let manifest = daedalus::minecraft::fetch_version_manifest(None)
-                                    .await
-                                    .unwrap();
-
-                                self.back_tx
-                                    .send(ToFrontend::SetVersionMetadata {
-                                        version_list: manifest.versions,
-                                    })
-                                    .unwrap();
+                                match daedalus::minecraft::fetch_version_manifest(None).await {
+                                    Ok(manifest) => self
+                                        .back_tx
+                                        .send(ToFrontend::SetVersionMetadata {
+                                            manifest: Ok(manifest),
+                                        })
+                                        .unwrap(),
+                                    Err(err) => self
+                                        .back_tx
+                                        .send(ToFrontend::SetVersionMetadata {
+                                            manifest: Err(err.into()),
+                                        })
+                                        .unwrap(),
+                                };
                             }
 
                             ToBackend::UpdateMod { mod_entry } => {
-                                if let Some(bytes) = self.modrinth.update_mod(&mod_entry).await {
+                                if let Ok(bytes) = self.modrinth.update_mod(&mod_entry).await {
                                     let read_dir = fs::read_dir(&self.folder_path).unwrap();
 
                                     'file_loop: for file_entry in read_dir {
@@ -132,7 +139,8 @@ impl Back {
                                         if path.is_file() {
                                             let mut file = fs::File::open(&path).unwrap();
 
-                                            let hashes = Hashes::get_hashes_from_file(&mut file);
+                                            let hashes =
+                                                Hashes::get_hashes_from_file(&mut file).unwrap();
 
                                             // We found the file the mod_entry belongs to
                                             if mod_entry.hashes.sha1 == hashes.sha1 {
@@ -164,14 +172,14 @@ impl Back {
                                                 new_mod_file.write_all(&bytes).unwrap();
 
                                                 let mut new_entries =
-                                                    ModEntry::from_file(&mut new_mod_file);
+                                                    ModEntry::from_file(&mut new_mod_file).unwrap();
 
                                                 for new_mod_entry in new_entries.iter_mut() {
                                                     // Ensure the data for the entry is kept
                                                     new_mod_entry.modrinth_data =
                                                         mod_entry.modrinth_data.clone();
                                                     new_mod_entry.sourced_from =
-                                                        mod_entry.sourced_from.clone();
+                                                        mod_entry.sourced_from;
 
                                                     for list_entry in self.mod_list.iter_mut() {
                                                         if list_entry.hashes.sha1

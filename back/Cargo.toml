@@ -19,3 +19,8 @@ bytes = "1.1.0"
 # daedalus = "0.1.14"
 daedalus = { path = "../../daedalus/daedalus" }
 epi = { path = "../../../Rust/egui/epi" }
+thiserror = "1.0.30"
+
+# For their error types
+serde_json = "1.0.78"
+reqwest = "0.11.9"

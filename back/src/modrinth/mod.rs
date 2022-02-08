@@ -4,7 +4,10 @@ use ferinth::{
     Ferinth,
 };
 
-use crate::mod_entry::{FileState, ModEntry, ModrinthData, Source};
+use crate::{
+    error::{self, LibResult},
+    mod_entry::{FileState, ModEntry, ModrinthData, Source},
+};
 
 pub struct Modrinth {
     ferinth: Ferinth,
@@ -98,20 +101,15 @@ impl Modrinth {
         }
     }
 
-    pub async fn update_mod(&self, mod_entry: &ModEntry) -> Option<Bytes> {
+    pub async fn update_mod(&self, mod_entry: &ModEntry) -> LibResult<Bytes> {
         if let Some(data) = &mod_entry.modrinth_data {
             if let Some(version_file) = &data.latest_valid_version {
-                Some(
-                    self.ferinth
-                        .download_version_file(version_file)
-                        .await
-                        .unwrap(),
-                )
+                Ok(self.ferinth.download_version_file(version_file).await?)
             } else {
-                None
+                Err(error::Error::InvalidLatestVersionError)
             }
         } else {
-            None
+            Err(error::Error::NoModrinthDataError)
         }
     }
 }

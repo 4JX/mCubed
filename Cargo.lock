@@ -179,8 +179,11 @@ dependencies = [
  "lazy_static",
  "mc_mod_meta",
  "regex",
+ "reqwest",
+ "serde_json",
  "sha-1",
  "sha2",
+ "thiserror",
  "tokio",
 ]
 

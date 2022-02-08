@@ -28,7 +28,7 @@ pub enum Error {
         }, 
     }
     )]
-    JsonError(JsonError::Category),
+    SerdeError(JsonError::Category),
     #[error("TomlError: {}", .0)]
     TomlError(#[from] TomlError),
     #[error("ZipError: {}", .0)]
@@ -42,6 +42,6 @@ pub enum Error {
 
 impl From<JsonError::Error> for Error {
 	fn from(err: serde_json::error::Error) -> Self {
-		Self::JsonError(err.classify())
+		Self::SerdeError(err.classify())
 	}
 }

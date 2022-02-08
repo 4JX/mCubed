@@ -8,7 +8,7 @@ use mc_mod_meta::{
 };
 use regex::Regex;
 
-use crate::hash::Hashes;
+use crate::{error::LibResult, hash::Hashes};
 
 #[derive(Clone, Debug)]
 pub struct ModEntry {
@@ -107,42 +107,38 @@ impl ModEntry {
         }
     }
 
-    pub fn from_file(file: &mut File) -> Vec<Self> {
-        let hashes = Hashes::get_hashes_from_file(file);
+    pub fn from_file(file: &mut File) -> LibResult<Vec<Self>> {
+        let hashes = Hashes::get_hashes_from_file(file)?;
 
         let mut mod_vec = Vec::new();
 
-        match mc_mod_meta::get_modloader(file) {
-            Ok(modloader) => match modloader {
-                mc_mod_meta::ModLoader::Forge => {
-                    let forge_meta = ForgeManifest::from_file(file).unwrap();
-                    for mod_meta in forge_meta.mods {
-                        let mc_mod = MinecraftMod::from(mod_meta);
-                        mod_vec.push(Self::new(mc_mod, &hashes, None));
-                    }
-                }
-                mc_mod_meta::ModLoader::Fabric => {
-                    let mod_meta = FabricManifest::from_file(file).unwrap();
+        let modloader = mc_mod_meta::get_modloader(file)?;
+        match modloader {
+            mc_mod_meta::ModLoader::Forge => {
+                let forge_meta = ForgeManifest::from_file(file)?;
+                for mod_meta in forge_meta.mods {
                     let mc_mod = MinecraftMod::from(mod_meta);
                     mod_vec.push(Self::new(mc_mod, &hashes, None));
                 }
-
-                mc_mod_meta::ModLoader::Both => {
-                    // Given the mod has entries for both forge and fabric, simplify things by just displaying one entry with the fabric data
-                    let mod_meta = FabricManifest::from_file(file).unwrap();
-                    let mut mc_mod = MinecraftMod::from(mod_meta);
-
-                    // However, we are going to replace the modloader with the "Both" type
-                    mc_mod.modloader = mc_mod_meta::ModLoader::Both;
-                    mod_vec.push(Self::new(mc_mod, &hashes, None));
-                }
-            },
-            Err(err) => {
-                println!("{}", err);
             }
-        }
+            mc_mod_meta::ModLoader::Fabric => {
+                let mod_meta = FabricManifest::from_file(file)?;
+                let mc_mod = MinecraftMod::from(mod_meta);
+                mod_vec.push(Self::new(mc_mod, &hashes, None));
+            }
 
-        mod_vec
+            mc_mod_meta::ModLoader::Both => {
+                // Given the mod has entries for both forge and fabric, simplify things by just displaying one entry with the fabric data
+                let mod_meta = FabricManifest::from_file(file)?;
+                let mut mc_mod = MinecraftMod::from(mod_meta);
+
+                // However, we are going to replace the modloader with the "Both" type
+                mc_mod.modloader = mc_mod_meta::ModLoader::Both;
+                mod_vec.push(Self::new(mc_mod, &hashes, None));
+            }
+        };
+
+        Ok(mod_vec)
     }
 
     pub fn normalized_version(&self) -> String {

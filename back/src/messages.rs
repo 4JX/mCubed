@@ -1,6 +1,6 @@
-use daedalus::minecraft::Version;
+use daedalus::minecraft::VersionManifest;
 
-use crate::mod_entry::ModEntry;
+use crate::{error::LibResult, mod_entry::ModEntry};
 
 pub enum ToBackend {
     ScanFolder,
@@ -13,11 +13,17 @@ pub enum ToBackend {
 }
 
 pub enum ToFrontend {
-    SetVersionMetadata { version_list: Vec<Version> },
+    SetVersionMetadata {
+        manifest: LibResult<VersionManifest>,
+    },
 
-    UpdateModList { mod_list: Vec<ModEntry> },
+    UpdateModList {
+        mod_list: Vec<ModEntry>,
+    },
 
-    CheckForUpdatesProgress { progress: CheckProgress },
+    CheckForUpdatesProgress {
+        progress: CheckProgress,
+    },
 }
 
 pub struct CheckProgress {

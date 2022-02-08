@@ -114,7 +114,8 @@ impl epi::App for UiApp {
         if let Some(rx) = &self.back_rx {
             match rx.try_recv() {
                 Ok(message) => match message {
-                    ToFrontend::SetVersionMetadata { version_list } => {
+                    ToFrontend::SetVersionMetadata { manifest } => {
+                        let version_list = manifest.unwrap().versions;
                         self.selected_version = Some(version_list[0].clone());
                         self.game_version_list = version_list;
                     }
