@@ -201,6 +201,7 @@ impl Back {
 
             if !filtered_old.is_empty() {
                 mod_entry.sourced_from = filtered_old[0].sourced_from;
+                mod_entry.modrinth_data = filtered_old[0].modrinth_data.clone();
 
                 // If the file has not changed, the state can also be kept
                 if mod_entry.hashes.sha1 == filtered_old[0].hashes.sha1 {
