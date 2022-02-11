@@ -18,7 +18,7 @@ pub fn default_mod_dir() -> PathBuf {
     HOME_DIR.join(".minecraft").join("mods")
 }
 
-#[cfg(target_os = "mac_os")]
+#[cfg(target_os = "macos")]
 pub fn default_mod_dir() -> PathBuf {
     HOME_DIR
         .join("Library")
