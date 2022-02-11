@@ -1,0 +1,60 @@
+name: Compile Releases
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  publish:
+    name: Publish for ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - name: linux
+            os: ubuntu-latest
+            artifact_name: target/release/m_cubed
+            asset_name: mCubed-linux
+          - name: windows
+            os: windows-latest
+            artifact_name: target/release/m_cubed.exe
+            asset_name: mCubed-windows
+          - name: macos
+            os: macos-latest
+            artifact_name: target/release/m_cubed
+            asset_name: mCubed-macos
+
+    steps:
+      - uses: actions/cache@v2
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+      # - name: Download dependencies
+      #   run: |
+      #     if [ "$RUNNER_OS" == "Linux" ]; then
+
+      #     elif [ "$RUNNER_OS" == "macOS" ]; then
+
+      #     elif [ "$RUNNER_OS" == "Windows" ]; then
+
+      #     fi
+      #   shell: bash
+      - uses: actions/checkout@v2
+      - name: Build
+        shell: bash
+        run: cargo build --release --verbose
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v2
+        with:
+          name: ${{ matrix.asset_name }}
+          path: ${{ matrix.artifact_name }}

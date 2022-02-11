@@ -1,7 +1,9 @@
 [package]
-name = "main"
-version = "0.1.0"
+name = "m_cubed"
+version = "0.0.1"
+authors = ["4JX"]
 edition = "2021"
+homepage = "https://github.com/4JX/mCubed"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 

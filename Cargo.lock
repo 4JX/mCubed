@@ -1610,8 +1610,8 @@ dependencies = [
 ]
 
 [[package]]
-name = "main"
-version = "0.1.0"
+name = "m_cubed"
+version = "0.0.1"
 dependencies = [
  "back",
  "eframe",
