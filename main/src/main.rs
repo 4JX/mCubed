@@ -40,6 +40,7 @@ struct UiApp {
     front_tx: Option<Sender<ToBackend>>,
     back_rx: Option<Receiver<ToFrontend>>,
     backend_context: BackendContext,
+    error_msg: Option<String>,
 }
 
 #[derive(Default)]
@@ -134,14 +135,25 @@ impl epi::App for UiApp {
                         self.backend_context.check_for_update_progress = Some(progress);
                     }
                     ToFrontend::BackendError { error } => {
-                        // Eventually handle backend errors fully
-                        dbg!(error);
+                        self.error_msg = Some(error.to_string());
                     }
                 },
                 Err(err) => {
                     let _ = err;
                 }
             }
+        }
+
+        if let Some(string) = self.error_msg.clone() {
+            egui::Window::new("Error").show(ctx, |ui| {
+                ui.label(string.to_string());
+
+                ui.vertical_centered(|ui| {
+                    if ui.button("Close").clicked() {
+                        self.error_msg = None;
+                    }
+                });
+            });
         }
 
         let frame = egui::Frame {
@@ -155,62 +167,90 @@ impl epi::App for UiApp {
             .resizable(false)
             .max_width(180.)
             .show(ctx, |ui| {
-                ui.vertical_centered_justified(|ui| {
-                    egui::ComboBox::from_id_source("version-combo")
-                        .selected_text(format!("{:?}", {
-                            if let Some(selected_value) = self.selected_version.as_ref() {
-                                selected_value.id.as_str()
-                            } else if self.game_version_list.is_empty() {
-                                "Fetching version list..."
-                            } else {
-                                self.selected_version = Some(self.game_version_list[0].clone());
-                                self.selected_version.as_ref().unwrap().id.as_str()
-                            }
-                        }))
-                        .show_ui(ui, |ui| {
-                            for version in &self.game_version_list {
-                                ui.selectable_value(
-                                    &mut self.selected_version,
-                                    Some(version.clone()),
-                                    &version.id,
-                                );
-                            }
+                ui.style_mut().spacing.item_spacing = Vec2::new(8.0, 8.0);
+
+                egui::Frame {
+                    fill: self.theme.colors.light_gray,
+                    margin: Margin::same(10.0),
+                    rounding: Rounding::same(4.),
+                    ..Default::default()
+                }
+                .show(ui, |ui| {
+                    egui::Frame {
+                        fill: self.theme.colors.dark_gray,
+                        margin: Margin::same(4.0),
+                        rounding: Rounding::same(4.),
+                        ..Default::default()
+                    }
+                    .show(ui, |ui| {
+                        ui.vertical_centered_justified(|ui| {
+                            ui.label("Game Version");
                         });
+                    });
+                    ui.vertical_centered_justified(|ui| {
+                        egui::ComboBox::from_id_source("version-combo")
+                            .selected_text(format!("{:?}", {
+                                if let Some(selected_value) = self.selected_version.as_ref() {
+                                    selected_value.id.as_str()
+                                } else if self.game_version_list.is_empty() {
+                                    "Fetching version list..."
+                                } else {
+                                    self.selected_version = Some(self.game_version_list[0].clone());
+                                    self.selected_version.as_ref().unwrap().id.as_str()
+                                }
+                            }))
+                            .show_ui(ui, |ui| {
+                                for version in &self.game_version_list {
+                                    ui.selectable_value(
+                                        &mut self.selected_version,
+                                        Some(version.clone()),
+                                        &version.id,
+                                    );
+                                }
+                            });
+                    });
                 });
 
-                ui.horizontal(|ui| {
-                    ui.vertical_centered_justified(|ui| {
-                        let edit = egui::TextEdit::singleline(&mut self.add_mod_buf).hint_text(
-                            RichText::new("Modrinth ID or Slug").color(self.theme.colors.gray),
-                        );
-                        ui.add(edit);
-                    });
+                egui::Frame {
+                    fill: self.theme.colors.light_gray,
+                    margin: Margin::same(10.0),
+                    rounding: Rounding::same(4.),
+                    ..Default::default()
+                }
+                .show(ui, |ui| {
+                    ui.horizontal(|ui| {
+                        ui.vertical_centered_justified(|ui| {
+                            let edit = egui::TextEdit::singleline(&mut self.add_mod_buf).hint_text(
+                                RichText::new("Modrinth ID or Slug").color(self.theme.colors.gray),
+                            );
+                            ui.add(edit);
+                        });
 
-                    if ui.button("Fetch Mod").clicked() {
-                        if let Some(tx) = &self.front_tx {
-                            if let Some(version) = &self.selected_version {
-                                tx.send(ToBackend::AddMod {
-                                    modrinth_id: self.add_mod_buf.clone(),
-                                    game_version: version.id.clone(),
-                                    modloader: self.selected_modloader,
-                                })
-                                .unwrap();
-                            } else {
-                                tx.send(ToBackend::AddMod {
-                                    modrinth_id: self.add_mod_buf.clone(),
-                                    game_version: self.game_version_list[0].id.clone(),
-                                    modloader: self.selected_modloader,
-                                })
-                                .unwrap();
+                        if ui.button("Fetch Mod").clicked() {
+                            if let Some(tx) = &self.front_tx {
+                                if let Some(version) = &self.selected_version {
+                                    tx.send(ToBackend::AddMod {
+                                        modrinth_id: self.add_mod_buf.clone(),
+                                        game_version: version.id.clone(),
+                                        modloader: self.selected_modloader,
+                                    })
+                                    .unwrap();
+                                } else {
+                                    tx.send(ToBackend::AddMod {
+                                        modrinth_id: self.add_mod_buf.clone(),
+                                        game_version: self.game_version_list[0].id.clone(),
+                                        modloader: self.selected_modloader,
+                                    })
+                                    .unwrap();
+                                }
                             }
                         }
-                    }
-                });
+                    });
 
-                ui.horizontal(|ui| {
-                    ui.radio_value(&mut self.selected_modloader, ModLoader::Both, "Both");
-                    ui.radio_value(&mut self.selected_modloader, ModLoader::Forge, "Forge");
-                    ui.radio_value(&mut self.selected_modloader, ModLoader::Fabric, "Fabric");
+                    ui.horizontal(|ui| {
+                        ui.radio_value(&mut self.selected_modloader, ModLoader::Forge, "Forge");
+                        ui.radio_value(&mut self.selected_modloader, ModLoader::Fabric, "Fabric");
+                    });
                 });
 
                 ui.with_layout(Layout::bottom_up(Align::Center), |ui| {
@@ -303,6 +343,7 @@ impl epi::App for UiApp {
                             for mod_entry in filtered_list {
                                 egui::Frame {
                                     fill: self.theme.colors.dark_gray,
+                                    rounding: Rounding::same(2.0),
                                     ..Default::default()
                                 }
                                 .show(ui, |ui| {
@@ -531,7 +572,7 @@ impl UiApp {
                 debug_on_hover: false,
                 show_expand_width: false,
                 show_expand_height: false,
-                show_resize: true,
+                show_resize: false,
             },
             ..Default::default()
         };

@@ -78,7 +78,6 @@ pub fn default_text_styles() -> TextStyles {
     // Custom
     insert_style(&mut text_styles, "Mod-Version", "Inter-ExtraBold", 12.0);
     insert_style(&mut text_styles, "Mod-Card-Data", "Inter-Bold", 9.0);
-    insert_style(&mut text_styles, "Small", "Inter-Bold", 9.0);
     insert_style(&mut text_styles, "Update-Button", "Inter-SemiBold", 9.0);
 
     text_styles
