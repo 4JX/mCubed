@@ -39,16 +39,16 @@ jobs:
             ~/.cargo/git/db/
             target/
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-      # - name: Download dependencies
-      #   run: |
-      #     if [ "$RUNNER_OS" == "Linux" ]; then
+      - name: Download dependencies
+        run: |
+          if [ "$RUNNER_OS" == "Linux" ]; then
+          sudo apt install libxcb-shape0-dev libxcb-xfixes0-dev
+          elif [ "$RUNNER_OS" == "macOS" ]; then
 
-      #     elif [ "$RUNNER_OS" == "macOS" ]; then
+          elif [ "$RUNNER_OS" == "Windows" ]; then
 
-      #     elif [ "$RUNNER_OS" == "Windows" ]; then
-
-      #     fi
-      #   shell: bash
+          fi
+        shell: bash
       - uses: actions/checkout@v2
       - name: Build
         shell: bash
