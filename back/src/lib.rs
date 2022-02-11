@@ -45,39 +45,6 @@ impl Back {
         }
     }
 
-    fn scan_folder(&mut self) {
-        self.mod_list.clear();
-
-        let read_dir = fs::read_dir(&self.folder_path).unwrap();
-
-        'file_loop: for file_entry in read_dir {
-            let path = file_entry.unwrap().path();
-
-            // Minecraft does not really care about mods within folders, therefore skip anything that is not a file
-            if path.is_file() {
-                let mut file = fs::File::open(&path).unwrap();
-
-                match ModEntry::from_file(&mut file) {
-                    Ok(mut entry) => self.mod_list.append(&mut entry),
-                    Err(error) => {
-                        // In the case of an error the mod list will be cleared
-                        self.mod_list.clear();
-                        self.back_tx
-                            .send(ToFrontend::BackendError { error })
-                            .unwrap();
-                        break 'file_loop;
-                    }
-                }
-            }
-        }
-
-        self.back_tx
-            .send(ToFrontend::UpdateModList {
-                mod_list: self.mod_list.clone(),
-            })
-            .unwrap();
-    }
-
     pub fn init(&mut self) {
         let rt = tokio::runtime::Runtime::new().unwrap();
 
@@ -194,6 +161,39 @@ impl Back {
                 };
             }
         });
+    }
+
+    fn scan_folder(&mut self) {
+        self.mod_list.clear();
+
+        let read_dir = fs::read_dir(&self.folder_path).unwrap();
+
+        'file_loop: for file_entry in read_dir {
+            let path = file_entry.unwrap().path();
+
+            // Minecraft does not really care about mods within folders, therefore skip anything that is not a file
+            if path.is_file() {
+                let mut file = fs::File::open(&path).unwrap();
+
+                match ModEntry::from_file(&mut file) {
+                    Ok(mut entry) => self.mod_list.append(&mut entry),
+                    Err(error) => {
+                        // In the case of an error the mod list will be cleared
+                        self.mod_list.clear();
+                        self.back_tx
+                            .send(ToFrontend::BackendError { error })
+                            .unwrap();
+                        break 'file_loop;
+                    }
+                }
+            }
+        }
+
+        self.back_tx
+            .send(ToFrontend::UpdateModList {
+                mod_list: self.mod_list.clone(),
+            })
+            .unwrap();
     }
 
     async fn update_mod(&mut self, mod_entry: ModEntry) {
