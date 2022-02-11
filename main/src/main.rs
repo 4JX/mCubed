@@ -145,7 +145,7 @@ impl epi::App for UiApp {
         }
 
         let frame = egui::Frame {
-            margin: Vec2::splat(8.0).into(),
+            margin: Margin::same(8.0),
             fill: self.theme.colors.gray,
             ..Default::default()
         };
@@ -270,7 +270,7 @@ impl epi::App for UiApp {
             ui.vertical_centered_justified(|ui| {
                 egui::Frame {
                     fill: self.theme.colors.darker_gray,
-                    margin: Vec2::new(10., 10.).into(),
+                    margin: Margin::same(10.0),
                     rounding: Rounding::same(4.),
                     ..Default::default()
                 }
