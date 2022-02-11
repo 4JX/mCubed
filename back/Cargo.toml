@@ -20,6 +20,7 @@ bytes = "1.1.0"
 daedalus = { path = "../../daedalus/daedalus" }
 epi = { path = "../../egui/epi" }
 thiserror = "1.0.30"
+directories = "4.0.1"
 
 # For their error types
 serde_json = "1.0.78"

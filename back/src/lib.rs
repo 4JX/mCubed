@@ -10,6 +10,7 @@ use hash::Hashes;
 use messages::{CheckProgress, ToBackend, ToFrontend};
 use mod_entry::ModEntry;
 use modrinth::Modrinth;
+mod minecraft_path;
 mod modrinth;
 
 mod error;
@@ -30,14 +31,14 @@ pub struct Back {
 
 impl Back {
     pub fn new(
-        folder_path: PathBuf,
+        folder_path: Option<PathBuf>,
         back_tx: Sender<ToFrontend>,
         front_rx: Receiver<ToBackend>,
         egui_epi_frame: Option<epi::Frame>,
     ) -> Self {
         Self {
             mod_list: Default::default(),
-            folder_path,
+            folder_path: folder_path.unwrap_or_else(|| minecraft_path::default_mod_dir()),
             modrinth: Default::default(),
             back_tx,
             front_rx,

@@ -173,6 +173,7 @@ version = "0.1.0"
 dependencies = [
  "bytes",
  "daedalus",
+ "directories",
  "epi",
  "ferinth",
  "hex",
@@ -690,6 +691,15 @@ dependencies = [
  "block-buffer",
  "crypto-common",
  "generic-array",
+]
+
+[[package]]
+name = "directories"
+version = "4.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f51c5d4ddabd36886dd3e1438cb358cdcb0d7c499cb99cb4ac2e38e18b5cb210"
+dependencies = [
+ "dirs-sys",
 ]
 
 [[package]]

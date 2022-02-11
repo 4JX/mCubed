@@ -8,7 +8,6 @@ use image_utils::ImageTextures;
 
 use std::{
     collections::HashMap,
-    fs,
     sync::mpsc::{Receiver, Sender},
     thread,
 };
@@ -83,11 +82,9 @@ impl epi::App for UiApp {
         let (front_tx, front_rx) = std::sync::mpsc::channel::<ToBackend>();
         let (back_tx, back_rx) = std::sync::mpsc::channel::<ToFrontend>();
 
-        let dir = fs::canonicalize("./mods/").unwrap();
-
         let frame_clone = frame.clone();
         thread::spawn(move || {
-            Back::new(dir, back_tx, front_rx, Some(frame_clone)).init();
+            Back::new(None, back_tx, front_rx, Some(frame_clone)).init();
         });
 
         self.front_tx = Some(front_tx);

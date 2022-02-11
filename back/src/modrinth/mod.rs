@@ -1,6 +1,6 @@
 use bytes::Bytes;
 use ferinth::{
-    structures::version_structs::{ListVersionsParams, Version, VersionType},
+    structures::version_structs::{ListVersionsParams, Version},
     Ferinth,
 };
 
@@ -71,10 +71,11 @@ impl Modrinth {
                     let filtered_list: Vec<&Version> = version_list
                         .iter()
                         .filter(|version| {
-                            version.version_type == VersionType::Release
-                                && version
-                                    .loaders
-                                    .contains(&mod_entry.modloader.to_string().to_lowercase())
+                            // version.version_type == VersionType::Release
+                            // &&
+                            version
+                                .loaders
+                                .contains(&mod_entry.modloader.to_string().to_lowercase())
                                 && !version.files.is_empty()
                         })
                         .collect();
