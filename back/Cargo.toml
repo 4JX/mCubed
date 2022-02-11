@@ -8,7 +8,7 @@ edition = "2021"
 [dependencies]
 tokio = { version = "1.16.1", features = ["rt", "rt-multi-thread"] }
 # ferinth = "1.4.1"
-ferinth = { path = "../../ferinth" }
+ferinth = { git = "https://github.com/4JX/ferinth" }
 sha-1 = "0.10.0"
 sha2 = "0.10.1"
 mc_mod_meta = { path = "../mc_mod_meta" }
@@ -17,8 +17,8 @@ lazy_static = "1.4.0"
 hex = "0.4.3"
 bytes = "1.1.0"
 # daedalus = "0.1.14"
-daedalus = { path = "../../daedalus/daedalus" }
-epi = { path = "../../egui/epi" }
+daedalus = { git = "https://github.com/4JX/daedalus" }
+epi = { git = "https://github.com/4JX/egui" }
 thiserror = "1.0.30"
 directories = "4.0.1"
 

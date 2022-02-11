@@ -10,7 +10,7 @@ homepage = "https://github.com/4JX/mCubed"
 [dependencies]
 # eframe = "0.16.0"
 # eframe = { git = "https://github.com/emilk/egui", rev = "366f544" }
-eframe = { path = "../../egui/eframe", features = ["persistence"] }
+eframe = { git = "https://github.com/4JX/egui", features = ["persistence"] }
 image = "0.24.0"
 serde = "1.0.136"
 serde_json = "1.0.78"

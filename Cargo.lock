@@ -579,6 +579,7 @@ checksum = "b365fabc795046672053e29c954733ec3b05e4be654ab130fe8f1f94d7051f35"
 [[package]]
 name = "daedalus"
 version = "0.1.14"
+source = "git+https://github.com/4JX/daedalus#c977bb0d3a3e860124b1e17f911beadd53e540a1"
 dependencies = [
  "bytes",
  "chrono",
@@ -782,6 +783,7 @@ checksum = "6907e25393cdcc1f4f3f513d9aac1e840eb1cc341a0fccb01171f7d14d10b946"
 [[package]]
 name = "eframe"
 version = "0.16.0"
+source = "git+https://github.com/4JX/egui#72ebd1ecd95db74756cf7020742ce4699e64709d"
 dependencies = [
  "egui",
  "egui-winit",
@@ -793,6 +795,7 @@ dependencies = [
 [[package]]
 name = "egui"
 version = "0.16.1"
+source = "git+https://github.com/4JX/egui#72ebd1ecd95db74756cf7020742ce4699e64709d"
 dependencies = [
  "ahash 0.7.6",
  "epaint",
@@ -805,6 +808,7 @@ dependencies = [
 [[package]]
 name = "egui-winit"
 version = "0.16.0"
+source = "git+https://github.com/4JX/egui#72ebd1ecd95db74756cf7020742ce4699e64709d"
 dependencies = [
  "copypasta",
  "dark-light",
@@ -820,6 +824,7 @@ dependencies = [
 [[package]]
 name = "egui_glow"
 version = "0.16.0"
+source = "git+https://github.com/4JX/egui#72ebd1ecd95db74756cf7020742ce4699e64709d"
 dependencies = [
  "bytemuck",
  "egui",
@@ -836,6 +841,7 @@ dependencies = [
 [[package]]
 name = "egui_web"
 version = "0.16.0"
+source = "git+https://github.com/4JX/egui#72ebd1ecd95db74756cf7020742ce4699e64709d"
 dependencies = [
  "bytemuck",
  "console_error_panic_hook",
@@ -859,6 +865,7 @@ checksum = "e78d4f1cc4ae33bbfc157ed5d5a5ef3bc29227303d595861deb238fcec4e9457"
 [[package]]
 name = "emath"
 version = "0.16.0"
+source = "git+https://github.com/4JX/egui#72ebd1ecd95db74756cf7020742ce4699e64709d"
 dependencies = [
  "bytemuck",
  "serde",
@@ -961,6 +968,7 @@ dependencies = [
 [[package]]
 name = "epaint"
 version = "0.16.0"
+source = "git+https://github.com/4JX/egui#72ebd1ecd95db74756cf7020742ce4699e64709d"
 dependencies = [
  "ab_glyph",
  "ahash 0.7.6",
@@ -974,6 +982,7 @@ dependencies = [
 [[package]]
 name = "epi"
 version = "0.16.0"
+source = "git+https://github.com/4JX/egui#72ebd1ecd95db74756cf7020742ce4699e64709d"
 dependencies = [
  "directories-next",
  "egui",
@@ -1016,6 +1025,7 @@ dependencies = [
 [[package]]
 name = "ferinth"
 version = "2.0.0"
+source = "git+https://github.com/4JX/ferinth#bf23b8d0d8cd0e41f27f6ad3c12e327ca2062f14"
 dependencies = [
  "bytes",
  "chrono",
