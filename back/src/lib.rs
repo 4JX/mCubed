@@ -164,6 +164,8 @@ impl Back {
     }
 
     fn scan_folder(&mut self) {
+        let old_list = self.mod_list.clone();
+
         self.mod_list.clear();
 
         let read_dir = fs::read_dir(&self.folder_path).unwrap();
@@ -185,6 +187,23 @@ impl Back {
                             .unwrap();
                         break 'file_loop;
                     }
+                }
+            }
+        }
+
+        // Ensure the important bits are kept from the old list
+        for mod_entry in self.mod_list.iter_mut() {
+            let filtered_old: Vec<&ModEntry> = old_list
+                .iter()
+                .filter(|filter_entry| filter_entry.id == mod_entry.id)
+                .collect();
+
+            if !filtered_old.is_empty() {
+                mod_entry.sourced_from = filtered_old[0].sourced_from;
+
+                // If the file has not changed, the state can also be kept
+                if mod_entry.hashes.sha1 == filtered_old[0].hashes.sha1 {
+                    mod_entry.state = filtered_old[0].state;
                 }
             }
         }
