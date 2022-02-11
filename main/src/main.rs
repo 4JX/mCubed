@@ -7,7 +7,6 @@ use back::{
 use image_utils::ImageTextures;
 
 use std::{
-    collections::HashMap,
     sync::mpsc::{Receiver, Sender},
     thread,
 };
@@ -35,7 +34,7 @@ struct UiApp {
     selected_version: Option<GameVersion>,
     selected_modloader: ModLoader,
     images: ImageTextures,
-    mod_hash_cache: HashMap<String, String>,
+
     front_tx: Option<Sender<ToBackend>>,
     back_rx: Option<Receiver<ToFrontend>>,
     backend_context: BackendContext,
@@ -52,30 +51,12 @@ impl epi::App for UiApp {
         "An App"
     }
 
-    fn save(&mut self, storage: &mut dyn epi::Storage) {
-        let mod_hash_cache = serde_json::to_string(&self.mod_hash_cache).unwrap();
-
-        storage.set_string("hash_storage", mod_hash_cache);
-    }
-
-    fn auto_save_interval(&self) -> std::time::Duration {
-        std::time::Duration::from_secs(30)
-    }
-
     fn setup(
         &mut self,
         ctx: &egui::Context,
         frame: &epi::Frame,
-        storage: Option<&dyn epi::Storage>,
+        _storage: Option<&dyn epi::Storage>,
     ) {
-        if let Some(storage) = storage {
-            if let Some(hash_json) = storage.get_string("hash_storage") {
-                if let Ok(cache) = serde_json::from_str(hash_json.as_str()) {
-                    self.mod_hash_cache = cache;
-                };
-            }
-        }
-
         self.configure_style(ctx);
         self.images.load_images(ctx);
 
