@@ -25,6 +25,13 @@ impl Hashes {
     pub(crate) fn get_hashes_from_bytes(bytes: &Bytes) -> Hashes {
         get_hashes_from_vec(bytes)
     }
+
+    pub(crate) fn dummy() -> Self {
+        Self {
+            sha1: "".to_string(),
+            sha512: "".to_string(),
+        }
+    }
 }
 
 fn get_hashes_from_vec(vec: impl AsRef<[u8]>) -> Hashes {

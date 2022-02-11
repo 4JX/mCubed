@@ -5,9 +5,10 @@ use std::{
     sync::mpsc::{Receiver, Sender},
 };
 
+use bytes::Bytes;
 use hash::Hashes;
 use messages::{CheckProgress, ToBackend, ToFrontend};
-use mod_entry::{ModEntry, ModrinthData, Source};
+use mod_entry::ModEntry;
 use modrinth::Modrinth;
 mod modrinth;
 
@@ -110,7 +111,7 @@ impl Back {
                                     }
 
                                     self.modrinth
-                                        .check_for_updates(&game_version, mod_entry)
+                                        .check_for_updates(mod_entry, &game_version)
                                         .await;
                                 }
 
@@ -135,79 +136,7 @@ impl Back {
                             }
 
                             ToBackend::UpdateMod { mod_entry } => {
-                                if let Ok(bytes) = self.modrinth.update_mod(&mod_entry).await {
-                                    let read_dir = fs::read_dir(&self.folder_path).unwrap();
-
-                                    'file_loop: for file_entry in read_dir {
-                                        let path = file_entry.unwrap().path();
-
-                                        if path.is_file() {
-                                            let mut file = fs::File::open(&path).unwrap();
-
-                                            let hashes =
-                                                Hashes::get_hashes_from_file(&mut file).unwrap();
-
-                                            // We found the file the mod_entry belongs to
-                                            if mod_entry.hashes.sha1 == hashes.sha1 {
-                                                std::fs::remove_file(path).unwrap();
-
-                                                // The data is guaranteed to exist, unwrapping here is fine
-                                                let path = self.folder_path.join(format!(
-                                                    "{}-{}",
-                                                    mod_entry.id,
-                                                    mod_entry
-                                                        .modrinth_data
-                                                        .as_ref()
-                                                        .unwrap()
-                                                        .latest_valid_version
-                                                        .as_ref()
-                                                        .unwrap()
-                                                        .filename
-                                                ));
-
-                                                // Essentially fs::File::create(path) but with read access as well
-                                                let mut new_mod_file = OpenOptions::new()
-                                                    .read(true)
-                                                    .write(true)
-                                                    .create(true)
-                                                    .truncate(true)
-                                                    .open(path)
-                                                    .unwrap();
-
-                                                new_mod_file.write_all(&bytes).unwrap();
-
-                                                let mut new_entries =
-                                                    ModEntry::from_file(&mut new_mod_file).unwrap();
-
-                                                for new_mod_entry in new_entries.iter_mut() {
-                                                    // Ensure the data for the entry is kept
-                                                    new_mod_entry.modrinth_data =
-                                                        mod_entry.modrinth_data.clone();
-                                                    new_mod_entry.sourced_from =
-                                                        mod_entry.sourced_from;
-
-                                                    for list_entry in self.mod_list.iter_mut() {
-                                                        if list_entry.hashes.sha1
-                                                            == mod_entry.hashes.sha1
-                                                            && list_entry.id
-                                                                == new_mod_entry.id.clone()
-                                                        {
-                                                            *list_entry = new_mod_entry.clone();
-                                                        }
-                                                    }
-                                                }
-
-                                                self.back_tx
-                                                    .send(ToFrontend::UpdateModList {
-                                                        mod_list: self.mod_list.clone(),
-                                                    })
-                                                    .unwrap();
-
-                                                break 'file_loop;
-                                            }
-                                        }
-                                    }
-                                };
+                                self.update_mod(mod_entry).await;
                             }
 
                             ToBackend::AddMod {
@@ -221,101 +150,27 @@ impl Back {
                                     .await
                                 {
                                     Some(modrinth_id) => {
-                                        // Ensure the entry does not already exist
-                                        let mut entry_exists = false;
-
-                                        for mod_entry in &self.mod_list {
-                                            if let Some(modrinth_data) = &mod_entry.modrinth_data {
-                                                if modrinth_data.id == modrinth_id {
-                                                    entry_exists = true
-                                                };
-                                            } else if let Some(fetched_id) = self
-                                                .modrinth
-                                                .get_modrinth_id_from_hash(
-                                                    mod_entry.hashes.sha1.as_str(),
-                                                )
-                                                .await
-                                            {
-                                                if fetched_id == modrinth_id {
-                                                    entry_exists = true;
-                                                }
-                                            };
-                                        }
-
-                                        if entry_exists {
-                                            // A collision happened, the mod should be updated through standard procedures
-                                            self.back_tx
-                                                .send(ToFrontend::BackendError {
-                                                    error: error::Error::EntryAlreadyInList,
-                                                })
-                                                .unwrap();
-                                        } else {
-                                            match self
-                                                .modrinth
-                                                .get_mod_bytes(
-                                                    modrinth_id.clone(),
-                                                    game_version.clone(),
-                                                    modloader,
-                                                )
-                                                .await
-                                            {
-                                                Ok((bytes, filename_details)) => {
-                                                    let path = self.folder_path.join(format!(
-                                                        "{}-{}",
-                                                        &filename_details.project_id,
-                                                        &filename_details.file_name
-                                                    ));
-
-                                                    // Essentially fs::File::create(path) but with read access as well
-                                                    let mut new_mod_file = OpenOptions::new()
-                                                        .read(true)
-                                                        .write(true)
-                                                        .create(true)
-                                                        .truncate(true)
-                                                        .open(path)
-                                                        .unwrap();
-
-                                                    new_mod_file.write_all(&bytes).unwrap();
-
-                                                    let mut new_entries =
-                                                        ModEntry::from_file(&mut new_mod_file)
-                                                            .unwrap();
-
-                                                    for new_mod_entry in new_entries.iter_mut() {
-                                                        // Update the entry information
-                                                        let modrinth_data = ModrinthData {
-                                                            id: modrinth_id.clone(),
-                                                            latest_valid_version: None,
-                                                        };
-                                                        new_mod_entry.modrinth_data =
-                                                            Some(modrinth_data);
-                                                        new_mod_entry.sourced_from =
-                                                            Source::Modrinth;
-
-                                                        for list_entry in self.mod_list.iter_mut() {
-                                                            if list_entry.id
-                                                                == new_mod_entry.id.clone()
-                                                            {
-                                                                *list_entry = new_mod_entry.clone();
-                                                            }
-                                                        }
-
-                                                        self.mod_list.push(new_mod_entry.clone());
+                                        match self
+                                            .modrinth
+                                            .create_mod_entry(modrinth_id, game_version, modloader)
+                                            .await
+                                        {
+                                            Ok(mod_entry) => {
+                                                match self.modrinth.update_mod(&mod_entry).await {
+                                                    Ok(bytes) => {
+                                                        self.create_mod_file(mod_entry, bytes);
                                                     }
-
-                                                    self.back_tx
-                                                        .send(ToFrontend::UpdateModList {
-                                                            mod_list: self.mod_list.clone(),
-                                                        })
-                                                        .unwrap();
-                                                }
-
-                                                Err(error) => {
-                                                    self.back_tx
+                                                    Err(error) => self
+                                                        .back_tx
                                                         .send(ToFrontend::BackendError { error })
-                                                        .unwrap();
+                                                        .unwrap(),
                                                 }
-                                            };
+                                            }
+                                            Err(error) => {
+                                                self.back_tx
+                                                    .send(ToFrontend::BackendError { error })
+                                                    .unwrap();
+                                            }
                                         };
                                     }
                                     None => {
@@ -325,7 +180,7 @@ impl Back {
                                             })
                                             .unwrap();
                                     }
-                                };
+                                }
                             }
                         }
 
@@ -339,5 +194,79 @@ impl Back {
                 };
             }
         });
+    }
+
+    async fn update_mod(&mut self, mod_entry: ModEntry) {
+        if let Ok(bytes) = self.modrinth.update_mod(&mod_entry).await {
+            let read_dir = fs::read_dir(&self.folder_path).unwrap();
+
+            'file_loop: for file_entry in read_dir {
+                let path = file_entry.unwrap().path();
+
+                if path.is_file() {
+                    let mut file = fs::File::open(&path).unwrap();
+
+                    let hashes = Hashes::get_hashes_from_file(&mut file).unwrap();
+
+                    // We found the file the mod_entry belongs to
+                    if mod_entry.hashes.sha1 == hashes.sha1 {
+                        std::fs::remove_file(path).unwrap();
+
+                        self.create_mod_file(mod_entry, bytes);
+                        break 'file_loop;
+                    }
+                }
+            }
+        };
+    }
+
+    fn create_mod_file(&mut self, mod_entry: ModEntry, bytes: Bytes) {
+        // The data is guaranteed to exist, unwrapping here is fine
+        let path = self.folder_path.join(
+            &mod_entry
+                .modrinth_data
+                .as_ref()
+                .unwrap()
+                .latest_valid_version
+                .as_ref()
+                .unwrap()
+                .filename,
+        );
+
+        // Essentially fs::File::create(path) but with read access as well
+        let mut new_mod_file = OpenOptions::new()
+            .read(true)
+            .write(true)
+            .create(true)
+            .truncate(true)
+            .open(path)
+            .unwrap();
+
+        new_mod_file.write_all(&bytes).unwrap();
+
+        let mut new_entries = ModEntry::from_file(&mut new_mod_file).unwrap();
+
+        for new_mod_entry in new_entries.iter_mut() {
+            // Ensure the data for the entry is kept
+            new_mod_entry.modrinth_data = mod_entry.modrinth_data.clone();
+            new_mod_entry.sourced_from = mod_entry.sourced_from;
+
+            for list_entry in self.mod_list.iter_mut() {
+                // The hash has to be compared to the old entry, the slug/id can be compared to the new one
+                if list_entry.hashes.sha1 == mod_entry.hashes.sha1
+                    && list_entry.id == new_mod_entry.id.clone()
+                {
+                    *list_entry = new_mod_entry.clone();
+                }
+            }
+        }
+
+        self.scan_folder();
+
+        self.back_tx
+            .send(ToFrontend::UpdateModList {
+                mod_list: self.mod_list.clone(),
+            })
+            .unwrap();
     }
 }

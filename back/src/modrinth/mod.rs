@@ -6,6 +6,7 @@ use ferinth::{
 
 use crate::{
     error::{self, LibResult},
+    hash,
     mod_entry::{FileState, ModEntry, ModLoader, ModrinthData, Source},
 };
 
@@ -37,7 +38,7 @@ impl Modrinth {
         }
     }
 
-    pub(crate) async fn check_for_updates(&self, game_version: &str, mod_entry: &mut ModEntry) {
+    pub(crate) async fn check_for_updates(&self, mod_entry: &mut ModEntry, game_version: &str) {
         if mod_entry.sourced_from == Source::Modrinth || mod_entry.sourced_from == Source::Local {
             // Get and set the modrinth ID, without one the operation cannot proceed
             if mod_entry.modrinth_data.is_none() {
@@ -54,103 +55,46 @@ impl Modrinth {
 
             // This will not always give a result, therefore the data needs to be checked again (In case it is "Some", assume its correct)
             if let Some(modrinth_data) = &mut mod_entry.modrinth_data {
-                let query_params = ListVersionsParams {
-                    loaders: Some(mod_entry.modloader.into()),
-                    game_versions: Some(
-                        vec![game_version].iter().map(ToString::to_string).collect(),
-                    ),
-                    featured: None,
-                };
-
                 // The version list can now be fetched
-                match self
-                    .ferinth
-                    .list_versions(modrinth_data.id.as_str(), Some(query_params))
+                let version_list = self
+                    .list_versions(&modrinth_data.id, mod_entry.modloader, game_version)
                     .await
-                {
-                    Ok(version_list) => {
-                        if version_list.is_empty() {
-                            // No versions could be found that match the criteria, therefore the mod is incompatible for this version
-                            mod_entry.state = FileState::Invalid;
-                        } else {
-                            // There are results, consider the state to be up to date unless proven otherwise
-                            mod_entry.state = FileState::Current;
+                    .unwrap();
 
-                            let filtered_list: Vec<&Version> = version_list
+                if version_list.is_empty() {
+                    // No versions could be found that match the criteria, therefore the mod is incompatible for this version
+                    mod_entry.state = FileState::Invalid;
+                } else {
+                    // There are results, consider the state to be up to date unless proven otherwise
+                    mod_entry.state = FileState::Current;
+
+                    let filtered_list: Vec<&Version> = version_list
+                        .iter()
+                        .filter(|version| {
+                            version.version_type == VersionType::Release
+                                && version
+                                    .loaders
+                                    .contains(&mod_entry.modloader.to_string().to_lowercase())
+                                && !version.files.is_empty()
+                        })
+                        .collect();
+
+                    if !filtered_list.is_empty() {
+                        {
+                            // If the version being checked contains a file with the hash of our local copy, it means it is already on the latest possible version
+                            if !filtered_list[0]
+                                .files
                                 .iter()
-                                .filter(|version| {
-                                    version.version_type == VersionType::Release
-                                        && version.loaders.contains(
-                                            &mod_entry.modloader.to_string().to_lowercase(),
-                                        )
-                                        && !version.files.is_empty()
-                                })
-                                .collect();
-
-                            if !filtered_list.is_empty() {
-                                {
-                                    // If the version being checked contains a file with the hash of our local copy, it means it is already on the latest possible version
-                                    if !filtered_list[0].files.iter().any(|file| {
-                                        file.hashes.sha1 == Some(mod_entry.hashes.sha1.clone())
-                                    }) {
-                                        modrinth_data.latest_valid_version =
-                                            Some(filtered_list[0].files[0].clone());
-                                        mod_entry.state = FileState::Outdated;
-                                    }
-                                }
+                                .any(|file| file.hashes.sha1 == Some(mod_entry.hashes.sha1.clone()))
+                            {
+                                modrinth_data.latest_valid_version =
+                                    Some(filtered_list[0].files[0].clone());
+                                mod_entry.state = FileState::Outdated;
                             }
                         }
                     }
-                    Err(err) => {
-                        dbg!(&err);
-                    }
-                };
-            }
-        }
-    }
-
-    pub(crate) async fn get_mod_bytes(
-        &self,
-        modrinth_id: String,
-        game_version: String,
-        modloader: ModLoader,
-    ) -> LibResult<(Bytes, FilenameDetails)> {
-        let query_params = ListVersionsParams {
-            loaders: Some(modloader.into()),
-            game_versions: Some(vec![game_version].iter().map(ToString::to_string).collect()),
-            featured: None,
-        };
-
-        // Get the candidate versions based on the ID
-        match self
-            .ferinth
-            .list_versions(modrinth_id.as_str(), Some(query_params))
-            .await
-        {
-            Ok(version_list) => {
-                if version_list.is_empty() {
-                    // No versions could be found that match the criteria
-                    Err(error::Error::ModrinthEmptyVersionSearchResult)
-                } else {
-                    // Ensure there is something that can be downloaded
-                    if version_list[0].files.is_empty() {
-                        Err(error::Error::ModrinthEmptyFileList)
-                    } else {
-                        let bytes = self
-                            .ferinth
-                            .download_version_file(&version_list[0].files[0])
-                            .await?;
-
-                        let filename_details = FilenameDetails {
-                            project_id: version_list[0].project_id.clone(),
-                            file_name: version_list[0].files[0].filename.clone(),
-                        };
-
-                        Ok((bytes, filename_details))
-                    }
                 }
             }
-            Err(err) => Err(err.into()),
         }
     }
 
@@ -165,9 +109,51 @@ impl Modrinth {
             Err(error::Error::NoModrinthDataError)
         }
     }
-}
 
-pub(crate) struct FilenameDetails {
-    pub project_id: String,
-    pub file_name: String,
+    pub(crate) async fn create_mod_entry(
+        &self,
+        modrinth_id: String,
+        game_version: String,
+        modloader: ModLoader,
+    ) -> LibResult<ModEntry> {
+        let project = self.ferinth.get_project(modrinth_id.as_str()).await?;
+
+        let modrinth_data = ModrinthData {
+            id: modrinth_id,
+            latest_valid_version: None,
+        };
+
+        let mut mod_entry = ModEntry {
+            id: project.slug,
+            version: "0.0.0".to_string(),
+            display_name: project.title,
+            modloader,
+            hashes: hash::Hashes::dummy(),
+            modrinth_data: Some(modrinth_data),
+            state: FileState::Current,
+            sourced_from: Source::Modrinth,
+        };
+
+        self.check_for_updates(&mut mod_entry, &game_version).await;
+
+        Ok(mod_entry)
+    }
+
+    async fn list_versions(
+        &self,
+        modrinth_id: &str,
+        modloader: ModLoader,
+        game_version: &str,
+    ) -> LibResult<Vec<ferinth::structures::version_structs::Version>> {
+        let query_params = ListVersionsParams {
+            loaders: Some(modloader.into()),
+            game_versions: Some(vec![game_version].iter().map(ToString::to_string).collect()),
+            featured: None,
+        };
+
+        Ok(self
+            .ferinth
+            .list_versions(modrinth_id, Some(query_params))
+            .await?)
+    }
 }
