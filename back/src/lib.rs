@@ -56,6 +56,8 @@ impl Back {
                         match message {
                             ToBackend::ScanFolder => {
                                 self.scan_folder();
+
+                                self.sort_and_send_list()
                             }
 
                             ToBackend::CheckForUpdates { game_version } => {
@@ -83,15 +85,7 @@ impl Back {
                                         .await;
                                 }
 
-                                self.mod_list.sort_by(|entry_1, entry_2| {
-                                    entry_1.display_name.cmp(&entry_2.display_name)
-                                });
-
-                                self.back_tx
-                                    .send(ToFrontend::UpdateModList {
-                                        mod_list: self.mod_list.clone(),
-                                    })
-                                    .unwrap();
+                                self.sort_and_send_list();
                             }
 
                             ToBackend::GetVersionMetadata => {
@@ -168,6 +162,17 @@ impl Back {
         });
     }
 
+    fn sort_and_send_list(&mut self) {
+        self.mod_list
+            .sort_by(|entry_1, entry_2| entry_1.display_name.cmp(&entry_2.display_name));
+
+        self.back_tx
+            .send(ToFrontend::UpdateModList {
+                mod_list: self.mod_list.clone(),
+            })
+            .unwrap();
+    }
+
     fn scan_folder(&mut self) {
         let old_list = self.mod_list.clone();
 
@@ -219,15 +224,6 @@ impl Back {
                 }
             }
         }
-
-        self.mod_list
-            .sort_by(|entry_1, entry_2| entry_1.display_name.cmp(&entry_2.display_name));
-
-        self.back_tx
-            .send(ToFrontend::UpdateModList {
-                mod_list: self.mod_list.clone(),
-            })
-            .unwrap();
     }
 
     async fn update_mod(&mut self, mod_entry: ModEntry) {
@@ -297,13 +293,6 @@ impl Back {
 
         self.scan_folder();
 
-        self.mod_list
-            .sort_by(|entry_1, entry_2| entry_1.display_name.cmp(&entry_2.display_name));
-
-        self.back_tx
-            .send(ToFrontend::UpdateModList {
-                mod_list: self.mod_list.clone(),
-            })
-            .unwrap();
+        self.sort_and_send_list()
     }
 }
