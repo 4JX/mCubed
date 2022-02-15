@@ -29,22 +29,9 @@ pub enum Error {
     // Shared errors
     #[error("Encountered an I/O error while handling the file: {}", .0)]
     IoError(#[from] IoError),
-  
-    #[error("There was an error parsing JSON: {}", match .0 {
-        serde_json::error::Category::Syntax => {
-            "The file being parsed contains syntax errors"
-        },
-        serde_json::error::Category::Io => {
-            "Encountered an I/O error while handling JSON"
-        },
-        serde_json::error::Category::Data => {
-            "Data error"
-        },
-        serde_json::error::Category::Eof => {
-            "Found an unexpected end of file"
-        }, 
-    })]
-    SerdeError( serde_json::error::Category),
+
+    #[error("Failed to parse JSON: {}", .0)]
+    SerdeError(#[from] serde_json::error::Error),
 
     #[error("Unable to fetch {item}")]
     ReqwestError { inner: reqwest::Error, item: String },
@@ -86,7 +73,7 @@ impl From<MetaError> for Error {
     fn from(error: MetaError) -> Self {
         match error {
             MetaError::IoError(err) => Self::IoError(err),
-            MetaError::SerdeError(category) => Self::SerdeError(category),
+            MetaError::SerdeError(error) => Self::SerdeError(error),
             MetaError::TomlError(_) => Self::MetadataTomlError,
             MetaError::ZipError(_) => Self::MetadataZipError,
             MetaError::InvalidModFile => Self::MetadataInvalidModFile,
@@ -100,7 +87,10 @@ impl From<ferinth::Error> for Error {
         match err {
             ferinth::Error::NotBase62 => Self::FerinthBase62Error,
             ferinth::Error::NotSHA1 => Self::FerinthNotSHA1Error,
-            ferinth::Error::ReqwestError(inner) => Self::ReqwestError { inner, item: "Unknown (Ferinth)".to_string() },
+            ferinth::Error::ReqwestError(inner) => Self::ReqwestError {
+                inner,
+                item: "Unknown (Ferinth)".to_string(),
+            },
             ferinth::Error::URLParseError(_) => Self::FerinthURLParseError,
         }
     }
@@ -112,7 +102,7 @@ impl From<daedalus::Error> for Error {
             daedalus::Error::ChecksumFailure { hash, url, tries } => {
                 Self::DaedalusChecksumFailure { hash, url, tries }
             }
-            daedalus::Error::SerdeError(err) => Self::SerdeError(err.classify()),
+            daedalus::Error::SerdeError(error) => Self::SerdeError(error),
             daedalus::Error::FetchError { inner, item } => Self::ReqwestError { inner, item },
             daedalus::Error::TaskError(err) => Self::DaedalusTaskError(err),
             daedalus::Error::ParseError(string) => Self::DaedalusParseError(string),
