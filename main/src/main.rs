@@ -48,7 +48,7 @@ struct BackendContext {
 
 impl epi::App for UiApp {
     fn name(&self) -> &str {
-        "An App"
+        "mCubed"
     }
 
     fn setup(
@@ -82,8 +82,7 @@ impl epi::App for UiApp {
                             self.mod_list = mod_list;
                         }
                         ToFrontend::BackendError { error } => {
-                            let _ = error;
-                            // Eventually handle
+                            self.error_msg = Some(error.to_string());
                         }
                         _ => {
                             unreachable!();

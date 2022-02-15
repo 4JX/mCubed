@@ -1,6 +1,6 @@
 [package]
 name = "back"
-version = "0.1.0"
+version = "0.0.1"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -8,7 +8,8 @@ edition = "2021"
 [dependencies]
 tokio = { version = "1.16.1", features = ["rt", "rt-multi-thread"] }
 # ferinth = "1.4.1"
-ferinth = { git = "https://github.com/4JX/ferinth" }
+ferinth = { git = "https://github.com/4JX/ferinth", rev = "bf23b8d" }
+# ferinth = { path = "../../ferinth" }
 sha-1 = "0.10.0"
 sha2 = "0.10.1"
 mc_mod_meta = { path = "../mc_mod_meta" }
@@ -17,8 +18,8 @@ lazy_static = "1.4.0"
 hex = "0.4.3"
 bytes = "1.1.0"
 # daedalus = "0.1.14"
-daedalus = { git = "https://github.com/4JX/daedalus" }
-epi = { git = "https://github.com/4JX/egui" }
+daedalus = { git = "https://github.com/4JX/daedalus", rev = "c977bb0" }
+epi = { git = "https://github.com/4JX/egui", rev = "3a4a636" }
 thiserror = "1.0.30"
 directories = "4.0.1"
 

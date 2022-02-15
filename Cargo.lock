@@ -169,7 +169,7 @@ checksum = "cdb031dd78e28731d87d56cc8ffef4a8f36ca26c38fe2de700543e627f8a464a"
 
 [[package]]
 name = "back"
-version = "0.1.0"
+version = "0.0.1"
 dependencies = [
  "bytes",
  "daedalus",
@@ -394,16 +394,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "console_error_panic_hook"
-version = "0.1.7"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a06aeb73f470f66dcdbf7223caeebb85984942f22f1adb2a088cf9668146bbbc"
-dependencies = [
- "cfg-if 1.0.0",
- "wasm-bindgen",
-]
-
-[[package]]
 name = "copypasta"
 version = "0.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -579,7 +569,7 @@ checksum = "b365fabc795046672053e29c954733ec3b05e4be654ab130fe8f1f94d7051f35"
 [[package]]
 name = "daedalus"
 version = "0.1.14"
-source = "git+https://github.com/4JX/daedalus#c977bb0d3a3e860124b1e17f911beadd53e540a1"
+source = "git+https://github.com/4JX/daedalus?rev=c977bb0#c977bb0d3a3e860124b1e17f911beadd53e540a1"
 dependencies = [
  "bytes",
  "chrono",
@@ -783,7 +773,7 @@ checksum = "6907e25393cdcc1f4f3f513d9aac1e840eb1cc341a0fccb01171f7d14d10b946"
 [[package]]
 name = "eframe"
 version = "0.16.0"
-source = "git+https://github.com/4JX/egui#72ebd1ecd95db74756cf7020742ce4699e64709d"
+source = "git+https://github.com/4JX/egui?rev=3a4a636#3a4a636573636c713772bfc103c1a784c9f1d883"
 dependencies = [
  "egui",
  "egui-winit",
@@ -795,7 +785,7 @@ dependencies = [
 [[package]]
 name = "egui"
 version = "0.16.1"
-source = "git+https://github.com/4JX/egui#72ebd1ecd95db74756cf7020742ce4699e64709d"
+source = "git+https://github.com/4JX/egui?rev=3a4a636#3a4a636573636c713772bfc103c1a784c9f1d883"
 dependencies = [
  "ahash 0.7.6",
  "epaint",
@@ -808,7 +798,7 @@ dependencies = [
 [[package]]
 name = "egui-winit"
 version = "0.16.0"
-source = "git+https://github.com/4JX/egui#72ebd1ecd95db74756cf7020742ce4699e64709d"
+source = "git+https://github.com/4JX/egui?rev=3a4a636#3a4a636573636c713772bfc103c1a784c9f1d883"
 dependencies = [
  "copypasta",
  "dark-light",
@@ -824,7 +814,7 @@ dependencies = [
 [[package]]
 name = "egui_glow"
 version = "0.16.0"
-source = "git+https://github.com/4JX/egui#72ebd1ecd95db74756cf7020742ce4699e64709d"
+source = "git+https://github.com/4JX/egui?rev=3a4a636#3a4a636573636c713772bfc103c1a784c9f1d883"
 dependencies = [
  "bytemuck",
  "egui",
@@ -841,16 +831,14 @@ dependencies = [
 [[package]]
 name = "egui_web"
 version = "0.16.0"
-source = "git+https://github.com/4JX/egui#72ebd1ecd95db74756cf7020742ce4699e64709d"
+source = "git+https://github.com/4JX/egui?rev=3a4a636#3a4a636573636c713772bfc103c1a784c9f1d883"
 dependencies = [
  "bytemuck",
- "console_error_panic_hook",
  "egui",
  "egui_glow",
  "epi",
  "js-sys",
  "tracing",
- "tracing-wasm",
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "web-sys",
@@ -865,7 +853,7 @@ checksum = "e78d4f1cc4ae33bbfc157ed5d5a5ef3bc29227303d595861deb238fcec4e9457"
 [[package]]
 name = "emath"
 version = "0.16.0"
-source = "git+https://github.com/4JX/egui#72ebd1ecd95db74756cf7020742ce4699e64709d"
+source = "git+https://github.com/4JX/egui?rev=3a4a636#3a4a636573636c713772bfc103c1a784c9f1d883"
 dependencies = [
  "bytemuck",
  "serde",
@@ -968,7 +956,7 @@ dependencies = [
 [[package]]
 name = "epaint"
 version = "0.16.0"
-source = "git+https://github.com/4JX/egui#72ebd1ecd95db74756cf7020742ce4699e64709d"
+source = "git+https://github.com/4JX/egui?rev=3a4a636#3a4a636573636c713772bfc103c1a784c9f1d883"
 dependencies = [
  "ab_glyph",
  "ahash 0.7.6",
@@ -982,7 +970,7 @@ dependencies = [
 [[package]]
 name = "epi"
 version = "0.16.0"
-source = "git+https://github.com/4JX/egui#72ebd1ecd95db74756cf7020742ce4699e64709d"
+source = "git+https://github.com/4JX/egui?rev=3a4a636#3a4a636573636c713772bfc103c1a784c9f1d883"
 dependencies = [
  "directories-next",
  "egui",
@@ -1025,7 +1013,7 @@ dependencies = [
 [[package]]
 name = "ferinth"
 version = "2.0.0"
-source = "git+https://github.com/4JX/ferinth#bf23b8d0d8cd0e41f27f6ad3c12e327ca2062f14"
+source = "git+https://github.com/4JX/ferinth?rev=bf23b8d#bf23b8d0d8cd0e41f27f6ad3c12e327ca2062f14"
 dependencies = [
  "bytes",
  "chrono",
@@ -2560,15 +2548,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "sharded-slab"
-version = "0.1.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "900fba806f70c630b0a382d0d825e17a0f19fcd059a2ade1ff237bcddf446b31"
-dependencies = [
- "lazy_static",
-]
-
-[[package]]
 name = "shared_library"
 version = "0.1.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2717,15 +2696,6 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn",
-]
-
-[[package]]
-name = "thread_local"
-version = "1.1.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5516c27b78311c50bf42c071425c560ac799b11c30b31f87e3081965fe5e0180"
-dependencies = [
- "once_cell",
 ]
 
 [[package]]
@@ -2884,29 +2854,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "03cfcb51380632a72d3111cb8d3447a8d908e577d31beeac006f836383d29a23"
 dependencies = [
  "lazy_static",
- "valuable",
-]
-
-[[package]]
-name = "tracing-subscriber"
-version = "0.3.8"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "74786ce43333fcf51efe947aed9718fbe46d5c7328ec3f1029e818083966d9aa"
-dependencies = [
- "sharded-slab",
- "thread_local",
- "tracing-core",
-]
-
-[[package]]
-name = "tracing-wasm"
-version = "0.2.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4575c663a174420fa2d78f4108ff68f65bf2fbb7dd89f33749b6e826b3626e07"
-dependencies = [
- "tracing",
- "tracing-subscriber",
- "wasm-bindgen",
 ]
 
 [[package]]
@@ -2965,12 +2912,6 @@ dependencies = [
  "matches",
  "percent-encoding",
 ]
-
-[[package]]
-name = "valuable"
-version = "0.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "830b7e5d4d90034032940e4ace0d9a9a057e7a45cd94e6c007832e39edb82f6d"
 
 [[package]]
 name = "vcpkg"

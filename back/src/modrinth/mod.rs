@@ -3,6 +3,7 @@ use ferinth::{
     structures::version_structs::{ListVersionsParams, Version},
     Ferinth,
 };
+use lazy_static;
 
 use crate::{
     error::{self, LibResult},
@@ -16,8 +17,18 @@ pub struct Modrinth {
 
 impl Default for Modrinth {
     fn default() -> Self {
+        lazy_static::lazy_static! {
+            static ref VERSION: String = env!("CARGO_PKG_VERSION").to_string();
+        };
+
         Self {
-            ferinth: Ferinth::new("Very much still a test app"),
+            ferinth: Ferinth::new(
+                format!(
+                    "4JX/mCubed (https://github.com/4JX/mCubed) {}",
+                    VERSION.to_string()
+                )
+                .as_str(),
+            ),
         }
     }
 }

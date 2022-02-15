@@ -30,7 +30,7 @@ pub enum Error {
     #[error("Encountered an I/O error while handling the file: {}", .0)]
     IoError(#[from] IoError),
   
-    #[error("There was an error parsing JSON: {}",match .0 {
+    #[error("There was an error parsing JSON: {}", match .0 {
         serde_json::error::Category::Syntax => {
             "The file being parsed contains syntax errors"
         },

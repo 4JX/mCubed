@@ -1,6 +1,6 @@
 use std::{borrow::Cow, collections::BTreeMap};
 
-use eframe::egui::{FontData, FontDefinitions, FontFamily, FontId, RichText, TextStyle};
+use eframe::egui::{FontData, FontDefinitions, FontFamily, FontId, FontTweak, RichText, TextStyle};
 
 fn add_font(font_def: &mut FontDefinitions, font: FontData, font_name: &str) {
     font_def.font_data.insert(font_name.into(), font);
@@ -16,21 +16,29 @@ pub fn get_font_def() -> FontDefinitions {
     let inter_medium = FontData {
         font: Cow::Borrowed(include_bytes!("../fonts/inter/static/Inter-Medium.ttf")),
         index: 0,
+        tweak: FontTweak::default(),
     };
 
     let inter_semi_bold = FontData {
         font: Cow::Borrowed(include_bytes!("../fonts/inter/static/Inter-SemiBold.ttf")),
         index: 0,
+        tweak: FontTweak::default(),
     };
 
     let inter_bold = FontData {
         font: Cow::Borrowed(include_bytes!("../fonts/inter/static/Inter-Bold.ttf")),
         index: 0,
+        tweak: FontTweak {
+            scale: 1.0,
+            y_offset_factor: -0.18,
+            y_offset: 0.0,
+        },
     };
 
     let inter_extra_bold = FontData {
         font: Cow::Borrowed(include_bytes!("../fonts/inter/static/Inter-ExtraBold.ttf")),
         index: 0,
+        tweak: FontTweak::default(),
     };
 
     add_font(&mut font_def, inter_medium, "Inter-Medium");
