@@ -83,6 +83,10 @@ impl Back {
                                         .await;
                                 }
 
+                                self.mod_list.sort_by(|entry_1, entry_2| {
+                                    entry_1.display_name.cmp(&entry_2.display_name)
+                                });
+
                                 self.back_tx
                                     .send(ToFrontend::UpdateModList {
                                         mod_list: self.mod_list.clone(),
@@ -216,6 +220,9 @@ impl Back {
             }
         }
 
+        self.mod_list
+            .sort_by(|entry_1, entry_2| entry_1.display_name.cmp(&entry_2.display_name));
+
         self.back_tx
             .send(ToFrontend::UpdateModList {
                 mod_list: self.mod_list.clone(),
@@ -289,6 +296,9 @@ impl Back {
         }
 
         self.scan_folder();
+
+        self.mod_list
+            .sort_by(|entry_1, entry_2| entry_1.display_name.cmp(&entry_2.display_name));
 
         self.back_tx
             .send(ToFrontend::UpdateModList {
