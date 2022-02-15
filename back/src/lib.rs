@@ -182,7 +182,7 @@ impl Back {
             if path.is_file() {
                 let mut file = fs::File::open(&path).unwrap();
 
-                match ModEntry::from_file(&mut file) {
+                match ModEntry::from_file(&mut file, Some(path.clone())) {
                     Ok(mut entry) => self.mod_list.append(&mut entry),
                     Err(error) => {
                         // In the case of an error the mod list will be cleared
@@ -273,12 +273,12 @@ impl Back {
             .write(true)
             .create(true)
             .truncate(true)
-            .open(path)
+            .open(&path)
             .unwrap();
 
         new_mod_file.write_all(&bytes).unwrap();
 
-        let mut new_entries = ModEntry::from_file(&mut new_mod_file).unwrap();
+        let mut new_entries = ModEntry::from_file(&mut new_mod_file, Some(path)).unwrap();
 
         for new_mod_entry in new_entries.iter_mut() {
             // Ensure the data for the entry is kept

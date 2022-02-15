@@ -366,7 +366,16 @@ impl epi::App for UiApp {
 
                                             ui.centered_and_justified(|ui| {
                                                 ui.style_mut().wrap = Some(true);
-                                                ui.label(&mod_entry.display_name);
+                                                ui.label(&mod_entry.display_name).on_hover_text(
+                                                    text_utils::mod_card_data_text(
+                                                        mod_entry
+                                                            .path
+                                                            .as_ref()
+                                                            .unwrap()
+                                                            .display()
+                                                            .to_string(),
+                                                    ),
+                                                );
                                             });
                                         });
 

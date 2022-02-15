@@ -1,5 +1,5 @@
 use core::fmt;
-use std::fs::File;
+use std::{fs::File, path::PathBuf};
 
 use ferinth::structures::version_structs::{ModLoader as FeModLoader, VersionFile};
 use lazy_static::lazy_static;
@@ -20,6 +20,7 @@ pub struct ModEntry {
     pub modrinth_data: Option<ModrinthData>,
     pub state: FileState,
     pub sourced_from: Source,
+    pub path: Option<PathBuf>,
 }
 
 // Middleman "ModLoader" enum to convert between those of the other crates
@@ -93,7 +94,12 @@ impl fmt::Display for Source {
 }
 
 impl ModEntry {
-    fn new(mc_mod: MinecraftMod, hashes: &Hashes, modrinth_data: Option<ModrinthData>) -> Self {
+    fn new(
+        mc_mod: MinecraftMod,
+        hashes: &Hashes,
+        modrinth_data: Option<ModrinthData>,
+        path: Option<PathBuf>,
+    ) -> Self {
         let MinecraftMod {
             id,
             version,
@@ -110,10 +116,11 @@ impl ModEntry {
             modrinth_data,
             state: FileState::Local,
             sourced_from: Source::Local,
+            path,
         }
     }
 
-    pub fn from_file(file: &mut File) -> LibResult<Vec<Self>> {
+    pub fn from_file(file: &mut File, path: Option<PathBuf>) -> LibResult<Vec<Self>> {
         let hashes = Hashes::get_hashes_from_file(file)?;
 
         let mut mod_vec = Vec::new();
@@ -124,13 +131,13 @@ impl ModEntry {
                 let forge_meta = ForgeManifest::from_file(file)?;
                 for mod_meta in forge_meta.mods {
                     let mc_mod = MinecraftMod::from(mod_meta);
-                    mod_vec.push(Self::new(mc_mod, &hashes, None));
+                    mod_vec.push(Self::new(mc_mod, &hashes, None, path.clone()));
                 }
             }
             mc_mod_meta::ModLoader::Fabric => {
                 let mod_meta = FabricManifest::from_file(file)?;
                 let mc_mod = MinecraftMod::from(mod_meta);
-                mod_vec.push(Self::new(mc_mod, &hashes, None));
+                mod_vec.push(Self::new(mc_mod, &hashes, None, path));
             }
 
             mc_mod_meta::ModLoader::Both => {
@@ -140,7 +147,7 @@ impl ModEntry {
 
                 // However, the modloader is replaced with the "Both" type
                 mc_mod.modloader = mc_mod_meta::ModLoader::Both;
-                mod_vec.push(Self::new(mc_mod, &hashes, None));
+                mod_vec.push(Self::new(mc_mod, &hashes, None, path));
             }
         };
 

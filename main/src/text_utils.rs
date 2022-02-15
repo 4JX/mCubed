@@ -30,7 +30,7 @@ pub fn get_font_def() -> FontDefinitions {
         index: 0,
         tweak: FontTweak {
             scale: 1.0,
-            y_offset_factor: -0.18,
+            y_offset_factor: -0.22,
             y_offset: 0.0,
         },
     };

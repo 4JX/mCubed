@@ -144,6 +144,7 @@ impl Modrinth {
             modrinth_data: Some(modrinth_data),
             state: FileState::Current,
             sourced_from: Source::Modrinth,
+            path: None,
         };
 
         self.check_for_updates(&mut mod_entry, &game_version).await;
