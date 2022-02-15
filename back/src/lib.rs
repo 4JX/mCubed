@@ -183,6 +183,12 @@ impl Back {
                     Err(error) => {
                         // In the case of an error the mod list will be cleared
                         self.mod_list.clear();
+
+                        self.back_tx
+                            .send(ToFrontend::BackendErrorContext {
+                                msg: format!("Could not parse: {}", path.display()),
+                            })
+                            .unwrap();
                         self.back_tx
                             .send(ToFrontend::BackendError { error })
                             .unwrap();

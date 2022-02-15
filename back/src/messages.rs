@@ -33,6 +33,8 @@ pub enum ToFrontend {
     CheckForUpdatesProgress { progress: CheckProgress },
 
     BackendError { error: error::Error },
+
+    BackendErrorContext { msg: String },
 }
 
 pub struct CheckProgress {
