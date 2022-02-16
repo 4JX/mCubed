@@ -61,7 +61,7 @@ impl Back {
                             ToBackend::ScanFolder => {
                                 self.scan_folder();
 
-                                self.sort_and_send_list()
+                                self.sort_and_send_list();
                             }
 
                             ToBackend::CheckForUpdates { game_version } => {
@@ -203,7 +203,7 @@ impl Back {
             {
                 self.back_tx
                     .send(ToFrontend::BackendError { error })
-                    .unwrap()
+                    .unwrap();
             };
         }
     }
@@ -231,7 +231,7 @@ impl Back {
                     if mod_entry.hashes.sha1 == hashes.sha1 {
                         std::fs::remove_file(path).unwrap();
 
-                        self.create_mod_file(mod_entry, bytes);
+                        self.create_mod_file(&mod_entry, &bytes);
                         break 'file_loop;
                     }
                 }
@@ -253,7 +253,7 @@ impl Back {
                 {
                     Ok(mod_entry) => match self.modrinth.update_mod(&mod_entry).await {
                         Ok(bytes) => {
-                            self.create_mod_file(mod_entry, bytes);
+                            self.create_mod_file(&mod_entry, &bytes);
                         }
                         Err(error) => self
                             .back_tx
@@ -277,7 +277,7 @@ impl Back {
         }
     }
 
-    fn create_mod_file(&mut self, mod_entry: ModEntry, bytes: Bytes) {
+    fn create_mod_file(&mut self, mod_entry: &ModEntry, bytes: &Bytes) {
         info!(
             entry_name = %mod_entry.display_name,
             "Creating a new mod file"
@@ -303,7 +303,7 @@ impl Back {
             .open(&path)
             .unwrap();
 
-        new_mod_file.write_all(&bytes).unwrap();
+        new_mod_file.write_all(bytes).unwrap();
 
         let mut new_entries = ModEntry::from_file(&mut new_mod_file, Some(path)).unwrap();
 
@@ -324,6 +324,6 @@ impl Back {
 
         self.scan_folder();
 
-        self.sort_and_send_list()
+        self.sort_and_send_list();
     }
 }

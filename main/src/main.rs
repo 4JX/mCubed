@@ -589,16 +589,16 @@ fn main() -> Result<(), Report> {
 
 fn setup_logging() -> Result<(), Report> {
     if std::env::var("RUST_LIB_BACKTRACE").is_err() {
-        std::env::set_var("RUST_LIB_BACKTRACE", "1")
+        std::env::set_var("RUST_LIB_BACKTRACE", "1");
     }
 
     if std::env::var("RUST_BACKTRACE").is_err() {
-        std::env::set_var("RUST_BACKTRACE", "1")
+        std::env::set_var("RUST_BACKTRACE", "1");
     }
     color_eyre::install()?;
 
     if std::env::var("RUST_LOG").is_err() {
-        std::env::set_var("RUST_LOG", "info")
+        std::env::set_var("RUST_LOG", "info");
     }
 
     let env_filter = EnvFilter::try_from_default_env()?.add_directive("back=info".parse()?);

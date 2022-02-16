@@ -12,7 +12,7 @@ pub struct Hashes {
 }
 
 impl Hashes {
-    pub(crate) fn get_hashes_from_file(file: &mut File) -> LibResult<Hashes> {
+    pub(crate) fn get_hashes_from_file(file: &mut File) -> LibResult<Self> {
         let metadata = file.metadata()?;
         let mut buf = vec![0; metadata.len() as usize];
 
@@ -22,7 +22,7 @@ impl Hashes {
     }
 
     #[allow(dead_code)]
-    pub(crate) fn get_hashes_from_bytes(bytes: &Bytes) -> Hashes {
+    pub(crate) fn get_hashes_from_bytes(bytes: &Bytes) -> Self {
         get_hashes_from_vec(bytes)
     }
 
