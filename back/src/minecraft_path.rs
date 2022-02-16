@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 lazy_static::lazy_static! {
-    pub static ref HOME_DIR: std::path::PathBuf = directories::BaseDirs::new().unwrap().home_dir().to_owned();
+    pub static ref HOME_DIR: std::path::PathBuf = directories::BaseDirs::new().expect("Could not get home dir").home_dir().to_owned();
 }
 
 #[cfg(target_os = "windows")]

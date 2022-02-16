@@ -4,7 +4,9 @@ use back::{
     mod_entry::{FileState, ModEntry, ModLoader, Source},
     Back, GameVersion,
 };
+use color_eyre::Report;
 use image_utils::ImageTextures;
+use tracing_subscriber::EnvFilter;
 
 use std::{
     sync::mpsc::{Receiver, Sender},
@@ -74,27 +76,6 @@ impl epi::App for UiApp {
 
         if let Some(sender) = &self.front_tx {
             sender.send(ToBackend::ScanFolder).unwrap();
-
-            if let Some(rx) = &self.back_rx {
-                if let Ok(message) = rx.recv() {
-                    match message {
-                        ToFrontend::UpdateModList { mod_list } => {
-                            self.backend_context.check_for_update_progress = None;
-                            self.mod_list = mod_list;
-                        }
-                        ToFrontend::BackendError { error } => {
-                            self.popup_error_msg = Some(error.to_string());
-                        }
-                        ToFrontend::BackendErrorContext { msg } => {
-                            self.banner_error_msg = Some(msg);
-                        }
-                        _ => {
-                            unreachable!();
-                        }
-                    }
-                }
-            }
-
             sender.send(ToBackend::GetVersionMetadata).unwrap();
         }
     }
@@ -594,11 +575,37 @@ impl UiApp {
     }
 }
 
-fn main() {
+fn main() -> Result<(), Report> {
+    setup_logging()?;
+
     let app = UiApp::default();
     let native_options = eframe::NativeOptions {
         initial_window_size: Some(Vec2::new(970., 300.)),
         ..Default::default()
     };
+
     eframe::run_native(Box::new(app), native_options);
+}
+
+fn setup_logging() -> Result<(), Report> {
+    if std::env::var("RUST_LIB_BACKTRACE").is_err() {
+        std::env::set_var("RUST_LIB_BACKTRACE", "1")
+    }
+
+    if std::env::var("RUST_BACKTRACE").is_err() {
+        std::env::set_var("RUST_BACKTRACE", "1")
+    }
+    color_eyre::install()?;
+
+    if std::env::var("RUST_LOG").is_err() {
+        std::env::set_var("RUST_LOG", "info")
+    }
+
+    let env_filter = EnvFilter::try_from_default_env()?.add_directive("back=info".parse()?);
+
+    tracing_subscriber::fmt::fmt()
+        .with_env_filter(env_filter)
+        .init();
+
+    Ok(())
 }

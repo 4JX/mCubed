@@ -3,7 +3,6 @@ use ferinth::{
     structures::version_structs::{ListVersionsParams, Version},
     Ferinth,
 };
-use lazy_static;
 
 use crate::{
     error::{self, LibResult},
@@ -23,11 +22,7 @@ impl Default for Modrinth {
 
         Self {
             ferinth: Ferinth::new(
-                format!(
-                    "4JX/mCubed (https://github.com/4JX/mCubed) {}",
-                    VERSION.to_string()
-                )
-                .as_str(),
+                format!("4JX/mCubed (https://github.com/4JX/mCubed) {}", *VERSION).as_str(),
             ),
         }
     }
@@ -49,7 +44,11 @@ impl Modrinth {
         }
     }
 
-    pub(crate) async fn check_for_updates(&self, mod_entry: &mut ModEntry, game_version: &str) {
+    pub(crate) async fn check_for_updates(
+        &self,
+        mod_entry: &mut ModEntry,
+        game_version: &str,
+    ) -> LibResult<()> {
         if mod_entry.sourced_from == Source::Modrinth || mod_entry.sourced_from == Source::Local {
             // Get and set the modrinth ID, without one the operation cannot proceed
             if mod_entry.modrinth_data.is_none() {
@@ -69,8 +68,7 @@ impl Modrinth {
                 // The version list can now be fetched
                 let version_list = self
                     .list_versions(&modrinth_data.id, mod_entry.modloader, game_version)
-                    .await
-                    .unwrap();
+                    .await?;
 
                 if version_list.is_empty() {
                     // No versions could be found that match the criteria, therefore the mod is incompatible for this version
@@ -108,6 +106,8 @@ impl Modrinth {
                 }
             }
         }
+
+        Ok(())
     }
 
     pub(crate) async fn update_mod(&self, mod_entry: &ModEntry) -> LibResult<Bytes> {
@@ -147,7 +147,8 @@ impl Modrinth {
             path: None,
         };
 
-        self.check_for_updates(&mut mod_entry, &game_version).await;
+        self.check_for_updates(&mut mod_entry, &game_version)
+            .await?;
 
         Ok(mod_entry)
     }

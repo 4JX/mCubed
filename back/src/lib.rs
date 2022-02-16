@@ -8,7 +8,7 @@ use std::{
 use bytes::Bytes;
 use hash::Hashes;
 use messages::{CheckProgress, ToBackend, ToFrontend};
-use mod_entry::ModEntry;
+use mod_entry::{ModEntry, ModLoader};
 use modrinth::Modrinth;
 mod minecraft_path;
 mod modrinth;
@@ -19,6 +19,7 @@ pub mod messages;
 pub mod mod_entry;
 
 pub use daedalus::minecraft::Version as GameVersion;
+use tracing::{debug, error, info};
 
 pub struct Back {
     mod_list: Vec<ModEntry>,
@@ -38,7 +39,7 @@ impl Back {
     ) -> Self {
         Self {
             mod_list: Default::default(),
-            folder_path: folder_path.unwrap_or_else(|| minecraft_path::default_mod_dir()),
+            folder_path: folder_path.unwrap_or_else(minecraft_path::default_mod_dir),
             modrinth: Default::default(),
             back_tx,
             front_rx,
@@ -47,7 +48,10 @@ impl Back {
     }
 
     pub fn init(&mut self) {
+        info!("Initializing backend");
+
         let rt = tokio::runtime::Runtime::new().unwrap();
+        debug!("Runtime created");
 
         rt.block_on(async {
             loop {
@@ -63,27 +67,7 @@ impl Back {
                             ToBackend::CheckForUpdates { game_version } => {
                                 self.scan_folder();
 
-                                let total_len = self.mod_list.len();
-                                for (position, mod_entry) in self.mod_list.iter_mut().enumerate() {
-                                    // Update the frontend on whats happening
-                                    self.back_tx
-                                        .send(ToFrontend::CheckForUpdatesProgress {
-                                            progress: CheckProgress {
-                                                name: mod_entry.display_name.clone(),
-                                                position,
-                                                total_len,
-                                            },
-                                        })
-                                        .unwrap();
-
-                                    if let Some(frame) = &self.egui_epi_frame {
-                                        frame.request_repaint();
-                                    }
-
-                                    self.modrinth
-                                        .check_for_updates(mod_entry, &game_version)
-                                        .await;
-                                }
+                                self.check_for_updates(game_version).await;
 
                                 self.sort_and_send_list();
                             }
@@ -110,43 +94,7 @@ impl Back {
                                 game_version,
                                 modloader,
                             } => {
-                                match self
-                                    .modrinth
-                                    .normalize_modrinth_id(modrinth_id.as_str())
-                                    .await
-                                {
-                                    Some(modrinth_id) => {
-                                        match self
-                                            .modrinth
-                                            .create_mod_entry(modrinth_id, game_version, modloader)
-                                            .await
-                                        {
-                                            Ok(mod_entry) => {
-                                                match self.modrinth.update_mod(&mod_entry).await {
-                                                    Ok(bytes) => {
-                                                        self.create_mod_file(mod_entry, bytes);
-                                                    }
-                                                    Err(error) => self
-                                                        .back_tx
-                                                        .send(ToFrontend::BackendError { error })
-                                                        .unwrap(),
-                                                }
-                                            }
-                                            Err(error) => {
-                                                self.back_tx
-                                                    .send(ToFrontend::BackendError { error })
-                                                    .unwrap();
-                                            }
-                                        };
-                                    }
-                                    None => {
-                                        self.back_tx
-                                            .send(ToFrontend::BackendError {
-                                                error: error::Error::NotValidModrinthId,
-                                            })
-                                            .unwrap();
-                                    }
-                                }
+                                self.add_mod(modrinth_id, game_version, modloader).await;
                             }
                         }
 
@@ -154,8 +102,8 @@ impl Back {
                             frame.request_repaint();
                         }
                     }
-                    Err(err) => {
-                        let _ = err;
+                    Err(error) => {
+                        error!(%error, "There was an error when receiving a message from the frontend:");
                     }
                 };
             }
@@ -163,6 +111,7 @@ impl Back {
     }
 
     fn sort_and_send_list(&mut self) {
+        info!(length = self.mod_list.len(), "Sending the mods list");
         self.mod_list
             .sort_by(|entry_1, entry_2| entry_1.display_name.cmp(&entry_2.display_name));
 
@@ -174,6 +123,8 @@ impl Back {
     }
 
     fn scan_folder(&mut self) {
+        info!(folder_path = %self.folder_path.display(), "Scanning the mods folder");
+
         let old_list = self.mod_list.clone();
 
         self.mod_list.clear();
@@ -185,6 +136,7 @@ impl Back {
 
             // Minecraft does not really care about mods within folders, therefore skip anything that is not a file
             if path.is_file() {
+                debug!(?path, "Parsing file");
                 let mut file = fs::File::open(&path).unwrap();
 
                 match ModEntry::from_file(&mut file, Some(path.clone())) {
@@ -226,8 +178,45 @@ impl Back {
         }
     }
 
+    async fn check_for_updates(&mut self, game_version: String) {
+        let total_len = self.mod_list.len();
+        for (position, mod_entry) in self.mod_list.iter_mut().enumerate() {
+            // Update the frontend on whats happening
+            self.back_tx
+                .send(ToFrontend::CheckForUpdatesProgress {
+                    progress: CheckProgress {
+                        name: mod_entry.display_name.clone(),
+                        position,
+                        total_len,
+                    },
+                })
+                .unwrap();
+
+            if let Some(frame) = &self.egui_epi_frame {
+                frame.request_repaint();
+            }
+
+            if let Err(error) = self
+                .modrinth
+                .check_for_updates(mod_entry, &game_version)
+                .await
+            {
+                self.back_tx
+                    .send(ToFrontend::BackendError { error })
+                    .unwrap()
+            };
+        }
+    }
+
     async fn update_mod(&mut self, mod_entry: ModEntry) {
+        info!(
+            entry_name = %mod_entry.display_name,
+            path = ?mod_entry.path,
+            sha1 = %mod_entry.hashes.sha1,
+            "Updating mod"
+        );
         if let Ok(bytes) = self.modrinth.update_mod(&mod_entry).await {
+            debug!("Update downloaded");
             let read_dir = fs::read_dir(&self.folder_path).unwrap();
 
             'file_loop: for file_entry in read_dir {
@@ -250,7 +239,49 @@ impl Back {
         };
     }
 
+    async fn add_mod(&mut self, modrinth_id: String, game_version: String, modloader: ModLoader) {
+        match self
+            .modrinth
+            .normalize_modrinth_id(modrinth_id.as_str())
+            .await
+        {
+            Some(modrinth_id) => {
+                match self
+                    .modrinth
+                    .create_mod_entry(modrinth_id, game_version, modloader)
+                    .await
+                {
+                    Ok(mod_entry) => match self.modrinth.update_mod(&mod_entry).await {
+                        Ok(bytes) => {
+                            self.create_mod_file(mod_entry, bytes);
+                        }
+                        Err(error) => self
+                            .back_tx
+                            .send(ToFrontend::BackendError { error })
+                            .unwrap(),
+                    },
+                    Err(error) => {
+                        self.back_tx
+                            .send(ToFrontend::BackendError { error })
+                            .unwrap();
+                    }
+                };
+            }
+            None => {
+                self.back_tx
+                    .send(ToFrontend::BackendError {
+                        error: error::Error::NotValidModrinthId,
+                    })
+                    .unwrap();
+            }
+        }
+    }
+
     fn create_mod_file(&mut self, mod_entry: ModEntry, bytes: Bytes) {
+        info!(
+            entry_name = %mod_entry.display_name,
+            "Creating a new mod file"
+        );
         // The data is guaranteed to exist, unwrapping here is fine
         let path = self.folder_path.join(
             &mod_entry

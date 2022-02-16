@@ -17,3 +17,5 @@ image = "0.24.0"
 serde = "1.0.136"
 serde_json = "1.0.78"
 back = { path = "../back" }
+color-eyre = "0.6.0"
+tracing-subscriber = { version = "0.3.8", features = ["env-filter"] }

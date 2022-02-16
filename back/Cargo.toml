@@ -22,6 +22,7 @@ daedalus = { git = "https://github.com/4JX/daedalus", rev = "c977bb0" }
 epi = { git = "https://github.com/4JX/egui", rev = "3a4a636" }
 thiserror = "1.0.30"
 directories = "4.0.1"
+tracing = "0.1.30"
 
 # For their error types
 serde_json = "1.0.78"
