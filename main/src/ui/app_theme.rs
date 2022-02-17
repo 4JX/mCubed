@@ -9,6 +9,20 @@ pub struct AppTheme {
     pub default_panel_frame: Frame,
 }
 
+impl AppTheme {
+    pub fn mod_card_status(&self) -> &VersionStatusTheme {
+        &self.colors.mod_card.version_status
+    }
+
+    pub fn mod_card_source(&self) -> &SourceTheme {
+        &self.colors.mod_card.source
+    }
+
+    pub fn mod_card_modloader(&self) -> &ModloaderTheme {
+        &self.colors.mod_card.modloader
+    }
+}
+
 impl Default for AppTheme {
     fn default() -> Self {
         let colors = Colors::default();
@@ -88,6 +102,7 @@ pub struct Colors {
     pub lighter_gray: Color32,
     pub mod_card: ModCardTheme,
 }
+
 impl Default for Colors {
     fn default() -> Self {
         Self {
