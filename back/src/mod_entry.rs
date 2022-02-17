@@ -154,6 +154,7 @@ impl ModEntry {
         Ok(mod_vec)
     }
 
+    #[must_use]
     pub fn normalized_version(&self) -> String {
         lazy_static! {
             static ref VERSION_REGEX: Regex = Regex::new("[0-9]+\\.[0-9]+\\.[0-9]+").unwrap();
