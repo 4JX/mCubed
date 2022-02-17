@@ -119,7 +119,7 @@ impl Modrinth {
         modrinth_id: String,
         game_version: String,
         modloader: ModLoader,
-    ) -> LibResult<ModEntry> {
+    ) -> LibResult<(ModEntry, Bytes)> {
         match self.ferinth.get_project(modrinth_id.as_str()).await {
             Ok(project) => {
                 let modrinth_data = ModrinthData {
@@ -142,7 +142,8 @@ impl Modrinth {
                 self.check_for_updates(&mut mod_entry, &game_version)
                     .await?;
 
-                Ok(mod_entry)
+                let bytes = self.update_mod(&mod_entry).await?;
+                Ok((mod_entry, bytes))
             }
             Err(_err) => Err(error::Error::NotValidModrinthId),
         }

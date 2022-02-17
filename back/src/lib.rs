@@ -245,15 +245,9 @@ impl Back {
             .create_mod_entry(modrinth_id, game_version, modloader)
             .await
         {
-            Ok(mod_entry) => match self.modrinth.update_mod(&mod_entry).await {
-                Ok(bytes) => {
-                    self.create_mod_file(&mod_entry, &bytes);
-                }
-                Err(error) => self
-                    .back_tx
-                    .send(ToFrontend::BackendError { error })
-                    .unwrap(),
-            },
+            Ok((mod_entry, bytes)) => {
+                self.create_mod_file(&mod_entry, &bytes);
+            }
             Err(error) => {
                 self.back_tx
                     .send(ToFrontend::BackendError { error })
