@@ -4,3 +4,4 @@ target
 mods/*
 mods-bak/*
 main/fonts/inter/original_zip
+Cargo.lock
