@@ -19,7 +19,10 @@ pub mod messages;
 pub mod mod_entry;
 
 pub use daedalus::minecraft::Version as GameVersion;
+use parking_lot::Once;
 use tracing::{debug, error, info};
+
+static LOG_CHANNEL_CLOSED: Once = Once::new();
 
 pub struct Back {
     mod_list: Vec<ModEntry>,
@@ -103,7 +106,10 @@ impl Back {
                         }
                     }
                     Err(error) => {
+                        // As the only reason this will error out is if the channel is closed (sender is dropped) a one time log of the error is enough
+                       LOG_CHANNEL_CLOSED.call_once(|| {
                         error!(%error, "There was an error when receiving a message from the frontend:");
+                       })
                     }
                 };
             }
