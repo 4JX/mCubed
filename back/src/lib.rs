@@ -2,10 +2,10 @@ use std::{
     fs::{self, OpenOptions},
     io::Write,
     path::PathBuf,
-    sync::mpsc::{Receiver, Sender},
 };
 
 use bytes::Bytes;
+use crossbeam_channel::{Receiver, Sender};
 use hash::Hashes;
 use messages::{CheckProgress, ToBackend, ToFrontend};
 use mod_entry::{ModEntry, ModLoader};

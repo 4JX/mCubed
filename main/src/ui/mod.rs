@@ -4,10 +4,9 @@ use back::{
     Back, GameVersion,
 };
 
-use std::{
-    sync::mpsc::{Receiver, Sender},
-    thread,
-};
+use std::thread;
+
+use crossbeam_channel::{Receiver, Sender};
 
 use eframe::{
     egui::{
@@ -61,8 +60,8 @@ impl epi::App for UiApp {
         self.configure_style(ctx);
         self.images.load_images(ctx);
 
-        let (front_tx, front_rx) = std::sync::mpsc::channel::<ToBackend>();
-        let (back_tx, back_rx) = std::sync::mpsc::channel::<ToFrontend>();
+        let (front_tx, front_rx) = crossbeam_channel::unbounded();
+        let (back_tx, back_rx) = crossbeam_channel::unbounded();
 
         let frame_clone = frame.clone();
         thread::spawn(move || {
