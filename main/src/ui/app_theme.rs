@@ -1,11 +1,12 @@
 use eframe::egui::{
-    style::{Selection, WidgetVisuals, Widgets},
-    Color32, Rounding, Stroke, Visuals,
+    style::{Margin, Selection, WidgetVisuals, Widgets},
+    Color32, Frame, Rounding, Stroke, Visuals,
 };
 
 pub struct AppTheme {
     pub colors: Colors,
     pub visuals: Visuals,
+    pub default_panel_frame: Frame,
 }
 
 impl Default for AppTheme {
@@ -64,9 +65,16 @@ impl Default for AppTheme {
             ..Default::default()
         };
 
+        let default_panel_frame = Frame {
+            margin: Margin::same(8.0),
+            fill: colors.gray,
+            ..Default::default()
+        };
+
         Self {
             colors: Default::default(),
             visuals,
+            default_panel_frame,
         }
     }
 }

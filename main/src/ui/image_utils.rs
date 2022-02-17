@@ -16,37 +16,37 @@ impl ImageTextures {
     pub fn load_images(&mut self, ctx: &egui::Context) {
         self.forge = Some(ctx.load_texture(
             "forge-icon",
-            load_image_from_memory(include_bytes!("../res/forge.png")).unwrap(),
+            load_image_from_memory(include_bytes!("../../res/forge.png")).unwrap(),
         ));
 
         self.fabric = Some(ctx.load_texture(
             "fabric-icon",
-            load_image_from_memory(include_bytes!("../res/fabric.png")).unwrap(),
+            load_image_from_memory(include_bytes!("../../res/fabric.png")).unwrap(),
         ));
 
         self.forge_and_fabric = Some(ctx.load_texture(
             "forge_and_fabric-icon",
-            load_image_from_memory(include_bytes!("../res/forge_and_fabric.png")).unwrap(),
+            load_image_from_memory(include_bytes!("../../res/forge_and_fabric.png")).unwrap(),
         ));
 
         self.curseforge = Some(ctx.load_texture(
             "curseforge-icon",
-            load_image_from_memory(include_bytes!("../res/curseforge.png")).unwrap(),
+            load_image_from_memory(include_bytes!("../../res/curseforge.png")).unwrap(),
         ));
 
         self.modrinth = Some(ctx.load_texture(
             "modrinth-icon",
-            load_image_from_memory(include_bytes!("../res/modrinth.png")).unwrap(),
+            load_image_from_memory(include_bytes!("../../res/modrinth.png")).unwrap(),
         ));
 
         self.local = Some(ctx.load_texture(
             "local-icon",
-            load_image_from_memory(include_bytes!("../res/local.png")).unwrap(),
+            load_image_from_memory(include_bytes!("../../res/local.png")).unwrap(),
         ));
 
         self.bin = Some(ctx.load_texture(
             "bin-icon",
-            load_image_from_memory(include_bytes!("../res/bin.png")).unwrap(),
+            load_image_from_memory(include_bytes!("../../res/bin.png")).unwrap(),
         ));
     }
 }

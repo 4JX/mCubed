@@ -14,19 +14,21 @@ pub fn get_font_def() -> FontDefinitions {
     let mut font_def = FontDefinitions::default();
 
     let inter_medium = FontData {
-        font: Cow::Borrowed(include_bytes!("../fonts/inter/static/Inter-Medium.ttf")),
+        font: Cow::Borrowed(include_bytes!("../../fonts/inter/static/Inter-Medium.ttf")),
         index: 0,
         tweak: FontTweak::default(),
     };
 
     let inter_semi_bold = FontData {
-        font: Cow::Borrowed(include_bytes!("../fonts/inter/static/Inter-SemiBold.ttf")),
+        font: Cow::Borrowed(include_bytes!(
+            "../../fonts/inter/static/Inter-SemiBold.ttf"
+        )),
         index: 0,
         tweak: FontTweak::default(),
     };
 
     let inter_bold = FontData {
-        font: Cow::Borrowed(include_bytes!("../fonts/inter/static/Inter-Bold.ttf")),
+        font: Cow::Borrowed(include_bytes!("../../fonts/inter/static/Inter-Bold.ttf")),
         index: 0,
         tweak: FontTweak {
             scale: 1.0,
@@ -36,7 +38,9 @@ pub fn get_font_def() -> FontDefinitions {
     };
 
     let inter_extra_bold = FontData {
-        font: Cow::Borrowed(include_bytes!("../fonts/inter/static/Inter-ExtraBold.ttf")),
+        font: Cow::Borrowed(include_bytes!(
+            "../../fonts/inter/static/Inter-ExtraBold.ttf"
+        )),
         index: 0,
         tweak: FontTweak::default(),
     };
