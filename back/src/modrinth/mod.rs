@@ -29,14 +29,6 @@ impl Default for Modrinth {
 }
 
 impl Modrinth {
-    /// Ensures you are working with IDs and not slugs
-    pub(crate) async fn normalize_modrinth_id(&self, slug_or_id: &str) -> Option<String> {
-        match self.ferinth.get_project(slug_or_id).await {
-            Ok(project) => Some(project.id),
-            Err(_err) => None,
-        }
-    }
-
     pub(crate) async fn get_modrinth_id_from_hash(&self, mod_hash: &str) -> Option<String> {
         match self.ferinth.get_version_from_file_hash(mod_hash).await {
             Ok(result) => Some(result.project_id),
@@ -128,29 +120,32 @@ impl Modrinth {
         game_version: String,
         modloader: ModLoader,
     ) -> LibResult<ModEntry> {
-        let project = self.ferinth.get_project(modrinth_id.as_str()).await?;
+        match self.ferinth.get_project(modrinth_id.as_str()).await {
+            Ok(project) => {
+                let modrinth_data = ModrinthData {
+                    id: project.id,
+                    latest_valid_version: None,
+                };
 
-        let modrinth_data = ModrinthData {
-            id: modrinth_id,
-            latest_valid_version: None,
-        };
+                let mut mod_entry = ModEntry {
+                    id: project.slug,
+                    version: "0.0.0".to_string(),
+                    display_name: project.title,
+                    modloader,
+                    hashes: hash::Hashes::dummy(),
+                    modrinth_data: Some(modrinth_data),
+                    state: FileState::Current,
+                    sourced_from: Source::Modrinth,
+                    path: None,
+                };
 
-        let mut mod_entry = ModEntry {
-            id: project.slug,
-            version: "0.0.0".to_string(),
-            display_name: project.title,
-            modloader,
-            hashes: hash::Hashes::dummy(),
-            modrinth_data: Some(modrinth_data),
-            state: FileState::Current,
-            sourced_from: Source::Modrinth,
-            path: None,
-        };
+                self.check_for_updates(&mut mod_entry, &game_version)
+                    .await?;
 
-        self.check_for_updates(&mut mod_entry, &game_version)
-            .await?;
-
-        Ok(mod_entry)
+                Ok(mod_entry)
+            }
+            Err(_err) => Err(error::Error::NotValidModrinthId),
+        }
     }
 
     async fn list_versions(

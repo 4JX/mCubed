@@ -28,8 +28,8 @@ impl Hashes {
 
     pub(crate) fn dummy() -> Self {
         Self {
-            sha1: "".to_string(),
-            sha512: "".to_string(),
+            sha1: hex::encode(sha1::Sha1::digest([0])),
+            sha512: hex::encode(sha2::Sha512::digest([0])),
         }
     }
 }

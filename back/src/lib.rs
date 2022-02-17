@@ -242,39 +242,24 @@ impl Back {
     async fn add_mod(&mut self, modrinth_id: String, game_version: String, modloader: ModLoader) {
         match self
             .modrinth
-            .normalize_modrinth_id(modrinth_id.as_str())
+            .create_mod_entry(modrinth_id, game_version, modloader)
             .await
         {
-            Some(modrinth_id) => {
-                match self
-                    .modrinth
-                    .create_mod_entry(modrinth_id, game_version, modloader)
-                    .await
-                {
-                    Ok(mod_entry) => match self.modrinth.update_mod(&mod_entry).await {
-                        Ok(bytes) => {
-                            self.create_mod_file(&mod_entry, &bytes);
-                        }
-                        Err(error) => self
-                            .back_tx
-                            .send(ToFrontend::BackendError { error })
-                            .unwrap(),
-                    },
-                    Err(error) => {
-                        self.back_tx
-                            .send(ToFrontend::BackendError { error })
-                            .unwrap();
-                    }
-                };
-            }
-            None => {
+            Ok(mod_entry) => match self.modrinth.update_mod(&mod_entry).await {
+                Ok(bytes) => {
+                    self.create_mod_file(&mod_entry, &bytes);
+                }
+                Err(error) => self
+                    .back_tx
+                    .send(ToFrontend::BackendError { error })
+                    .unwrap(),
+            },
+            Err(error) => {
                 self.back_tx
-                    .send(ToFrontend::BackendError {
-                        error: error::Error::NotValidModrinthId,
-                    })
+                    .send(ToFrontend::BackendError { error })
                     .unwrap();
             }
-        }
+        };
     }
 
     fn create_mod_file(&mut self, mod_entry: &ModEntry, bytes: &Bytes) {
