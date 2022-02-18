@@ -22,6 +22,8 @@ pub use daedalus::minecraft::Version as GameVersion;
 use parking_lot::Once;
 use tracing::{debug, error, info};
 
+use crate::messages::BackendError;
+
 static LOG_CHANNEL_CLOSED: Once = Once::new();
 
 pub struct Back {
@@ -81,9 +83,12 @@ impl Back {
                                         .back_tx
                                         .send(ToFrontend::SetVersionMetadata { manifest })
                                         .unwrap(),
-                                    Err(err) => self
+                                    Err(error) => self
                                         .back_tx
-                                        .send(ToFrontend::BackendError { error: err.into() })
+                                        .send(ToFrontend::BackendError { error: BackendError::new(
+                                            "There was an error getting the version metadata",
+                                            error,
+                                        )})
                                         .unwrap(),
                                 };
                             }
@@ -152,12 +157,12 @@ impl Back {
                         self.mod_list.clear();
 
                         self.back_tx
-                            .send(ToFrontend::BackendErrorContext {
-                                msg: format!("Could not parse: {}", path.display()),
+                            .send(ToFrontend::BackendError {
+                                error: BackendError::new(
+                                    format!("Could not parse: {}", path.display()),
+                                    error,
+                                ),
                             })
-                            .unwrap();
-                        self.back_tx
-                            .send(ToFrontend::BackendError { error })
                             .unwrap();
                         break 'file_loop;
                     }
@@ -208,7 +213,9 @@ impl Back {
                 .await
             {
                 self.back_tx
-                    .send(ToFrontend::BackendError { error })
+                    .send(ToFrontend::BackendError {
+                        error: BackendError::new("Failed to check for updates", error),
+                    })
                     .unwrap();
             };
         }
@@ -248,7 +255,7 @@ impl Back {
     async fn add_mod(&mut self, modrinth_id: String, game_version: String, modloader: ModLoader) {
         match self
             .modrinth
-            .create_mod_entry(modrinth_id, game_version, modloader)
+            .create_mod_entry(modrinth_id.clone(), game_version, modloader)
             .await
         {
             Ok((mod_entry, bytes)) => {
@@ -256,7 +263,12 @@ impl Back {
             }
             Err(error) => {
                 self.back_tx
-                    .send(ToFrontend::BackendError { error })
+                    .send(ToFrontend::BackendError {
+                        error: BackendError::new(
+                            format!("Could not add mod: {}", modrinth_id),
+                            error,
+                        ),
+                    })
                     .unwrap();
             }
         };

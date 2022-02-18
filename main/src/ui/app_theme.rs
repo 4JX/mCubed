@@ -100,6 +100,7 @@ pub struct Colors {
     pub darker_gray: Color32,
     pub light_gray: Color32,
     pub lighter_gray: Color32,
+    pub error_message: Color32,
     pub mod_card: ModCardTheme,
 }
 
@@ -112,6 +113,7 @@ impl Default for Colors {
             darker_gray: Color32::from_rgb(22, 22, 22),
             light_gray: Color32::from_rgb(85, 85, 85),
             lighter_gray: Color32::from_rgb(120, 120, 120),
+            error_message: Color32::from_rgb(211, 80, 80),
             mod_card: Default::default(),
         }
     }

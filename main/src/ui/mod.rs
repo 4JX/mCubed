@@ -1,5 +1,5 @@
 use back::{
-    messages::{CheckProgress, ToBackend, ToFrontend},
+    messages::{BackendError, CheckProgress, ToBackend, ToFrontend},
     mod_entry::{FileState, ModEntry, ModLoader, Source},
     Back, GameVersion,
 };
@@ -37,8 +37,7 @@ pub struct UiApp {
     front_tx: Option<Sender<ToBackend>>,
     back_rx: Option<Receiver<ToFrontend>>,
     backend_context: BackendContext,
-    popup_error_msg: Option<String>,
-    banner_error_msg: Option<String>,
+    backend_errors: Vec<BackendError>,
 }
 
 #[derive(Default)]
@@ -94,28 +93,13 @@ impl epi::App for UiApp {
                         self.backend_context.check_for_update_progress = Some(progress);
                     }
                     ToFrontend::BackendError { error } => {
-                        self.popup_error_msg = Some(error.to_string());
-                    }
-                    ToFrontend::BackendErrorContext { msg } => {
-                        self.banner_error_msg = Some(msg);
+                        self.backend_errors.push(error);
                     }
                 },
                 Err(err) => {
                     let _ = err;
                 }
             }
-        }
-
-        if let Some(string) = self.popup_error_msg.clone() {
-            egui::Window::new("Error").show(ctx, |ui| {
-                ui.label(string.to_string());
-
-                ui.vertical_centered(|ui| {
-                    if ui.button("Close").clicked() {
-                        self.popup_error_msg = None;
-                    }
-                });
-            });
         }
 
         self.render_side_panel(ctx);
@@ -259,24 +243,31 @@ impl UiApp {
                     });
                 });
 
-                if let Some(string) = self.banner_error_msg.clone() {
-                    egui::Frame {
-                        fill: self.theme.colors.mod_card.version_status.invalid,
-                        margin: Margin::same(6.0),
-                        rounding: Rounding::same(4.),
-                        ..Default::default()
-                    }
-                    .show(ui, |ui| {
-                        ui.horizontal(|ui| {
-                            ui.label(string);
-                            ui.with_layout(egui::Layout::right_to_left(), |ui| {
-                                if ui.button("Close").clicked() {
-                                    self.banner_error_msg = None;
-                                }
+                egui::ScrollArea::vertical().show(ui, |ui| {
+                    self.backend_errors.retain(|error| {
+                        let mut retain = true;
+
+                        egui::Frame {
+                            fill: self.theme.colors.error_message,
+                            margin: Margin::same(6.0),
+                            rounding: Rounding::same(4.),
+                            ..Default::default()
+                        }
+                        .show(ui, |ui| {
+                            ui.horizontal(|ui| {
+                                ui.label(&error.message)
+                                    .on_hover_text(error.error.to_string());
+                                ui.with_layout(egui::Layout::right_to_left(), |ui| {
+                                    if ui.button("Close").clicked() {
+                                        retain = false
+                                    }
+                                });
                             });
                         });
+
+                        retain
                     });
-                }
+                });
 
                 if let Some(progress) = &self.backend_context.check_for_update_progress {
                     let count = progress.position as f32 + 1.0;
