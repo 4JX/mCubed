@@ -85,7 +85,6 @@ impl Back {
                                         .unwrap(),
                                     Err(error) => {
                                         error!("There was an error getting the version metadata");
-                                        
                                         self
                                         .back_tx
                                         .send(ToFrontend::BackendError { error: BackendError::new(
@@ -103,7 +102,6 @@ impl Back {
                             } => {
                                 self.add_mod(modrinth_id, game_version, modloader).await;
                             }
-                            
                             ToBackend::UpdateMod { mod_entry } => {
                                 self.update_mod(mod_entry).await;
                             }
@@ -111,8 +109,6 @@ impl Back {
                             ToBackend::DeleteMod { path } => {
                                 self.delete_mod(path);
                             },
-
-                          
                         }
 
                         if let Some(frame) = &self.egui_epi_frame {
@@ -241,6 +237,7 @@ impl Back {
             sha1 = %mod_entry.hashes.sha1,
             "Updating mod"
         );
+
         if let Ok(bytes) = self.modrinth.update_mod(&mod_entry).await {
             debug!("Update downloaded");
             let read_dir = fs::read_dir(&self.folder_path).unwrap();
@@ -352,18 +349,15 @@ impl Back {
             );
 
             self.back_tx
-            .send(ToFrontend::BackendError {
-                error: BackendError::new(
-                    "Failed to delete the file",
-                    error,
-                ),
-            })
-            .unwrap();
+                .send(ToFrontend::BackendError {
+                    error: BackendError::new("Failed to delete the file", error),
+                })
+                .unwrap();
         } else {
             dbg!(&path);
             self.mod_list.retain(|mod_entry| {
                 dbg!(mod_entry.path.as_ref());
-                if mod_entry.path.as_ref() == Some(&path)  {
+                if mod_entry.path.as_ref() == Some(&path) {
                     false
                 } else {
                     true
@@ -374,6 +368,5 @@ impl Back {
 
             self.sort_and_send_list();
         };
-
     }
 }
