@@ -93,10 +93,6 @@ impl Back {
                                 };
                             }
 
-                            ToBackend::UpdateMod { mod_entry } => {
-                                self.update_mod(mod_entry).await;
-                            }
-
                             ToBackend::AddMod {
                                 modrinth_id,
                                 game_version,
@@ -104,6 +100,16 @@ impl Back {
                             } => {
                                 self.add_mod(modrinth_id, game_version, modloader).await;
                             }
+                            
+                            ToBackend::UpdateMod { mod_entry } => {
+                                self.update_mod(mod_entry).await;
+                            }
+
+                            ToBackend::DeleteMod { path } => {
+                                self.delete_mod(path);
+                            },
+
+                          
                         }
 
                         if let Some(frame) = &self.egui_epi_frame {
@@ -322,5 +328,43 @@ impl Back {
         self.scan_folder();
 
         self.sort_and_send_list();
+    }
+
+    fn delete_mod(&mut self, path: PathBuf) {
+        info!(
+            file_path = %path.display(),
+            "Deleting file"
+        );
+
+        if let Err(error) = trash::delete(&path) {
+            error!(
+                file_path = %path.display(),
+                "Could not delete file"
+            );
+
+            self.back_tx
+            .send(ToFrontend::BackendError {
+                error: BackendError::new(
+                    "Failed to delete the file",
+                    error,
+                ),
+            })
+            .unwrap();
+        } else {
+            dbg!(&path);
+            self.mod_list.retain(|mod_entry| {
+                dbg!(mod_entry.path.as_ref());
+                if mod_entry.path.as_ref() == Some(&path)  {
+                    false
+                } else {
+                    true
+                }
+            });
+
+            debug!("File deleted successfully");
+
+            self.sort_and_send_list();
+        };
+
     }
 }

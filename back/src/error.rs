@@ -67,6 +67,10 @@ pub enum Error {
     DaedalusTaskError(#[from] tokio::task::JoinError),
     #[error("{0}")]
     DaedalusParseError(String),
+
+    // Send to trash errors
+    #[error("Error while managing asynchronous tasks")]
+    TrashFailedDelete(#[from] trash::Error),
 }
 
 impl From<MetaError> for Error {

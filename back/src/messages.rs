@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use daedalus::minecraft::VersionManifest;
 
 use crate::{
@@ -14,14 +16,18 @@ pub enum ToBackend {
 
     GetVersionMetadata,
 
-    UpdateMod {
-        mod_entry: ModEntry,
-    },
-
     AddMod {
         modrinth_id: String,
         game_version: String,
         modloader: ModLoader,
+    },
+
+    UpdateMod {
+        mod_entry: ModEntry,
+    },
+
+    DeleteMod {
+        path: PathBuf,
     },
 }
 

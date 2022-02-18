@@ -12,7 +12,8 @@ use eframe::{
     egui::{
         self,
         style::{DebugOptions, Margin},
-        Align, Context, Layout, ProgressBar, RichText, Rounding, Style, Ui, Vec2, Widget,
+        Align, Context, ImageButton, Layout, ProgressBar, RichText, Rounding, Style, Ui, Vec2,
+        Widget,
     },
     epi,
 };
@@ -466,7 +467,17 @@ impl UiApp {
                 ui.with_layout(egui::Layout::right_to_left(), |ui| {
                     ui.add_space(10.);
 
-                    ui.image(self.images.bin.as_mut().unwrap(), Vec2::splat(12.));
+                    let button =
+                        ImageButton::new(self.images.bin.as_mut().unwrap().id(), Vec2::splat(12.));
+
+                    if ui.add(button).clicked() {
+                        if let Some(tx) = &self.front_tx {
+                            tx.send(ToBackend::DeleteMod {
+                                path: mod_entry.path.as_ref().unwrap().clone(),
+                            })
+                            .unwrap();
+                        }
+                    };
 
                     ui.add_space(5.0);
 
