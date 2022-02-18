@@ -83,13 +83,16 @@ impl Back {
                                         .back_tx
                                         .send(ToFrontend::SetVersionMetadata { manifest })
                                         .unwrap(),
-                                    Err(error) => self
+                                    Err(error) => {
+                                        error!("There was an error getting the version metadata");
+                                        
+                                        self
                                         .back_tx
                                         .send(ToFrontend::BackendError { error: BackendError::new(
                                             "There was an error getting the version metadata",
                                             error,
                                         )})
-                                        .unwrap(),
+                                        .unwrap()},
                                 };
                             }
 
@@ -162,6 +165,8 @@ impl Back {
                         // In the case of an error the mod list will be cleared
                         self.mod_list.clear();
 
+                        error!(path = %path.display(), "Could not parse mod");
+
                         self.back_tx
                             .send(ToFrontend::BackendError {
                                 error: BackendError::new(
@@ -218,6 +223,8 @@ impl Back {
                 .check_for_updates(mod_entry, &game_version)
                 .await
             {
+                error!("Failed to check for updates");
+
                 self.back_tx
                     .send(ToFrontend::BackendError {
                         error: BackendError::new("Failed to check for updates", error),
@@ -268,6 +275,8 @@ impl Back {
                 self.create_mod_file(&mod_entry, &bytes);
             }
             Err(error) => {
+                error!(%modrinth_id, "Could not add mod");
+
                 self.back_tx
                     .send(ToFrontend::BackendError {
                         error: BackendError::new(
