@@ -8,6 +8,10 @@ use crate::{
 };
 
 pub enum ToBackend {
+    Startup,
+
+    Shutdown,
+
     ScanFolder,
 
     CheckForUpdates {

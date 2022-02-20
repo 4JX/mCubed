@@ -2,6 +2,7 @@ use std::{
     fs::{self, OpenOptions},
     io::Write,
     path::PathBuf,
+    process,
 };
 
 use bytes::Bytes;
@@ -63,6 +64,18 @@ impl Back {
                 match self.front_rx.recv() {
                     Ok(message) => {
                         match message {
+                            ToBackend::Startup => {
+                                self.scan_folder();
+
+                                self.sort_and_send_list();
+
+                                self.get_version_metadata().await;
+                            }
+
+                            ToBackend::Shutdown => {
+                                process::exit(0);
+                            }
+
                             ToBackend::ScanFolder => {
                                 self.scan_folder();
 
@@ -78,21 +91,7 @@ impl Back {
                             }
 
                             ToBackend::GetVersionMetadata => {
-                                match daedalus::minecraft::fetch_version_manifest(None).await {
-                                    Ok(manifest) => self
-                                        .back_tx
-                                        .send(ToFrontend::SetVersionMetadata { manifest })
-                                        .unwrap(),
-                                    Err(error) => {
-                                        error!("There was an error getting the version metadata");
-                                        self
-                                        .back_tx
-                                        .send(ToFrontend::BackendError { error: BackendError::new(
-                                            "There was an error getting the version metadata",
-                                            error,
-                                        )})
-                                        .unwrap()},
-                                };
+                               self.get_version_metadata().await;
                             }
 
                             ToBackend::AddMod {
@@ -367,6 +366,26 @@ impl Back {
             debug!("File deleted successfully");
 
             self.sort_and_send_list();
+        };
+    }
+
+    async fn get_version_metadata(&self) {
+        match daedalus::minecraft::fetch_version_manifest(None).await {
+            Ok(manifest) => self
+                .back_tx
+                .send(ToFrontend::SetVersionMetadata { manifest })
+                .unwrap(),
+            Err(error) => {
+                error!("There was an error getting the version metadata");
+                self.back_tx
+                    .send(ToFrontend::BackendError {
+                        error: BackendError::new(
+                            "There was an error getting the version metadata",
+                            error,
+                        ),
+                    })
+                    .unwrap()
+            }
         };
     }
 }

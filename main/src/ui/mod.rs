@@ -72,8 +72,7 @@ impl epi::App for UiApp {
         self.back_rx = Some(back_rx);
 
         if let Some(sender) = &self.front_tx {
-            sender.send(ToBackend::ScanFolder).unwrap();
-            sender.send(ToBackend::GetVersionMetadata).unwrap();
+            sender.send(ToBackend::Startup).unwrap();
         }
     }
 
@@ -106,6 +105,12 @@ impl epi::App for UiApp {
         self.render_side_panel(ctx);
 
         self.render_central_panel(ctx);
+    }
+
+    fn on_exit(&mut self) {
+        if let Some(tx) = &self.front_tx {
+            tx.send(ToBackend::Shutdown).unwrap();
+        }
     }
 }
 
