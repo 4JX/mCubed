@@ -28,7 +28,7 @@ mod text_utils;
 static SET_LEFT_PANEL_BOTTOM_BUTTONS_WIDTH: Once = Once::new();
 
 #[derive(Default)]
-pub struct UiApp {
+pub struct MCubedAppUI {
     // UI
     theme: AppTheme,
     search_buf: String,
@@ -56,7 +56,7 @@ struct BackendContext {
     backend_errors: Vec<BackendError>,
 }
 
-impl epi::App for UiApp {
+impl epi::App for MCubedAppUI {
     fn name(&self) -> &str {
         "mCubed"
     }
@@ -124,7 +124,7 @@ impl epi::App for UiApp {
     }
 }
 
-impl UiApp {
+impl MCubedAppUI {
     fn render_side_panel(&mut self, ctx: &Context) {
         egui::SidePanel::left("options_panel")
             .frame(self.theme.default_panel_frame)
@@ -286,7 +286,7 @@ impl UiApp {
                                     .on_hover_text(error.error.to_string());
                                 ui.with_layout(egui::Layout::right_to_left(), |ui| {
                                     if ui.button("Close").clicked() {
-                                        retain = false
+                                        retain = false;
                                     }
                                 });
                             });
@@ -507,17 +507,14 @@ impl UiApp {
 
                     ui.add_space(5.0);
 
-                    if mod_entry.state == FileState::Outdated {
-                        if ui
+                    if mod_entry.state == FileState::Outdated && ui
                             .button(text_utils::update_button_text("Update"))
-                            .clicked()
-                        {
-                            if let Some(tx) = &self.front_tx {
-                                tx.send(ToBackend::UpdateMod {
-                                    mod_entry: mod_entry.clone(),
-                                })
-                                .unwrap();
-                            }
+                            .clicked() {
+                        if let Some(tx) = &self.front_tx {
+                            tx.send(ToBackend::UpdateMod {
+                                mod_entry: mod_entry.clone(),
+                            })
+                            .unwrap();
                         }
                     }
                 });
@@ -525,7 +522,7 @@ impl UiApp {
         });
     }
 }
-impl UiApp {
+impl MCubedAppUI {
     fn configure_style(&self, ctx: &Context) {
         let style = Style {
             text_styles: text_utils::default_text_styles(),
@@ -547,7 +544,7 @@ impl UiApp {
         let mut width = 0.0;
         let item_spacing_x = current_ui.spacing().item_spacing.x;
         for response in responses {
-            width += response.rect.width() + item_spacing_x
+            width += response.rect.width() + item_spacing_x;
         }
 
         // The last spacing needs to be offset, there's probably a better way to do this

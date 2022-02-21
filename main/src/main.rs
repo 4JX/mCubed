@@ -1,7 +1,7 @@
 use color_eyre::Report;
 
 use tracing_subscriber::EnvFilter;
-use ui::UiApp;
+use ui::MCubedAppUI;
 
 use eframe::egui::Vec2;
 
@@ -10,7 +10,7 @@ mod ui;
 fn main() -> Result<(), Report> {
     setup_logging()?;
 
-    let app = UiApp::default();
+    let app = MCubedAppUI::default();
     let native_options = eframe::NativeOptions {
         initial_window_size: Some(Vec2::new(970., 300.)),
         ..Default::default()

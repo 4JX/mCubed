@@ -106,7 +106,7 @@ impl Back {
                             }
 
                             ToBackend::DeleteMod { path } => {
-                                self.delete_mod(path);
+                                self.delete_mod(&path);
                             },
                         }
 
@@ -117,8 +117,8 @@ impl Back {
                     Err(error) => {
                         // As the only reason this will error out is if the channel is closed (sender is dropped) a one time log of the error is enough
                        LOG_CHANNEL_CLOSED.call_once(|| {
-                        error!(%error, "There was an error when receiving a message from the frontend:");
-                       })
+                           error!(%error, "There was an error when receiving a message from the frontend:");
+                       });
                     }
                 };
             }
@@ -177,7 +177,7 @@ impl Back {
         }
 
         // Ensure the important bits are kept from the old list
-        for mod_entry in self.mod_list.iter_mut() {
+        for mod_entry in &mut self.mod_list {
             let filtered_old: Vec<&ModEntry> = old_list
                 .iter()
                 .filter(|filter_entry| filter_entry.id == mod_entry.id)
@@ -315,12 +315,12 @@ impl Back {
 
         let mut new_entries = ModEntry::from_file(&mut new_mod_file, Some(path)).unwrap();
 
-        for new_mod_entry in new_entries.iter_mut() {
+        for new_mod_entry in &mut new_entries {
             // Ensure the data for the entry is kept
             new_mod_entry.modrinth_data = mod_entry.modrinth_data.clone();
             new_mod_entry.sourced_from = mod_entry.sourced_from;
 
-            for list_entry in self.mod_list.iter_mut() {
+            for list_entry in &mut self.mod_list {
                 // The hash has to be compared to the old entry, the slug/id can be compared to the new one
                 if list_entry.hashes.sha1 == mod_entry.hashes.sha1
                     && list_entry.id == new_mod_entry.id.clone()
@@ -335,7 +335,7 @@ impl Back {
         self.sort_and_send_list();
     }
 
-    fn delete_mod(&mut self, path: PathBuf) {
+    fn delete_mod(&mut self, path: &PathBuf) {
         info!(
             file_path = %path.display(),
             "Deleting file"
@@ -353,15 +353,8 @@ impl Back {
                 })
                 .unwrap();
         } else {
-            dbg!(&path);
-            self.mod_list.retain(|mod_entry| {
-                dbg!(mod_entry.path.as_ref());
-                if mod_entry.path.as_ref() == Some(&path) {
-                    false
-                } else {
-                    true
-                }
-            });
+            self.mod_list
+                .retain(|mod_entry| mod_entry.path.as_ref() != Some(path));
 
             debug!("File deleted successfully");
 
@@ -384,7 +377,7 @@ impl Back {
                             error,
                         ),
                     })
-                    .unwrap()
+                    .unwrap();
             }
         };
     }
