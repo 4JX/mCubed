@@ -13,8 +13,8 @@ use eframe::{
     egui::{
         self,
         style::{DebugOptions, Margin},
-        Align, Context, ImageButton, Layout, ProgressBar, Response, RichText, Rounding, Style, Ui,
-        Vec2, Widget,
+        Align, Context, ImageButton, Label, Layout, ProgressBar, Response, RichText, Rounding,
+        Style, Ui, Vec2, Widget,
     },
     epi,
 };
@@ -282,7 +282,7 @@ impl MCubedAppUI {
                         }
                         .show(ui, |ui| {
                             ui.horizontal(|ui| {
-                                ui.label(&error.message)
+                                ui.add(Label::new(&error.message).wrap(true))
                                     .on_hover_text(error.error.to_string());
                                 ui.with_layout(egui::Layout::right_to_left(), |ui| {
                                     if ui.button("Close").clicked() {
@@ -507,9 +507,11 @@ impl MCubedAppUI {
 
                     ui.add_space(5.0);
 
-                    if mod_entry.state == FileState::Outdated && ui
+                    if mod_entry.state == FileState::Outdated
+                        && ui
                             .button(text_utils::update_button_text("Update"))
-                            .clicked() {
+                            .clicked()
+                    {
                         if let Some(tx) = &self.front_tx {
                             tx.send(ToBackend::UpdateMod {
                                 mod_entry: mod_entry.clone(),

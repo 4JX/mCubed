@@ -13,6 +13,7 @@ fn main() -> Result<(), Report> {
     let app = MCubedAppUI::default();
     let native_options = eframe::NativeOptions {
         initial_window_size: Some(Vec2::new(970., 300.)),
+        min_window_size: Some(Vec2::new(600., 300.)),
         ..Default::default()
     };
 
