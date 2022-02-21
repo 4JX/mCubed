@@ -3,6 +3,7 @@ use back::{
     mod_entry::{FileState, ModEntry, ModLoader, Source},
     Back, GameVersion,
 };
+use parking_lot::Once;
 
 use std::thread;
 
@@ -12,8 +13,8 @@ use eframe::{
     egui::{
         self,
         style::{DebugOptions, Margin},
-        Align, Context, ImageButton, Layout, ProgressBar, RichText, Rounding, Style, Ui, Vec2,
-        Widget,
+        Align, Context, ImageButton, Layout, ProgressBar, Response, RichText, Rounding, Style, Ui,
+        Vec2, Widget,
     },
     epi,
 };
@@ -24,26 +25,35 @@ mod app_theme;
 mod image_utils;
 mod text_utils;
 
+static SET_LEFT_PANEL_BOTTOM_BUTTONS_WIDTH: Once = Once::new();
+
 #[derive(Default)]
 pub struct UiApp {
+    // UI
     theme: AppTheme,
-    mod_list: Vec<ModEntry>,
-    game_version_list: Vec<GameVersion>,
     search_buf: String,
     add_mod_buf: String,
-    selected_version: Option<GameVersion>,
-    selected_modloader: ModLoader,
     images: ImageTextures,
 
+    // Data
+    mod_list: Vec<ModEntry>,
+    game_version_list: Vec<GameVersion>,
+    selected_version: Option<GameVersion>,
+    selected_modloader: ModLoader,
+    backend_context: BackendContext,
+
+    // Data transferring
     front_tx: Option<Sender<ToBackend>>,
     back_rx: Option<Receiver<ToFrontend>>,
-    backend_context: BackendContext,
-    backend_errors: Vec<BackendError>,
+
+    // Misc sizes to combat immediate mode shenanigans
+    left_panel_bottom_buttons_width: f32,
 }
 
 #[derive(Default)]
 struct BackendContext {
     check_for_update_progress: Option<CheckProgress>,
+    backend_errors: Vec<BackendError>,
 }
 
 impl epi::App for UiApp {
@@ -93,7 +103,7 @@ impl epi::App for UiApp {
                         self.backend_context.check_for_update_progress = Some(progress);
                     }
                     ToFrontend::BackendError { error } => {
-                        self.backend_errors.push(error);
+                        self.backend_context.backend_errors.push(error);
                     }
                 },
                 Err(err) => {
@@ -208,14 +218,18 @@ impl UiApp {
                 });
 
                 ui.with_layout(Layout::bottom_up(Align::Center), |ui| {
+                    ui.set_max_width(self.left_panel_bottom_buttons_width);
                     ui.horizontal(|ui| {
-                        if ui.button("Re-scan Folder").clicked() {
+                        let rescan_folder_button_res = ui.button("Re-scan Folder");
+
+                        if rescan_folder_button_res.clicked() {
                             if let Some(tx) = &self.front_tx {
                                 tx.send(ToBackend::ScanFolder).unwrap();
                             }
-                        }
+                        };
 
-                        if ui.button("Refresh").clicked() {
+                        let refresh_button_res = ui.button("Refresh");
+                        if refresh_button_res.clicked() {
                             if let Some(tx) = &self.front_tx {
                                 if let Some(version) = &self.selected_version {
                                     tx.send(ToBackend::CheckForUpdates {
@@ -230,6 +244,13 @@ impl UiApp {
                                 }
                             }
                         }
+
+                        SET_LEFT_PANEL_BOTTOM_BUTTONS_WIDTH.call_once(|| {
+                            self.left_panel_bottom_buttons_width = self.calculate_width(
+                                vec![rescan_folder_button_res, refresh_button_res],
+                                ui,
+                            );
+                        });
                     });
                 });
             });
@@ -250,7 +271,7 @@ impl UiApp {
                 });
 
                 egui::ScrollArea::vertical().show(ui, |ui| {
-                    self.backend_errors.retain(|error| {
+                    self.backend_context.backend_errors.retain(|error| {
                         let mut retain = true;
 
                         egui::Frame {
@@ -520,5 +541,16 @@ impl UiApp {
 
         ctx.set_fonts(text_utils::get_font_def());
         ctx.set_style(style);
+    }
+
+    fn calculate_width(&self, responses: Vec<Response>, current_ui: &Ui) -> f32 {
+        let mut width = 0.0;
+        let item_spacing_x = current_ui.spacing().item_spacing.x;
+        for response in responses {
+            width += response.rect.width() + item_spacing_x
+        }
+
+        // The last spacing needs to be offset, there's probably a better way to do this
+        width - item_spacing_x
     }
 }
