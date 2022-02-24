@@ -1,7 +1,7 @@
 use std::{
     fs::{self, OpenOptions},
     io::Write,
-    path::PathBuf,
+    path::{Path, PathBuf},
     process,
 };
 
@@ -102,7 +102,7 @@ impl Back {
                                 self.add_mod(modrinth_id, game_version, modloader).await;
                             }
                             ToBackend::UpdateMod { mod_entry } => {
-                                self.update_mod(mod_entry).await;
+                                self.update_mod(*mod_entry).await;
                             }
 
                             ToBackend::DeleteMod { path } => {
@@ -335,7 +335,7 @@ impl Back {
         self.sort_and_send_list();
     }
 
-    fn delete_mod(&mut self, path: &PathBuf) {
+    fn delete_mod(&mut self, path: &Path) {
         info!(
             file_path = %path.display(),
             "Deleting file"
@@ -354,7 +354,7 @@ impl Back {
                 .unwrap();
         } else {
             self.mod_list
-                .retain(|mod_entry| mod_entry.path.as_ref() != Some(path));
+                .retain(|mod_entry| mod_entry.path.as_ref() != Some(&path.to_path_buf()));
 
             debug!("File deleted successfully");
 

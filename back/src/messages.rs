@@ -27,7 +27,7 @@ pub enum ToBackend {
     },
 
     UpdateMod {
-        mod_entry: ModEntry,
+        mod_entry: Box<ModEntry>,
     },
 
     DeleteMod {

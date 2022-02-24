@@ -514,7 +514,7 @@ impl MCubedAppUI {
                     {
                         if let Some(tx) = &self.front_tx {
                             tx.send(ToBackend::UpdateMod {
-                                mod_entry: mod_entry.clone(),
+                                mod_entry: Box::new(mod_entry.clone()),
                             })
                             .unwrap();
                         }
