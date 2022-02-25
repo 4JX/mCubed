@@ -11,11 +11,11 @@ homepage = "https://github.com/4JX/mCubed"
 # eframe = "0.16.0"
 # eframe = { git = "https://github.com/emilk/egui", rev = "366f544" }
 eframe = { git = "https://github.com/4JX/egui", rev = "a312f4b" }
-image = "0.24.0"
+image = "0.24.1"
 serde = "1.0.136"
-serde_json = "1.0.78"
+serde_json = "1.0.79"
 back = { path = "../back" }
 color-eyre = "0.6.0"
-tracing-subscriber = { version = "0.3.8", features = ["env-filter"] }
+tracing-subscriber = { version = "0.3.9", features = ["env-filter"] }
 crossbeam-channel = "0.5.2"
 parking_lot = "0.12.0"
