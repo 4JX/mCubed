@@ -1,11 +1,12 @@
 use bytes::Bytes;
+use serde::{Deserialize, Serialize};
 use sha1::Digest;
 use std::fs::File;
 use std::io::Read;
 
 use crate::error::LibResult;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Hashes {
     pub sha1: String,
     pub sha512: String,

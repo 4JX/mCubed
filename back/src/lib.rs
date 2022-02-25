@@ -18,9 +18,11 @@ mod error;
 mod hash;
 pub mod messages;
 pub mod mod_entry;
+mod persistence;
 
 pub use daedalus::minecraft::Version as GameVersion;
 use parking_lot::Once;
+use persistence::CacheStorage;
 use tracing::{debug, error, info};
 
 use crate::messages::BackendError;
@@ -29,6 +31,7 @@ static LOG_CHANNEL_CLOSED: Once = Once::new();
 
 pub struct Back {
     mod_list: Vec<ModEntry>,
+    cache: CacheStorage,
     folder_path: PathBuf,
     modrinth: Modrinth,
     back_tx: Sender<ToFrontend>,
@@ -38,14 +41,17 @@ pub struct Back {
 
 impl Back {
     pub fn new(
-        folder_path: Option<PathBuf>,
+        mod_folder_path: Option<PathBuf>,
         back_tx: Sender<ToFrontend>,
         front_rx: Receiver<ToBackend>,
         egui_epi_frame: Option<epi::Frame>,
     ) -> Self {
+        let folder_path = mod_folder_path.unwrap_or_else(minecraft_path::default_mod_dir);
+
         Self {
             mod_list: Default::default(),
-            folder_path: folder_path.unwrap_or_else(minecraft_path::default_mod_dir),
+            cache: CacheStorage::new(&folder_path),
+            folder_path,
             modrinth: Default::default(),
             back_tx,
             front_rx,
@@ -65,7 +71,9 @@ impl Back {
                     Ok(message) => {
                         match message {
                             ToBackend::Startup => {
-                                self.scan_folder();
+                                self.load_list_cache();
+
+                                self.scan_folder_startup();
 
                                 self.sort_and_send_list();
 
@@ -73,6 +81,7 @@ impl Back {
                             }
 
                             ToBackend::Shutdown => {
+                                self.save_list_cache();
                                 process::exit(0);
                             }
 
@@ -125,6 +134,32 @@ impl Back {
         });
     }
 
+    fn load_list_cache(&mut self) {
+        if let Err(error) = self.cache.load_list_cache() {
+            error!(%error, "Could not load cache");
+
+            self.back_tx
+                .send(ToFrontend::BackendError {
+                    error: BackendError::new(format!("Could not load cache: {}", error), error),
+                })
+                .unwrap();
+        }
+    }
+
+    fn save_list_cache(&mut self) {
+        self.cache.set_cache(self.mod_list.clone());
+
+        if let Err(error) = self.cache.save_list_cache() {
+            error!(%error, "Could not save cache");
+
+            self.back_tx
+                .send(ToFrontend::BackendError {
+                    error: BackendError::new(format!("Could not save cache: {}", error), error),
+                })
+                .unwrap();
+        }
+    }
+
     fn sort_and_send_list(&mut self) {
         info!(length = self.mod_list.len(), "Sending the mods list");
         self.mod_list
@@ -149,8 +184,7 @@ impl Back {
         'file_loop: for file_entry in read_dir {
             let path = file_entry.unwrap().path();
 
-            // Minecraft does not really care about mods within folders, therefore skip anything that is not a file
-            if path.is_file() {
+            if self.is_relevant_file(&path) {
                 debug!(?path, "Parsing file");
                 let mut file = fs::File::open(&path).unwrap();
 
@@ -176,9 +210,19 @@ impl Back {
             }
         }
 
-        // Ensure the important bits are kept from the old list
+        self.transfer_data(&old_list);
+    }
+
+    fn scan_folder_startup(&mut self) {
+        self.scan_folder();
+
+        self.transfer_data(&self.cache.get_cache().clone());
+    }
+
+    fn transfer_data(&mut self, from_list: &[ModEntry]) {
+        // Ensures the important bits are kept
         for mod_entry in &mut self.mod_list {
-            let filtered_old: Vec<&ModEntry> = old_list
+            let filtered_old: Vec<&ModEntry> = from_list
                 .iter()
                 .filter(|filter_entry| filter_entry.id == mod_entry.id)
                 .collect();
@@ -187,10 +231,11 @@ impl Back {
                 mod_entry.sourced_from = filtered_old[0].sourced_from;
                 mod_entry.modrinth_data = filtered_old[0].modrinth_data.clone();
 
+                // TODO: Figure out if this is feasible to keep
                 // If the file has not changed, the state can also be kept
-                if mod_entry.hashes.sha1 == filtered_old[0].hashes.sha1 {
-                    mod_entry.state = filtered_old[0].state;
-                }
+                // if mod_entry.hashes.sha1 == filtered_old[0].hashes.sha1 {
+                //     mod_entry.state = filtered_old[0].state;
+                // }
             }
         }
     }
@@ -244,7 +289,7 @@ impl Back {
             'file_loop: for file_entry in read_dir {
                 let path = file_entry.unwrap().path();
 
-                if path.is_file() {
+                if self.is_relevant_file(&path) {
                     let mut file = fs::File::open(&path).unwrap();
 
                     let hashes = Hashes::get_hashes_from_file(&mut file).unwrap();
@@ -380,5 +425,19 @@ impl Back {
                     .unwrap();
             }
         };
+    }
+
+    fn is_relevant_file(&self, path: &Path) -> bool {
+        // Minecraft does not really care about mods within folders, therefore skip anything that is not a file
+        path.is_file()
+            && path
+                .file_name()
+                .unwrap()
+                .to_str()
+                .unwrap()
+                .rsplit('.')
+                .next()
+                .map(|ext| ext.eq_ignore_ascii_case("jar"))
+                == Some(true)
     }
 }

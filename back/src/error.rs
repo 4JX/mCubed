@@ -1,5 +1,4 @@
 use mc_mod_meta::error::Error as MetaError;
-use std::io::Error as IoError;
 use thiserror::Error;
 
 pub type LibResult<T> = std::result::Result<T, Error>;
@@ -26,9 +25,12 @@ pub enum Error {
     #[error("The id or slug provided is not valid")]
     NotValidModrinthId,
 
+    #[error("Failed to parse cache file:  {}", err)]
+    FailedToParseEntryCache { err: serde_json::Error },
+
     // Shared errors
     #[error("Encountered an I/O error while handling the file: {}", .0)]
-    IoError(#[from] IoError),
+    IoError(#[from] std::io::Error),
 
     #[error("Failed to parse JSON: {}", .0)]
     SerdeError(#[from] serde_json::error::Error),

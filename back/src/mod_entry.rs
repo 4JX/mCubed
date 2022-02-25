@@ -7,10 +7,11 @@ use mc_mod_meta::{
     common::MinecraftMod, fabric::FabricManifest, forge::ForgeManifest, ModLoader as McModLoader,
 };
 use regex::Regex;
+use serde::{Deserialize, Serialize};
 
 use crate::{error::LibResult, hash::Hashes};
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct ModEntry {
     pub id: String,
     pub version: String,
@@ -24,7 +25,7 @@ pub struct ModEntry {
 }
 
 // Middleman "ModLoader" enum to convert between those of the other crates
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
 pub enum ModLoader {
     Forge,
     Fabric,
@@ -63,14 +64,14 @@ impl From<McModLoader> for ModLoader {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct ModrinthData {
     pub id: String,
     pub latest_valid_version: Option<VersionFile>,
 }
 
 #[allow(dead_code)]
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
 pub enum FileState {
     Current,
     Outdated,
@@ -79,7 +80,7 @@ pub enum FileState {
 }
 
 #[allow(dead_code)]
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
 pub enum Source {
     Local,
     ExplicitLocal,
