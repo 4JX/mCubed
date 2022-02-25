@@ -1,5 +1,5 @@
 use core::fmt;
-use std::{fs::File, path::PathBuf};
+use std::{fmt::Debug, fs::File, path::PathBuf};
 
 use ferinth::structures::version_structs::{ModLoader as FeModLoader, VersionFile};
 use lazy_static::lazy_static;
@@ -18,9 +18,9 @@ pub struct ModEntry {
     pub display_name: String,
     pub modloader: ModLoader,
     pub hashes: Hashes,
-    pub modrinth_data: Option<ModrinthData>,
+    pub sources: Sources,
     pub state: FileState,
-    pub sourced_from: Source,
+    pub sourced_from: CurrentSource,
     pub path: Option<PathBuf>,
 }
 
@@ -64,6 +64,15 @@ impl From<McModLoader> for ModLoader {
     }
 }
 
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+pub struct Sources {
+    pub curseforge: Option<CurseForgeData>,
+    pub modrinth: Option<ModrinthData>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct CurseForgeData;
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct ModrinthData {
     pub id: String,
@@ -80,15 +89,26 @@ pub enum FileState {
 }
 
 #[allow(dead_code)]
-#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
-pub enum Source {
+#[derive(Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub enum CurrentSource {
     Local,
     ExplicitLocal,
     Modrinth,
     CurseForge,
 }
 
-impl fmt::Display for Source {
+impl Debug for CurrentSource {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Local => write!(f, "Local"),
+            Self::ExplicitLocal => write!(f, "Local"),
+            Self::Modrinth => write!(f, "Modrinth"),
+            Self::CurseForge => write!(f, "CurseForge"),
+        }
+    }
+}
+
+impl fmt::Display for CurrentSource {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         fmt::Debug::fmt(self, f)
     }
@@ -98,7 +118,7 @@ impl ModEntry {
     fn new(
         mc_mod: MinecraftMod,
         hashes: &Hashes,
-        modrinth_data: Option<ModrinthData>,
+        sources: Option<Sources>,
         path: Option<PathBuf>,
     ) -> Self {
         let MinecraftMod {
@@ -114,9 +134,9 @@ impl ModEntry {
             display_name,
             modloader: modloader.into(),
             hashes: hashes.clone(),
-            modrinth_data,
+            sources: sources.unwrap_or_default(),
             state: FileState::Local,
-            sourced_from: Source::Local,
+            sourced_from: CurrentSource::Local,
             path,
         }
     }

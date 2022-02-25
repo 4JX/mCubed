@@ -7,7 +7,7 @@ use ferinth::{
 use crate::{
     error::{self, LibResult},
     hash,
-    mod_entry::{FileState, ModEntry, ModLoader, ModrinthData, Source},
+    mod_entry::{CurrentSource, FileState, ModEntry, ModLoader, ModrinthData, Sources},
 };
 
 pub struct Modrinth {
@@ -41,22 +41,24 @@ impl Modrinth {
         mod_entry: &mut ModEntry,
         game_version: &str,
     ) -> LibResult<()> {
-        if mod_entry.sourced_from == Source::Modrinth || mod_entry.sourced_from == Source::Local {
+        if mod_entry.sourced_from == CurrentSource::Modrinth
+            || mod_entry.sourced_from == CurrentSource::Local
+        {
             // Get and set the modrinth ID, without one the operation cannot proceed
-            if mod_entry.modrinth_data.is_none() {
+            if mod_entry.sources.modrinth.is_none() {
                 let modrinth_id = self.get_modrinth_id_from_hash(&mod_entry.hashes.sha1).await;
                 if let Some(id) = modrinth_id {
-                    mod_entry.modrinth_data = Some(ModrinthData {
+                    mod_entry.sources.modrinth = Some(ModrinthData {
                         id,
                         latest_valid_version: None,
                     });
 
-                    mod_entry.sourced_from = Source::Modrinth;
+                    mod_entry.sourced_from = CurrentSource::Modrinth;
                 }
             }
 
             // This will not always give a result, therefore the data needs to be checked again (In case it is "Some", assume its correct)
-            if let Some(modrinth_data) = &mut mod_entry.modrinth_data {
+            if let Some(modrinth_data) = &mut mod_entry.sources.modrinth {
                 // The version list can now be fetched
                 let version_list = self
                     .list_versions(&modrinth_data.id, mod_entry.modloader, game_version)
@@ -103,7 +105,7 @@ impl Modrinth {
     }
 
     pub(crate) async fn update_mod(&self, mod_entry: &ModEntry) -> LibResult<Bytes> {
-        if let Some(data) = &mod_entry.modrinth_data {
+        if let Some(data) = &mod_entry.sources.modrinth {
             if let Some(version_file) = &data.latest_valid_version {
                 Ok(self.ferinth.download_version_file(version_file).await?)
             } else {
@@ -122,9 +124,14 @@ impl Modrinth {
     ) -> LibResult<(ModEntry, Bytes)> {
         match self.ferinth.get_project(modrinth_id.as_str()).await {
             Ok(project) => {
-                let modrinth_data = ModrinthData {
+                let modrinth = ModrinthData {
                     id: project.id,
                     latest_valid_version: None,
+                };
+
+                let sources = Sources {
+                    curseforge: None,
+                    modrinth: Some(modrinth),
                 };
 
                 let mut mod_entry = ModEntry {
@@ -133,9 +140,9 @@ impl Modrinth {
                     display_name: project.title,
                     modloader,
                     hashes: hash::Hashes::dummy(),
-                    modrinth_data: Some(modrinth_data),
+                    sources,
                     state: FileState::Current,
-                    sourced_from: Source::Modrinth,
+                    sourced_from: CurrentSource::Modrinth,
                     path: None,
                 };
 

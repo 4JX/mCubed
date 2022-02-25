@@ -1,6 +1,6 @@
 use back::{
     messages::{BackendError, CheckProgress, ToBackend, ToFrontend},
-    mod_entry::{FileState, ModEntry, ModLoader, Source},
+    mod_entry::{CurrentSource, FileState, ModEntry, ModLoader},
     Back, GameVersion,
 };
 use parking_lot::Once;
@@ -470,7 +470,7 @@ impl MCubedAppUI {
                                 text_utils::mod_card_data_text(mod_entry.sourced_from.to_string());
 
                             let text = match mod_entry.sourced_from {
-                                Source::Local | Source::ExplicitLocal => {
+                                CurrentSource::Local | CurrentSource::ExplicitLocal => {
                                     ui.image(
                                         self.images.local.as_mut().unwrap(),
                                         Vec2::splat(image_size),
@@ -478,7 +478,7 @@ impl MCubedAppUI {
 
                                     raw_text.color(self.theme.mod_card_source().local)
                                 }
-                                Source::Modrinth => {
+                                CurrentSource::Modrinth => {
                                     ui.image(
                                         self.images.modrinth.as_mut().unwrap(),
                                         Vec2::splat(image_size),
@@ -486,7 +486,7 @@ impl MCubedAppUI {
 
                                     raw_text.color(self.theme.mod_card_source().modrinth)
                                 }
-                                Source::CurseForge => {
+                                CurrentSource::CurseForge => {
                                     ui.image(
                                         self.images.curseforge.as_mut().unwrap(),
                                         Vec2::splat(image_size),

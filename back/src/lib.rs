@@ -229,7 +229,7 @@ impl Back {
 
             if !filtered_old.is_empty() {
                 mod_entry.sourced_from = filtered_old[0].sourced_from;
-                mod_entry.modrinth_data = filtered_old[0].modrinth_data.clone();
+                mod_entry.sources.modrinth = filtered_old[0].sources.modrinth.clone();
 
                 // TODO: Figure out if this is feasible to keep
                 // If the file has not changed, the state can also be kept
@@ -338,7 +338,8 @@ impl Back {
         // The data is guaranteed to exist, unwrapping here is fine
         let path = self.folder_path.join(
             &mod_entry
-                .modrinth_data
+                .sources
+                .modrinth
                 .as_ref()
                 .unwrap()
                 .latest_valid_version
@@ -362,7 +363,7 @@ impl Back {
 
         for new_mod_entry in &mut new_entries {
             // Ensure the data for the entry is kept
-            new_mod_entry.modrinth_data = mod_entry.modrinth_data.clone();
+            new_mod_entry.sources.modrinth = mod_entry.sources.modrinth.clone();
             new_mod_entry.sourced_from = mod_entry.sourced_from;
 
             for list_entry in &mut self.mod_list {
