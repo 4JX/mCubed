@@ -280,31 +280,33 @@ impl MCubedAppUI {
                     });
                 });
 
-                egui::ScrollArea::vertical().show(ui, |ui| {
-                    self.backend_context.backend_errors.retain(|error| {
-                        let mut retain = true;
+                if !self.backend_context.backend_errors.is_empty() {
+                    egui::ScrollArea::vertical().show(ui, |ui| {
+                        self.backend_context.backend_errors.retain(|error| {
+                            let mut retain = true;
 
-                        egui::Frame {
-                            fill: self.theme.colors.error_message,
-                            margin: Margin::same(6.0),
-                            rounding: Rounding::same(4.),
-                            ..Default::default()
-                        }
-                        .show(ui, |ui| {
-                            ui.horizontal(|ui| {
-                                ui.add(Label::new(&error.message).wrap(true))
-                                    .on_hover_text(error.error.to_string());
-                                ui.with_layout(egui::Layout::right_to_left(), |ui| {
-                                    if ui.button("Close").clicked() {
-                                        retain = false;
-                                    }
+                            egui::Frame {
+                                fill: self.theme.colors.error_message,
+                                margin: Margin::same(6.0),
+                                rounding: Rounding::same(4.),
+                                ..Default::default()
+                            }
+                            .show(ui, |ui| {
+                                ui.horizontal(|ui| {
+                                    ui.add(Label::new(&error.message).wrap(true))
+                                        .on_hover_text(error.error.to_string());
+                                    ui.with_layout(egui::Layout::right_to_left(), |ui| {
+                                        if ui.button("Close").clicked() {
+                                            retain = false;
+                                        }
+                                    });
                                 });
                             });
-                        });
 
-                        retain
+                            retain
+                        });
                     });
-                });
+                }
 
                 if let Some(progress) = &self.backend_context.check_for_update_progress {
                     let count = progress.position as f32 + 1.0;
