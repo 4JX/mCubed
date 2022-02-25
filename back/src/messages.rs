@@ -14,6 +14,10 @@ pub enum ToBackend {
 
     ScanFolder,
 
+    UpdateBackendList {
+        mod_list: Vec<ModEntry>,
+    },
+
     CheckForUpdates {
         game_version: String,
     },

@@ -91,6 +91,11 @@ impl Back {
                                 self.sort_and_send_list();
                             }
 
+                            ToBackend::UpdateBackendList { mod_list } => {
+                                self.mod_list = mod_list;
+                            },
+
+
                             ToBackend::CheckForUpdates { game_version } => {
                                 self.scan_folder();
 

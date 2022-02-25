@@ -120,6 +120,11 @@ impl epi::App for MCubedAppUI {
 
     fn on_exit(&mut self) {
         if let Some(tx) = &self.front_tx {
+            tx.send(ToBackend::UpdateBackendList {
+                mod_list: self.mod_list.clone(),
+            })
+            .unwrap();
+
             tx.send(ToBackend::Shutdown).unwrap();
         }
     }
@@ -225,6 +230,10 @@ impl MCubedAppUI {
 
                         if rescan_folder_button_res.clicked() {
                             if let Some(tx) = &self.front_tx {
+                                tx.send(ToBackend::UpdateBackendList {
+                                    mod_list: self.mod_list.clone(),
+                                })
+                                .unwrap();
                                 tx.send(ToBackend::ScanFolder).unwrap();
                             }
                         };
@@ -496,9 +505,41 @@ impl MCubedAppUI {
                                 }
                             };
 
-                            ui.add_space(5.);
+                            ui.add_space(2.0);
 
-                            ui.label(text);
+                            ui.spacing_mut().button_padding.y = 3.0;
+
+                            egui::ComboBox::from_id_source(&mod_entry.path)
+                                .selected_text(text)
+                                .show_ui(ui, |ui| {
+                                    ui.selectable_value(
+                                        &mut mod_entry.sourced_from,
+                                        CurrentSource::ExplicitLocal,
+                                        text_utils::mod_card_data_text(
+                                            &CurrentSource::ExplicitLocal.to_string(),
+                                        ),
+                                    );
+
+                                    if mod_entry.sources.curseforge.is_some() {
+                                        ui.selectable_value(
+                                            &mut mod_entry.sourced_from,
+                                            CurrentSource::CurseForge,
+                                            text_utils::mod_card_data_text(
+                                                &CurrentSource::CurseForge.to_string(),
+                                            ),
+                                        );
+                                    }
+
+                                    if mod_entry.sources.modrinth.is_some() {
+                                        ui.selectable_value(
+                                            &mut mod_entry.sourced_from,
+                                            CurrentSource::Modrinth,
+                                            text_utils::mod_card_data_text(
+                                                &CurrentSource::Modrinth.to_string(),
+                                            ),
+                                        );
+                                    }
+                                });
                         });
                     });
 
