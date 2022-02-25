@@ -13,8 +13,8 @@ use eframe::{
     egui::{
         self,
         style::{DebugOptions, Margin},
-        Align, Context, ImageButton, Label, Layout, ProgressBar, Response, RichText, Rounding,
-        Style, Ui, Vec2, Widget,
+        Align, Context, ImageButton, Label, Layout, ProgressBar, RichText, Rounding, Style, Ui,
+        Vec2, Widget,
     },
     epi,
 };
@@ -225,7 +225,7 @@ impl MCubedAppUI {
 
                 ui.with_layout(Layout::bottom_up(Align::Center), |ui| {
                     ui.set_max_width(self.left_panel_bottom_buttons_width);
-                    ui.horizontal(|ui| {
+                    let horizontal_res = ui.horizontal(|ui| {
                         let rescan_folder_button_res = ui.button("Re-scan Folder");
 
                         if rescan_folder_button_res.clicked() {
@@ -254,13 +254,10 @@ impl MCubedAppUI {
                                 }
                             }
                         }
+                    });
 
-                        SET_LEFT_PANEL_BOTTOM_BUTTONS_WIDTH.call_once(|| {
-                            self.left_panel_bottom_buttons_width = self.calculate_width(
-                                vec![rescan_folder_button_res, refresh_button_res],
-                                ui,
-                            );
-                        });
+                    SET_LEFT_PANEL_BOTTOM_BUTTONS_WIDTH.call_once(|| {
+                        self.left_panel_bottom_buttons_width = horizontal_res.response.rect.width();
                     });
                 });
             });
@@ -513,6 +510,7 @@ impl MCubedAppUI {
 
                             egui::ComboBox::from_id_source(&mod_entry.path)
                                 .selected_text(text)
+                                .width(75.0)
                                 .show_ui(ui, |ui| {
                                     ui.selectable_value(
                                         &mut mod_entry.sourced_from,
@@ -582,6 +580,7 @@ impl MCubedAppUI {
         }
     }
 }
+
 impl MCubedAppUI {
     fn configure_style(&self, ctx: &Context) {
         let style = Style {
@@ -598,16 +597,5 @@ impl MCubedAppUI {
 
         ctx.set_fonts(text_utils::get_font_def());
         ctx.set_style(style);
-    }
-
-    fn calculate_width(&self, responses: Vec<Response>, current_ui: &Ui) -> f32 {
-        let mut width = 0.0;
-        let item_spacing_x = current_ui.spacing().item_spacing.x;
-        for response in responses {
-            width += response.rect.width() + item_spacing_x;
-        }
-
-        // The last spacing needs to be offset, there's probably a better way to do this
-        width - item_spacing_x
     }
 }
