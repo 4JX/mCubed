@@ -1,2 +1,0 @@
-[workspace]
-members = ["main", "mc_mod_meta", "back"]
