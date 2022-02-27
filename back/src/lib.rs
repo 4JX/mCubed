@@ -22,7 +22,7 @@ mod persistence;
 
 pub use daedalus::minecraft::Version as GameVersion;
 use parking_lot::Once;
-use persistence::CacheStorage;
+use persistence::cache::CacheStorage;
 use tracing::{debug, error, info};
 
 use crate::messages::BackendError;
