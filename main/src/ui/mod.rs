@@ -521,7 +521,7 @@ impl MCubedAppUI {
 
                             ui.add_space(2.0);
 
-                            ui.spacing_mut().button_padding.y = 3.0;
+                            ui.spacing_mut().button_padding = Vec2::new(3.0, 0.0);
 
                             egui::ComboBox::from_id_source(&mod_entry.path)
                                 .selected_text(text)
