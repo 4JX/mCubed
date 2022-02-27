@@ -73,7 +73,9 @@ impl Back {
                             ToBackend::Startup => {
                                 self.load_list_cache();
 
-                                self.scan_folder_startup();
+                                self.scan_folder();
+
+                                self.transfer_data_to_current(&self.cache.get_cache().clone());
 
                                 self.sort_and_send_list();
 
@@ -152,6 +154,23 @@ impl Back {
     }
 
     fn save_list_cache(&mut self) {
+        let mut mod_list_clone = self.mod_list.clone();
+
+        // Transfer the data for existing entries
+        Back::transfer_data(&mod_list_clone, self.cache.get_cache_mut());
+
+        // Append the mods that did not exist before
+        mod_list_clone.retain(|mod_entry| {
+            // Check for unique entries by hash
+            !self
+                .cache
+                .get_cache()
+                .iter()
+                .any(|cache_entry| cache_entry.hashes.sha1 == mod_entry.hashes.sha1)
+        });
+
+        self.cache.get_cache_mut().append(&mut mod_list_clone);
+
         self.cache.set_cache(self.mod_list.clone());
 
         if let Err(error) = self.cache.save_list_cache() {
@@ -215,18 +234,16 @@ impl Back {
             }
         }
 
-        self.transfer_data(&old_list);
+        self.transfer_data_to_current(&old_list);
     }
 
-    fn scan_folder_startup(&mut self) {
-        self.scan_folder();
-
-        self.transfer_data(&self.cache.get_cache().clone());
+    fn transfer_data_to_current(&mut self, from_list: &[ModEntry]) {
+        Back::transfer_data(from_list, &mut self.mod_list);
     }
 
-    fn transfer_data(&mut self, from_list: &[ModEntry]) {
+    fn transfer_data(from_list: &[ModEntry], to_list: &mut Vec<ModEntry>) {
         // Ensures the important bits are kept
-        for mod_entry in &mut self.mod_list {
+        for mod_entry in to_list {
             let filtered_old: Vec<&ModEntry> = from_list
                 .iter()
                 .filter(|filter_entry| filter_entry.id == mod_entry.id)

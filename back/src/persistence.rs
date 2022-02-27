@@ -69,4 +69,8 @@ impl CacheStorage {
     pub fn get_cache(&self) -> &Vec<ModEntry> {
         &self.cache
     }
+
+    pub fn get_cache_mut(&mut self) -> &mut Vec<ModEntry> {
+        &mut self.cache
+    }
 }
