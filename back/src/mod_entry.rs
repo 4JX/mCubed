@@ -6,7 +6,7 @@ use lazy_static::lazy_static;
 use mc_mod_meta::{
     common::MinecraftMod, fabric::FabricManifest, forge::ForgeManifest, ModLoader as McModLoader,
 };
-use regex::Regex;
+use regex::{Match, Regex};
 use serde::{Deserialize, Serialize};
 
 use crate::{error::LibResult, hash::Hashes};
@@ -15,6 +15,7 @@ use crate::{error::LibResult, hash::Hashes};
 pub struct ModEntry {
     pub id: String,
     pub version: String,
+    pub normalized_version: Option<String>,
     pub display_name: String,
     pub modloader: ModLoader,
     pub hashes: Hashes,
@@ -131,6 +132,7 @@ impl ModEntry {
         Self {
             id,
             version,
+            normalized_version: None,
             display_name,
             modloader: modloader.into(),
             hashes: hashes.clone(),
@@ -176,16 +178,47 @@ impl ModEntry {
     }
 
     #[must_use]
-    pub fn normalized_version(&self) -> String {
+    pub fn get_normalized_version(&mut self, game_versions: Option<&Vec<String>>) -> String {
+        if self.normalized_version.is_none() {
+            self.create_normalized_version(game_versions);
+        }
+
+        self.normalized_version.as_ref().unwrap().clone()
+    }
+
+    // Due to there not being a standard way to do versioning, this monstrosity needs to exist (Which can fail pretty easily)
+    pub fn create_normalized_version(&mut self, game_versions: Option<&Vec<String>>) {
         lazy_static! {
-            static ref VERSION_REGEX: Regex = Regex::new("[0-9]+\\.[0-9]+\\.[0-9]+").unwrap();
+            static ref VERSION_REGEX: Regex = Regex::new("[0-9]+\\.[0-9]+(\\.[0-9]+)?").unwrap();
         };
 
-        let version: String = VERSION_REGEX.captures(self.version.as_str()).map_or_else(
-            || self.version.clone(),
-            |matches| matches.get(0).unwrap().as_str().to_string(),
-        );
+        // Try to find a standard semver version
+        let matches = VERSION_REGEX
+            .find_iter(self.version.as_str())
+            .collect::<Vec<Match>>();
 
-        version
+        let normalized_version = if matches.is_empty() {
+            self.version.clone()
+        } else {
+            // Possible matches were found, if a set of game versions were specified, try to avoid collisions
+            if let Some(game_versions) = game_versions {
+                let non_colliding_version = matches
+                    .iter()
+                    .find(|regex_match| !game_versions.contains(&regex_match.as_str().to_string()));
+
+                if let Some(valid_version) = non_colliding_version {
+                    // An version was found
+                    valid_version.as_str().to_string()
+                } else {
+                    // All versions collide, which means the mod version has the same format as a minecraft version, use the first match unconditionally
+                    matches[0].as_str().to_string()
+                }
+            } else {
+                // No game versions are specified, use the first match unconditionally
+                matches[0].as_str().to_string()
+            }
+        };
+
+        self.normalized_version = Some(normalized_version);
     }
 }

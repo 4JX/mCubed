@@ -39,6 +39,7 @@ pub struct MCubedAppUI {
     // Data
     mod_list: Vec<ModEntry>,
     game_version_list: Vec<GameVersion>,
+    game_version_string_list: Vec<String>,
     selected_version: Option<GameVersion>,
     selected_modloader: ModLoader,
     backend_context: BackendContext,
@@ -93,7 +94,20 @@ impl epi::App for MCubedAppUI {
                 Ok(message) => match message {
                     ToFrontend::SetVersionMetadata { manifest } => {
                         self.selected_version = Some(manifest.versions[0].clone());
+
+                        // Get both a String and GameVersion vec
+                        self.game_version_string_list = manifest
+                            .versions
+                            .iter()
+                            .map(|game_version| game_version.id.clone())
+                            .collect();
                         self.game_version_list = manifest.versions;
+
+                        // Also calculate the normalized versions for all mods again
+                        for mod_entry in &mut self.mod_list {
+                            mod_entry
+                                .create_normalized_version(Some(&self.game_version_string_list));
+                        }
                     }
                     ToFrontend::UpdateModList { mod_list } => {
                         self.backend_context.check_for_update_progress = None;
@@ -385,7 +399,8 @@ impl MCubedAppUI {
 
                     ui.style_mut().spacing.item_spacing = Vec2::splat(0.0);
 
-                    let version = mod_entry.normalized_version();
+                    let version =
+                        mod_entry.get_normalized_version(Some(&self.game_version_string_list));
                     egui::Frame {
                         margin: Margin::symmetric(10.0, 0.0),
                         ..Default::default()
