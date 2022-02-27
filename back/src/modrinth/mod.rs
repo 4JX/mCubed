@@ -41,22 +41,24 @@ impl Modrinth {
         mod_entry: &mut ModEntry,
         game_version: &str,
     ) -> LibResult<()> {
-        if mod_entry.sourced_from == CurrentSource::Modrinth
-            || mod_entry.sourced_from == CurrentSource::Local
-        {
-            // Get and set the modrinth ID, without one the operation cannot proceed
-            if mod_entry.sources.modrinth.is_none() {
-                let modrinth_id = self.get_modrinth_id_from_hash(&mod_entry.hashes.sha1).await;
-                if let Some(id) = modrinth_id {
-                    mod_entry.sources.modrinth = Some(ModrinthData {
-                        id,
-                        latest_valid_version: None,
-                    });
+        // Get and set the modrinth ID, without one the operation cannot proceed
+        if mod_entry.sources.modrinth.is_none() {
+            let modrinth_id = self.get_modrinth_id_from_hash(&mod_entry.hashes.sha1).await;
 
+            if let Some(id) = modrinth_id {
+                mod_entry.sources.modrinth = Some(ModrinthData {
+                    id,
+                    latest_valid_version: None,
+                });
+
+                // If the source has not been set by the user, automatically track Modrinth
+                if mod_entry.sourced_from == CurrentSource::Local {
                     mod_entry.sourced_from = CurrentSource::Modrinth;
                 }
             }
+        }
 
+        if mod_entry.sourced_from == CurrentSource::Modrinth {
             // This will not always give a result, therefore the data needs to be checked again (In case it is "Some", assume its correct)
             if let Some(modrinth_data) = &mut mod_entry.sources.modrinth {
                 // The version list can now be fetched
