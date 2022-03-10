@@ -32,7 +32,6 @@ pub struct MCubedAppUI {
     // UI
     theme: AppTheme,
     search_buf: String,
-    mod_names_filtered: Vec<String>,
     add_mod_buf: String,
     images: ImageTextures,
 
@@ -149,40 +148,25 @@ impl MCubedAppUI {
         egui::SidePanel::left("options_panel")
             .frame(self.theme.default_panel_frame)
             .resizable(false)
-            .max_width(180.)
+            .max_width(240.)
             .show(ctx, |ui| {
                 ui.style_mut().spacing.item_spacing = Vec2::new(8.0, 8.0);
 
-                egui::Frame {
-                    fill: self.theme.colors.light_gray,
-                    margin: Margin::same(10.0),
-                    rounding: Rounding::same(4.),
-                    ..Default::default()
-                }
-                .show(ui, |ui| {
-                    egui::Frame {
-                        fill: self.theme.colors.dark_gray,
-                        margin: Margin::same(4.0),
-                        rounding: Rounding::same(4.),
-                        ..Default::default()
-                    }
-                    .show(ui, |ui| {
-                        ui.vertical_centered_justified(|ui| {
-                            ui.label("Game Version");
-                        });
-                    });
-                    ui.vertical_centered_justified(|ui| {
+                ui.horizontal(|ui| {
+                    ui.label("Game Version");
+
+                    ui.with_layout(Layout::right_to_left(), |ui| {
                         egui::ComboBox::from_id_source("version-combo")
-                            .selected_text(format!("{:?}", {
+                            .selected_text(
                                 if let Some(selected_value) = self.selected_version.as_ref() {
                                     selected_value.id.as_str()
                                 } else if self.game_version_list.is_empty() {
-                                    "Fetching version list..."
+                                    "Loading..."
                                 } else {
                                     self.selected_version = Some(self.game_version_list[0].clone());
                                     self.selected_version.as_ref().unwrap().id.as_str()
-                                }
-                            }))
+                                },
+                            )
                             .show_ui(ui, |ui| {
                                 for version in &self.game_version_list {
                                     ui.selectable_value(
@@ -202,13 +186,15 @@ impl MCubedAppUI {
                     ..Default::default()
                 }
                 .show(ui, |ui| {
+                    // Fill the side panel
+                    ui.set_width(ui.available_width());
+
                     ui.horizontal(|ui| {
-                        ui.vertical_centered_justified(|ui| {
-                            let edit = egui::TextEdit::singleline(&mut self.add_mod_buf).hint_text(
-                                RichText::new("Modrinth ID or Slug").color(self.theme.colors.gray),
-                            );
-                            ui.add(edit);
-                        });
+                        let edit = egui::TextEdit::singleline(&mut self.add_mod_buf).hint_text(
+                            RichText::new("Modrinth ID or Slug").color(self.theme.colors.gray),
+                        );
+
+                        ui.add_sized(Vec2::new(130.0, ui.available_height()), edit);
 
                         if ui.button("Fetch Mod").clicked() {
                             if let Some(tx) = &self.front_tx {
@@ -350,19 +336,14 @@ impl MCubedAppUI {
                                 ui.label("There are no mods to display");
                             });
                         } else {
-                            self.mod_names_filtered =
-                                self.mod_list
-                                    .iter()
-                                    .filter(|mod_entry| {
-                                        mod_entry.display_name.to_lowercase().contains(
-                                            self.search_buf.as_str().to_lowercase().as_str(),
-                                        )
-                                    })
-                                    .cloned()
-                                    .map(|mod_entry| mod_entry.display_name.to_lowercase())
-                                    .collect();
+                            let search_results_exist = self.mod_list.iter().any(|mod_entry| {
+                                mod_entry
+                                    .display_name
+                                    .to_lowercase()
+                                    .contains(self.search_buf.to_lowercase().as_str())
+                            });
 
-                            if self.mod_names_filtered.is_empty() {
+                            if !search_results_exist && !self.search_buf.is_empty() {
                                 ui.centered_and_justified(|ui| {
                                     ui.label("No mods match your search");
                                 });
@@ -381,9 +362,10 @@ impl MCubedAppUI {
     fn render_mod_cards(&mut self, ui: &mut Ui) {
         for mod_entry in &mut self.mod_list {
             // Skip the entries that are not within the filtered list
-            if !self
-                .mod_names_filtered
-                .contains(&mod_entry.display_name.to_lowercase())
+            if !mod_entry
+                .display_name
+                .to_lowercase()
+                .contains(self.search_buf.to_lowercase().as_str())
             {
                 continue;
             }

@@ -19,7 +19,7 @@ hex = "0.4.3"
 bytes = "1.1.0"
 # daedalus = "0.1.14"
 daedalus = { git = "https://github.com/4JX/daedalus", rev = "c977bb0" }
-epi = { git = "https://github.com/4JX/egui", rev = "a312f4b" }
+epi = { git = "https://github.com/4JX/egui", rev = "f7756b8" }
 thiserror = "1.0.30"
 directories = "4.0.1"
 tracing = "0.1.31"
