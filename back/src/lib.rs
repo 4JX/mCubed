@@ -36,7 +36,7 @@ pub struct Back {
     modrinth: Modrinth,
     back_tx: Sender<ToFrontend>,
     front_rx: Receiver<ToBackend>,
-    egui_epi_frame: Option<epi::Frame>,
+    egui_context: Option<eframe::egui::Context>,
 }
 
 impl Back {
@@ -44,7 +44,7 @@ impl Back {
         mod_folder_path: Option<PathBuf>,
         back_tx: Sender<ToFrontend>,
         front_rx: Receiver<ToBackend>,
-        egui_epi_frame: Option<epi::Frame>,
+        egui_epi_frame: Option<eframe::egui::Context>,
     ) -> Self {
         let folder_path = mod_folder_path.unwrap_or_else(minecraft_path::default_mod_dir);
 
@@ -55,7 +55,7 @@ impl Back {
             modrinth: Default::default(),
             back_tx,
             front_rx,
-            egui_epi_frame,
+            egui_context: egui_epi_frame,
         }
     }
 
@@ -126,8 +126,8 @@ impl Back {
                             },
                         }
 
-                        if let Some(frame) = &self.egui_epi_frame {
-                            frame.request_repaint();
+                        if let Some(context) = &self.egui_context {
+                            context.request_repaint();
                         }
                     }
                     Err(error) => {
@@ -275,8 +275,8 @@ impl Back {
                 })
                 .unwrap();
 
-            if let Some(frame) = &self.egui_epi_frame {
-                frame.request_repaint();
+            if let Some(context) = &self.egui_context {
+                context.request_repaint();
             }
 
             if let Err(error) = self

@@ -10,10 +10,6 @@ pub struct AppTheme {
 }
 
 impl AppTheme {
-    pub fn mod_card_status(&self) -> &VersionStatusTheme {
-        &self.colors.mod_card.version_status
-    }
-
     pub fn mod_card_source(&self) -> &SourceTheme {
         &self.colors.mod_card.source
     }
@@ -123,15 +119,9 @@ pub struct ModCardTheme {
     pub update_button: Color32,
     pub update_button_background: Color32,
     pub delete_button: Color32,
-    pub version_status: VersionStatusTheme,
     pub source: SourceTheme,
     pub modloader: ModloaderTheme,
-}
-
-pub struct VersionStatusTheme {
-    pub up_to_date: Color32,
-    pub outdated: Color32,
-    pub invalid: Color32,
+    pub mod_status_icon_background: Color32,
 }
 
 impl Default for ModCardTheme {
@@ -140,19 +130,9 @@ impl Default for ModCardTheme {
             update_button: Color32::from_rgb(198, 101, 243),
             update_button_background: Color32::from_rgba_premultiplied(198, 101, 243, 50),
             delete_button: Color32::from_rgb(243, 101, 101),
-            version_status: Default::default(),
             source: Default::default(),
             modloader: Default::default(),
-        }
-    }
-}
-
-impl Default for VersionStatusTheme {
-    fn default() -> Self {
-        Self {
-            up_to_date: Color32::from_rgb(89, 230, 98),
-            outdated: Color32::from_rgb(248, 241, 73),
-            invalid: Color32::from_rgb(232, 72, 72),
+            mod_status_icon_background: Color32::from_gray(32),
         }
     }
 }

@@ -16,13 +16,14 @@ use eframe::{
         Align, Context, ImageButton, Label, Layout, ProgressBar, RichText, Rounding, Style, Ui,
         Vec2, Widget,
     },
-    epi,
+    epi, CreationContext,
 };
 
 use self::{app_theme::AppTheme, image_utils::ImageTextures};
 
 mod app_theme;
 mod image_utils;
+mod misc;
 mod text_utils;
 
 static SET_LEFT_PANEL_BOTTOM_BUTTONS_WIDTH: Once = Once::new();
@@ -57,36 +58,33 @@ struct BackendContext {
     backend_errors: Vec<BackendError>,
 }
 
-impl epi::App for MCubedAppUI {
-    fn name(&self) -> &str {
-        "mCubed"
-    }
+impl MCubedAppUI {
+    pub fn new(cc: &CreationContext) -> Self {
+        let mut new_app = Self::default();
 
-    fn setup(
-        &mut self,
-        ctx: &egui::Context,
-        frame: &epi::Frame,
-        _storage: Option<&dyn epi::Storage>,
-    ) {
-        self.configure_style(ctx);
-        self.images.load_images(ctx);
+        new_app.configure_style(&cc.egui_ctx);
+        new_app.images.load_images(&cc.egui_ctx);
 
         let (front_tx, front_rx) = crossbeam_channel::unbounded();
         let (back_tx, back_rx) = crossbeam_channel::unbounded();
 
-        let frame_clone = frame.clone();
+        let frame_clone = cc.egui_ctx.clone();
         thread::spawn(move || {
             Back::new(None, back_tx, front_rx, Some(frame_clone)).init();
         });
 
-        self.front_tx = Some(front_tx);
-        self.back_rx = Some(back_rx);
+        new_app.front_tx = Some(front_tx);
+        new_app.back_rx = Some(back_rx);
 
-        if let Some(sender) = &self.front_tx {
+        if let Some(sender) = &new_app.front_tx {
             sender.send(ToBackend::Startup).unwrap();
         }
-    }
 
+        new_app
+    }
+}
+
+impl epi::App for MCubedAppUI {
     fn update(&mut self, ctx: &egui::Context, _frame: &epi::Frame) {
         if let Some(rx) = &self.back_rx {
             match rx.try_recv() {
@@ -101,12 +99,6 @@ impl epi::App for MCubedAppUI {
                             .map(|game_version| game_version.id.clone())
                             .collect();
                         self.game_version_list = manifest.versions;
-
-                        // Also calculate the normalized versions for all mods again
-                        for mod_entry in &mut self.mod_list {
-                            mod_entry
-                                .create_normalized_version(Some(&self.game_version_string_list));
-                        }
                     }
                     ToFrontend::UpdateModList { mod_list } => {
                         self.backend_context.check_for_update_progress = None;
@@ -131,7 +123,7 @@ impl epi::App for MCubedAppUI {
         self.render_central_panel(ctx);
     }
 
-    fn on_exit(&mut self) {
+    fn on_exit(&mut self, _gl: &eframe::glow::Context) {
         if let Some(tx) = &self.front_tx {
             tx.send(ToBackend::UpdateBackendList {
                 mod_list: self.mod_list.clone(),
@@ -157,6 +149,7 @@ impl MCubedAppUI {
 
                     ui.with_layout(Layout::right_to_left(), |ui| {
                         egui::ComboBox::from_id_source("version-combo")
+                            .icon(misc::combobox_icon_fn)
                             .selected_text(
                                 if let Some(selected_value) = self.selected_version.as_ref() {
                                     selected_value.id.as_str()
@@ -381,8 +374,33 @@ impl MCubedAppUI {
 
                     ui.style_mut().spacing.item_spacing = Vec2::splat(0.0);
 
-                    let version =
-                        mod_entry.get_normalized_version(Some(&self.game_version_string_list));
+                    egui::Frame {
+                        margin: Margin::symmetric(6.0, 0.0),
+                        fill: self.theme.colors.mod_card.mod_status_icon_background,
+                        ..Default::default()
+                    }
+                    .show(ui, |ui| {
+                        let image_size = Vec2::splat(12.0);
+                        match mod_entry.state {
+                            FileState::Current => ui.image(
+                                self.images.mod_status_ok.as_mut().unwrap().id(),
+                                image_size,
+                            ),
+                            FileState::Outdated => ui.image(
+                                self.images.mod_status_outdated.as_mut().unwrap().id(),
+                                image_size,
+                            ),
+                            FileState::Invalid => ui.image(
+                                self.images.mod_status_invalid.as_mut().unwrap().id(),
+                                image_size,
+                            ),
+                            FileState::Local => ui.image(
+                                self.images.mod_status_ok.as_mut().unwrap().id(),
+                                image_size,
+                            ),
+                        };
+                    });
+
                     egui::Frame {
                         margin: Margin::symmetric(10.0, 0.0),
                         ..Default::default()
@@ -393,37 +411,10 @@ impl MCubedAppUI {
 
                         ui.centered_and_justified(|ui| {
                             ui.style_mut().wrap = Some(true);
-                            ui.label(&mod_entry.display_name).on_hover_text(
-                                text_utils::mod_card_data_text(
+                            ui.label(text_utils::mod_name_job(ui, mod_entry.display_name.clone()))
+                                .on_hover_text(text_utils::mod_card_data_text(
                                     mod_entry.path.as_ref().unwrap().display().to_string(),
-                                ),
-                            );
-                        });
-                    });
-
-                    egui::Frame {
-                        fill: self.theme.colors.gray,
-                        ..Default::default()
-                    }
-                    .show(ui, |ui| {
-                        ui.set_width(45.);
-                        ui.centered_and_justified(|ui| {
-                            let raw = text_utils::mod_version_text(version);
-
-                            let text = match mod_entry.state {
-                                FileState::Current => {
-                                    raw.color(self.theme.mod_card_status().up_to_date)
-                                }
-                                FileState::Outdated => {
-                                    raw.color(self.theme.mod_card_status().outdated)
-                                }
-                                FileState::Local => raw.color(self.theme.colors.white),
-                                FileState::Invalid => {
-                                    raw.color(self.theme.mod_card_status().invalid)
-                                }
-                            };
-
-                            ui.label(text);
+                                ));
                         });
                     });
 
@@ -508,6 +499,7 @@ impl MCubedAppUI {
                             egui::ComboBox::from_id_source(&mod_entry.path)
                                 .selected_text(text)
                                 .width(75.0)
+                                .icon(misc::combobox_icon_fn)
                                 .show_ui(ui, |ui| {
                                     ui.selectable_value(
                                         &mut mod_entry.sourced_from,

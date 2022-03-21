@@ -1,6 +1,13 @@
 use std::{borrow::Cow, collections::BTreeMap};
 
-use eframe::egui::{FontData, FontDefinitions, FontFamily, FontId, FontTweak, RichText, TextStyle};
+use eframe::{
+    egui::{
+        FontData, FontDefinitions, FontFamily, FontId, FontTweak, RichText, TextFormat, TextStyle,
+        Ui,
+    },
+    emath::Align,
+    epaint::text::{LayoutJob, TextWrapping},
+};
 
 fn add_font(font_def: &mut FontDefinitions, font: FontData, font_name: &str) {
     font_def.font_data.insert(font_name.into(), font);
@@ -88,15 +95,10 @@ pub fn default_text_styles() -> TextStyles {
     );
 
     // Custom
-    insert_style(&mut text_styles, "Mod-Version", "Inter-ExtraBold", 12.0);
     insert_style(&mut text_styles, "Mod-Card-Data", "Inter-Bold", 9.0);
     insert_style(&mut text_styles, "Update-Button", "Inter-SemiBold", 9.0);
 
     text_styles
-}
-
-pub fn mod_version_text(text: impl Into<String>) -> RichText {
-    RichText::new(text).text_style(TextStyle::Name("Mod-Version".into()))
 }
 
 pub fn mod_card_data_text(text: impl Into<String>) -> RichText {
@@ -105,4 +107,29 @@ pub fn mod_card_data_text(text: impl Into<String>) -> RichText {
 
 pub fn update_button_text(text: impl Into<String>) -> RichText {
     RichText::new(text).text_style(TextStyle::Name("Update-Button".into()))
+}
+
+pub fn mod_name_job(ui: &Ui, display_name: String) -> LayoutJob {
+    let mut job = LayoutJob::single_section(
+        display_name.clone(),
+        TextFormat {
+            font_id: ui
+                .style()
+                .text_styles
+                .get(&TextStyle::Body)
+                .unwrap()
+                .clone(),
+            color: ui.style().visuals.override_text_color.unwrap(),
+
+            valign: Align::Center,
+            ..Default::default()
+        },
+    );
+    job.wrap = TextWrapping {
+        max_rows: 1,
+        break_anywhere: true,
+        ..Default::default()
+    };
+
+    job
 }

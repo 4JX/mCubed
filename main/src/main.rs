@@ -10,14 +10,17 @@ mod ui;
 fn main() -> Result<(), Report> {
     setup_logging()?;
 
-    let app = MCubedAppUI::default();
     let native_options = eframe::NativeOptions {
         initial_window_size: Some(Vec2::new(970., 300.)),
         min_window_size: Some(Vec2::new(600., 300.)),
         ..Default::default()
     };
 
-    eframe::run_native(Box::new(app), native_options);
+    eframe::run_native(
+        "mCubed",
+        native_options,
+        Box::new(|cc| Box::new(MCubedAppUI::new(cc))),
+    );
 }
 
 fn setup_logging() -> Result<(), Report> {

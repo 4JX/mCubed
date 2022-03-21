@@ -139,7 +139,6 @@ impl Modrinth {
                 let mut mod_entry = ModEntry {
                     id: project.slug,
                     version: "0.0.0".to_string(),
-                    normalized_version: None,
                     display_name: project.title,
                     modloader,
                     hashes: hash::Hashes::dummy(),

@@ -9,6 +9,9 @@ pub struct ImageTextures {
     pub modrinth: Option<egui::TextureHandle>,
     pub local: Option<egui::TextureHandle>,
     pub bin: Option<egui::TextureHandle>,
+    pub mod_status_ok: Option<egui::TextureHandle>,
+    pub mod_status_outdated: Option<egui::TextureHandle>,
+    pub mod_status_invalid: Option<egui::TextureHandle>,
 }
 
 impl ImageTextures {
@@ -47,6 +50,21 @@ impl ImageTextures {
         self.bin = Some(ctx.load_texture(
             "bin-icon",
             load_image_from_memory(include_bytes!("../../res/bin.png")).unwrap(),
+        ));
+
+        self.mod_status_ok = Some(ctx.load_texture(
+            "mod-status-ok",
+            load_image_from_memory(include_bytes!("../../res/status_ok.png")).unwrap(),
+        ));
+
+        self.mod_status_outdated = Some(ctx.load_texture(
+            "mod-status-outdated",
+            load_image_from_memory(include_bytes!("../../res/status_outdated.png")).unwrap(),
+        ));
+
+        self.mod_status_invalid = Some(ctx.load_texture(
+            "mod-status-invalid",
+            load_image_from_memory(include_bytes!("../../res/status_invalid.png")).unwrap(),
         ));
     }
 }

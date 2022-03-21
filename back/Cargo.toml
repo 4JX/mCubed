@@ -13,13 +13,12 @@ ferinth = { git = "https://github.com/4JX/ferinth", rev = "bf23b8d" }
 sha-1 = "0.10.0"
 sha2 = "0.10.2"
 mc_mod_meta = { path = "../mc_mod_meta" }
-regex = "1.5.4"
 lazy_static = "1.4.0"
 hex = "0.4.3"
 bytes = "1.1.0"
 # daedalus = "0.1.14"
 daedalus = { git = "https://github.com/4JX/daedalus", rev = "c977bb0" }
-epi = { git = "https://github.com/4JX/egui", rev = "f7756b8" }
+eframe = { git = "https://github.com/4JX/egui", rev = "4b3b498" }
 thiserror = "1.0.30"
 directories = "4.0.1"
 tracing = "0.1.31"

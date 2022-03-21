@@ -8,9 +8,8 @@ homepage = "https://github.com/4JX/mCubed"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-# eframe = "0.16.0"
-# eframe = { git = "https://github.com/emilk/egui", rev = "366f544" }
-eframe = { git = "https://github.com/4JX/egui", rev = "f7756b8" }
+eframe = { git = "https://github.com/4JX/egui", rev = "4b3b498" }
+# eframe = { path = "../../egui/eframe" }
 image = "0.24.1"
 serde = "1.0.136"
 serde_json = "1.0.79"
