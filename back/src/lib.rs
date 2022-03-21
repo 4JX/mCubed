@@ -49,10 +49,10 @@ impl Back {
         let folder_path = mod_folder_path.unwrap_or_else(minecraft_path::default_mod_dir);
 
         Self {
-            mod_list: Default::default(),
+            mod_list: Vec::default(),
             cache: CacheStorage::new(&folder_path),
             folder_path,
-            modrinth: Default::default(),
+            modrinth: Modrinth::default(),
             back_tx,
             front_rx,
             egui_context: egui_epi_frame,

@@ -33,7 +33,7 @@ impl Default for AppTheme {
             },
             inactive: WidgetVisuals {
                 bg_fill: colors.dark_gray, // button background
-                bg_stroke: Default::default(),
+                bg_stroke: Stroke::default(),
                 fg_stroke: Stroke::new(1.0, Color32::from_gray(180)), // button text
                 rounding: Rounding::same(2.0),
                 expansion: 0.0,
@@ -82,7 +82,7 @@ impl Default for AppTheme {
         };
 
         Self {
-            colors: Default::default(),
+            colors,
             visuals,
             default_panel_frame,
         }
@@ -110,7 +110,7 @@ impl Default for Colors {
             light_gray: Color32::from_rgb(85, 85, 85),
             lighter_gray: Color32::from_rgb(120, 120, 120),
             error_message: Color32::from_rgb(211, 80, 80),
-            mod_card: Default::default(),
+            mod_card: ModCardTheme::default(),
         }
     }
 }
@@ -130,8 +130,8 @@ impl Default for ModCardTheme {
             update_button: Color32::from_rgb(198, 101, 243),
             update_button_background: Color32::from_rgba_premultiplied(198, 101, 243, 50),
             delete_button: Color32::from_rgb(243, 101, 101),
-            source: Default::default(),
-            modloader: Default::default(),
+            source: SourceTheme::default(),
+            modloader: ModloaderTheme::default(),
             mod_status_icon_background: Color32::from_gray(32),
         }
     }
