@@ -109,9 +109,9 @@ pub fn update_button_text(text: impl Into<String>) -> RichText {
     RichText::new(text).text_style(TextStyle::Name("Update-Button".into()))
 }
 
-pub fn mod_name_job(ui: &Ui, display_name: String) -> LayoutJob {
+pub fn mod_name_job(ui: &Ui, display_name: &str) -> LayoutJob {
     let mut job = LayoutJob::single_section(
-        display_name.clone(),
+        display_name.to_string(),
         TextFormat {
             font_id: ui
                 .style()

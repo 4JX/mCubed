@@ -395,6 +395,7 @@ impl MCubedAppUI {
                                 image_size,
                             ),
                             FileState::Local => ui.image(
+                                // There's not much that can be done here, assume its all good
                                 self.images.mod_status_ok.as_mut().unwrap().id(),
                                 image_size,
                             ),
@@ -411,7 +412,7 @@ impl MCubedAppUI {
 
                         ui.centered_and_justified(|ui| {
                             ui.style_mut().wrap = Some(true);
-                            ui.label(text_utils::mod_name_job(ui, mod_entry.display_name.clone()))
+                            ui.label(text_utils::mod_name_job(ui, &mod_entry.display_name))
                                 .on_hover_text(text_utils::mod_card_data_text(
                                     mod_entry.path.as_ref().unwrap().display().to_string(),
                                 ));

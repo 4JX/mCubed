@@ -75,7 +75,7 @@ impl Back {
 
                                 self.scan_folder();
 
-                                self.transfer_data_to_current(&self.cache.get_cache().clone());
+                                self.transfer_list_data_to_current(&self.cache.get_cache().clone());
 
                                 self.sort_and_send_list();
 
@@ -157,7 +157,7 @@ impl Back {
         let mut mod_list_clone = self.mod_list.clone();
 
         // Transfer the data for existing entries
-        Back::transfer_data(&mod_list_clone, self.cache.get_cache_mut(), false);
+        Self::transfer_list_data(&mod_list_clone, self.cache.get_cache_mut(), false);
 
         // Append the mods that did not exist before
         mod_list_clone.retain(|mod_entry| {
@@ -234,14 +234,14 @@ impl Back {
             }
         }
 
-        self.transfer_data_to_current(&old_list);
+        self.transfer_list_data_to_current(&old_list);
     }
 
-    fn transfer_data_to_current(&mut self, from_list: &[ModEntry]) {
-        Back::transfer_data(from_list, &mut self.mod_list, true);
+    fn transfer_list_data_to_current(&mut self, from_list: &[ModEntry]) {
+        Self::transfer_list_data(from_list, &mut self.mod_list, true);
     }
 
-    fn transfer_data(from_list: &[ModEntry], to_list: &mut Vec<ModEntry>, keep_state: bool) {
+    fn transfer_list_data(from_list: &[ModEntry], to_list: &mut Vec<ModEntry>, keep_state: bool) {
         // Ensures the important bits are kept
         for mod_entry in to_list {
             let filtered_old: Vec<&ModEntry> = from_list
