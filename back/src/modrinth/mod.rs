@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use bytes::Bytes;
 use ferinth::{
     structures::version_structs::{ListVersionsParams, Version},
@@ -136,6 +138,7 @@ impl Modrinth {
                     modrinth: Some(modrinth),
                 };
 
+                // Create an entry from whatever data is available
                 let mut mod_entry = ModEntry {
                     id: project.slug,
                     version: "0.0.0".to_string(),
@@ -145,7 +148,7 @@ impl Modrinth {
                     sources,
                     state: FileState::Current,
                     sourced_from: CurrentSource::Modrinth,
-                    path: None,
+                    path: PathBuf::new(),
                 };
 
                 self.check_for_updates(&mut mod_entry, &game_version)

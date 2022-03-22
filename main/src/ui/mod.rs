@@ -174,7 +174,7 @@ impl MCubedAppUI {
 
                 egui::Frame {
                     fill: self.theme.colors.light_gray,
-                    margin: Margin::same(10.0),
+                    inner_margin: Margin::same(10.0),
                     rounding: Rounding::same(4.),
                     ..Default::default()
                 }
@@ -277,7 +277,7 @@ impl MCubedAppUI {
 
                             egui::Frame {
                                 fill: self.theme.colors.error_message,
-                                margin: Margin::same(6.0),
+                                inner_margin: Margin::same(6.0),
                                 rounding: Rounding::same(4.),
                                 ..Default::default()
                             }
@@ -317,7 +317,7 @@ impl MCubedAppUI {
                 ui.vertical_centered_justified(|ui| {
                     egui::Frame {
                         fill: self.theme.colors.darker_gray,
-                        margin: Margin::same(10.0),
+                        inner_margin: Margin::same(10.0),
                         rounding: Rounding::same(4.),
                         ..Default::default()
                     }
@@ -375,7 +375,7 @@ impl MCubedAppUI {
                     ui.style_mut().spacing.item_spacing = Vec2::splat(0.0);
 
                     egui::Frame {
-                        margin: Margin::symmetric(6.0, 0.0),
+                        inner_margin: Margin::symmetric(6.0, 0.0),
                         fill: self.theme.colors.mod_card.mod_status_icon_background,
                         ..Default::default()
                     }
@@ -403,7 +403,7 @@ impl MCubedAppUI {
                     });
 
                     egui::Frame {
-                        margin: Margin::symmetric(10.0, 0.0),
+                        inner_margin: Margin::symmetric(10.0, 0.0),
                         ..Default::default()
                     }
                     .show(ui, |ui| {
@@ -414,7 +414,7 @@ impl MCubedAppUI {
                             ui.style_mut().wrap = Some(true);
                             ui.label(text_utils::mod_name_job(ui, &mod_entry.display_name))
                                 .on_hover_text(text_utils::mod_card_data_text(
-                                    mod_entry.path.as_ref().unwrap().display().to_string(),
+                                    mod_entry.path.display().to_string(),
                                 ));
                         });
                     });
@@ -544,7 +544,7 @@ impl MCubedAppUI {
                         if ui.add(button).clicked() {
                             if let Some(tx) = &self.front_tx {
                                 tx.send(ToBackend::DeleteMod {
-                                    path: mod_entry.path.as_ref().unwrap().clone(),
+                                    path: mod_entry.path.clone(),
                                 })
                                 .unwrap();
                             }

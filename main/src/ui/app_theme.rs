@@ -76,7 +76,7 @@ impl Default for AppTheme {
         };
 
         let default_panel_frame = Frame {
-            margin: Margin::same(8.0),
+            inner_margin: Margin::same(8.0),
             fill: colors.gray,
             ..Default::default()
         };

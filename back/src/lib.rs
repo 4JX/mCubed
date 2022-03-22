@@ -210,9 +210,8 @@ impl Back {
 
             if self.is_relevant_file(&path) {
                 debug!(?path, "Parsing file");
-                let mut file = fs::File::open(&path).unwrap();
 
-                match ModEntry::from_file(&mut file, Some(path.clone())) {
+                match ModEntry::from_path(path.clone()) {
                     Ok(mut entry) => self.mod_list.append(&mut entry),
                     Err(error) => {
                         // In the case of an error the mod list will be cleared
@@ -380,7 +379,7 @@ impl Back {
 
         new_mod_file.write_all(bytes).unwrap();
 
-        let mut new_entries = ModEntry::from_file(&mut new_mod_file, Some(path)).unwrap();
+        let mut new_entries = ModEntry::from_path(path).unwrap();
 
         for new_mod_entry in &mut new_entries {
             // Ensure the data for the entry is kept
@@ -420,8 +419,7 @@ impl Back {
                 })
                 .unwrap();
         } else {
-            self.mod_list
-                .retain(|mod_entry| mod_entry.path.as_ref() != Some(&path.to_path_buf()));
+            self.mod_list.retain(|mod_entry| mod_entry.path != path);
 
             debug!("File deleted successfully");
 

@@ -1,5 +1,5 @@
 use core::fmt;
-use std::{fmt::Debug, fs::File, path::PathBuf};
+use std::{fmt::Debug, fs, path::PathBuf};
 
 use ferinth::structures::version_structs::{ModLoader as FeModLoader, VersionFile};
 use mc_mod_meta::{
@@ -20,7 +20,7 @@ pub struct ModEntry {
     pub sources: Sources,
     pub state: FileState,
     pub sourced_from: CurrentSource,
-    pub path: Option<PathBuf>,
+    pub path: PathBuf,
 }
 
 // Middleman "ModLoader" enum to convert between those of the other crates
@@ -114,12 +114,7 @@ impl fmt::Display for CurrentSource {
 }
 
 impl ModEntry {
-    fn new(
-        mc_mod: MinecraftMod,
-        hashes: &Hashes,
-        sources: Option<Sources>,
-        path: Option<PathBuf>,
-    ) -> Self {
+    fn new(mc_mod: MinecraftMod, hashes: &Hashes, sources: Option<Sources>, path: PathBuf) -> Self {
         let MinecraftMod {
             id,
             version,
@@ -140,29 +135,31 @@ impl ModEntry {
         }
     }
 
-    pub fn from_file(file: &mut File, path: Option<PathBuf>) -> LibResult<Vec<Self>> {
-        let hashes = Hashes::get_hashes_from_file(file)?;
+    pub fn from_path(path: PathBuf) -> LibResult<Vec<Self>> {
+        let mut file = fs::File::open(&path)?;
+
+        let hashes = Hashes::get_hashes_from_file(&mut file)?;
 
         let mut mod_vec = Vec::new();
 
-        let modloader = mc_mod_meta::get_modloader(file)?;
+        let modloader = mc_mod_meta::get_modloader(&file)?;
         match modloader {
             mc_mod_meta::ModLoader::Forge => {
-                let forge_meta = ForgeManifest::from_file(file)?;
+                let forge_meta = ForgeManifest::from_file(&mut file)?;
                 for mod_meta in forge_meta.mods {
                     let mc_mod = MinecraftMod::from(mod_meta);
                     mod_vec.push(Self::new(mc_mod, &hashes, None, path.clone()));
                 }
             }
             mc_mod_meta::ModLoader::Fabric => {
-                let mod_meta = FabricManifest::from_file(file)?;
+                let mod_meta = FabricManifest::from_file(&mut file)?;
                 let mc_mod = MinecraftMod::from(mod_meta);
                 mod_vec.push(Self::new(mc_mod, &hashes, None, path));
             }
 
             mc_mod_meta::ModLoader::Both => {
                 // Given the mod has entries for both forge and fabric, simplify things by just displaying one entry with the fabric data
-                let mod_meta = FabricManifest::from_file(file)?;
+                let mod_meta = FabricManifest::from_file(&mut file)?;
                 let mut mc_mod = MinecraftMod::from(mod_meta);
 
                 // However, the modloader is replaced with the "Both" type
