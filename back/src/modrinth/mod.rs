@@ -58,7 +58,7 @@ impl Modrinth {
                 });
 
                 // If the source has not been set by the user, automatically track Modrinth
-                if mod_entry.sourced_from == CurrentSource::Local {
+                if mod_entry.sourced_from == CurrentSource::None {
                     mod_entry.sourced_from = CurrentSource::Modrinth;
                 }
             }

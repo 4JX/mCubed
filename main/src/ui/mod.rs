@@ -466,7 +466,15 @@ impl MCubedAppUI {
                                 text_utils::mod_card_data_text(mod_entry.sourced_from.to_string());
 
                             let text = match mod_entry.sourced_from {
-                                CurrentSource::Local | CurrentSource::ExplicitLocal => {
+                                CurrentSource::None => {
+                                    ui.image(
+                                        self.images.none.as_mut().unwrap(),
+                                        Vec2::splat(image_size),
+                                    );
+
+                                    raw_text.color(self.theme.mod_card_source().none)
+                                }
+                                CurrentSource::Local => {
                                     ui.image(
                                         self.images.local.as_mut().unwrap(),
                                         Vec2::splat(image_size),
@@ -503,9 +511,9 @@ impl MCubedAppUI {
                                 .show_ui(ui, |ui| {
                                     ui.selectable_value(
                                         &mut mod_entry.sourced_from,
-                                        CurrentSource::ExplicitLocal,
+                                        CurrentSource::Local,
                                         text_utils::mod_card_data_text(
-                                            &CurrentSource::ExplicitLocal.to_string(),
+                                            &CurrentSource::Local.to_string(),
                                         ),
                                     );
 

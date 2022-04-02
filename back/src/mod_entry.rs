@@ -89,23 +89,12 @@ pub enum FileState {
 }
 
 #[allow(dead_code)]
-#[derive(Clone, Copy, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Copy, PartialEq, Serialize, Deserialize, Debug)]
 pub enum CurrentSource {
+    None,
     Local,
-    ExplicitLocal,
     Modrinth,
     CurseForge,
-}
-
-impl Debug for CurrentSource {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::Local => write!(f, "Local"),
-            Self::ExplicitLocal => write!(f, "Local"),
-            Self::Modrinth => write!(f, "Modrinth"),
-            Self::CurseForge => write!(f, "CurseForge"),
-        }
-    }
 }
 
 impl fmt::Display for CurrentSource {
@@ -137,7 +126,7 @@ impl ModEntry {
             hashes: hashes.clone(),
             sources: sources.unwrap_or_default(),
             state: FileState::Local,
-            sourced_from: CurrentSource::Local,
+            sourced_from: CurrentSource::None,
             path,
         }
     }

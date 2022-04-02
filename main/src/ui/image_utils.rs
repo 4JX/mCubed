@@ -5,9 +5,10 @@ pub struct ImageTextures {
     pub forge: Option<egui::TextureHandle>,
     pub fabric: Option<egui::TextureHandle>,
     pub forge_and_fabric: Option<egui::TextureHandle>,
+    pub none: Option<egui::TextureHandle>,
+    pub local: Option<egui::TextureHandle>,
     pub curseforge: Option<egui::TextureHandle>,
     pub modrinth: Option<egui::TextureHandle>,
-    pub local: Option<egui::TextureHandle>,
     pub bin: Option<egui::TextureHandle>,
     pub mod_status_ok: Option<egui::TextureHandle>,
     pub mod_status_outdated: Option<egui::TextureHandle>,
@@ -32,19 +33,24 @@ impl ImageTextures {
             load_image_from_memory(include_bytes!("../../res/forge_and_fabric.png")).unwrap(),
         ));
 
+        self.none = Some(ctx.load_texture(
+            "source-local-icon",
+            load_image_from_memory(include_bytes!("../../res/none.png")).unwrap(),
+        ));
+
+        self.local = Some(ctx.load_texture(
+            "source-local-icon",
+            load_image_from_memory(include_bytes!("../../res/local.png")).unwrap(),
+        ));
+
         self.curseforge = Some(ctx.load_texture(
-            "curseforge-icon",
+            "source-curseforge-icon",
             load_image_from_memory(include_bytes!("../../res/curseforge.png")).unwrap(),
         ));
 
         self.modrinth = Some(ctx.load_texture(
-            "modrinth-icon",
+            "source-modrinth-icon",
             load_image_from_memory(include_bytes!("../../res/modrinth.png")).unwrap(),
-        ));
-
-        self.local = Some(ctx.load_texture(
-            "local-icon",
-            load_image_from_memory(include_bytes!("../../res/local.png")).unwrap(),
         ));
 
         self.bin = Some(ctx.load_texture(

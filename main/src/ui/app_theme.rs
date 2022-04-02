@@ -138,6 +138,7 @@ impl Default for ModCardTheme {
 }
 
 pub struct SourceTheme {
+    pub none: Color32,
     pub local: Color32,
     pub curseforge: Color32,
     pub modrinth: Color32,
@@ -146,6 +147,7 @@ pub struct SourceTheme {
 impl Default for SourceTheme {
     fn default() -> Self {
         Self {
+            none: Color32::from_gray(220),
             local: Color32::from_rgb(90, 176, 255),
             curseforge: Color32::from_rgb(255, 128, 87),
             // modrinth: Color32::from_rgb(150, 229, 90),
