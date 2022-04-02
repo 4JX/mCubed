@@ -12,8 +12,8 @@ use crossbeam_channel::{Receiver, Sender};
 use eframe::{
     egui::{
         style::{DebugOptions, Margin},
-        Align, CentralPanel, ComboBox, Context, Frame, ImageButton, Label, Layout, ProgressBar,
-        RichText, Rounding, ScrollArea, SidePanel, Style, TextEdit, Ui, Vec2, Widget,
+        Align, CentralPanel, ComboBox, Context, Frame, ImageButton, InnerResponse, Label, Layout,
+        ProgressBar, RichText, Rounding, ScrollArea, SidePanel, Style, TextEdit, Ui, Vec2, Widget,
     },
     epi, CreationContext,
 };
@@ -135,7 +135,7 @@ impl epi::App for MCubedAppUI {
 }
 
 impl MCubedAppUI {
-    fn render_side_panel(&mut self, ctx: &Context) {
+    fn render_side_panel(&mut self, ctx: &Context) -> InnerResponse<()> {
         SidePanel::left("options_panel")
             .frame(self.theme.default_panel_frame)
             .resizable(false)
@@ -252,10 +252,10 @@ impl MCubedAppUI {
                         self.left_panel_bottom_buttons_width = horizontal_res.response.rect.width();
                     });
                 });
-            });
+            })
     }
 
-    fn render_central_panel(&mut self, ctx: &Context) {
+    fn render_central_panel(&mut self, ctx: &Context) -> InnerResponse<()> {
         CentralPanel::default()
             .frame(self.theme.default_panel_frame)
             .show(ctx, |ui| {
@@ -348,7 +348,7 @@ impl MCubedAppUI {
                         }
                     });
                 });
-            });
+            })
     }
 
     fn render_mod_cards(&mut self, ui: &mut Ui) {
