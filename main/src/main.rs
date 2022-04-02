@@ -1,6 +1,6 @@
 use color_eyre::Report;
 
-use tracing_subscriber::{fmt::format::FmtSpan, EnvFilter};
+use tracing_subscriber::EnvFilter;
 use ui::MCubedAppUI;
 
 use eframe::{egui::Vec2, IconData};
@@ -44,6 +44,9 @@ fn setup_logging() -> Result<(), Report> {
     let subscriber_config = tracing_subscriber::fmt::fmt().with_env_filter(env_filter);
 
     // Log extra stuff if it's a debug build
+    #[cfg(debug_assertions)]
+    use tracing_subscriber::fmt::format::FmtSpan;
+
     #[cfg(debug_assertions)]
     let subscriber_config = subscriber_config
         .with_thread_ids(true)
