@@ -5,6 +5,7 @@ use ferinth::{
     structures::version_structs::{ListVersionsParams, Version},
     Ferinth,
 };
+use tracing::instrument;
 
 use crate::{
     error::{self, LibResult},
@@ -12,6 +13,7 @@ use crate::{
     mod_entry::{CurrentSource, FileState, ModEntry, ModLoader, ModrinthData, Sources},
 };
 
+#[derive(Debug)]
 pub struct Modrinth {
     ferinth: Ferinth,
 }
@@ -31,6 +33,7 @@ impl Default for Modrinth {
 }
 
 impl Modrinth {
+    #[instrument(skip(self))]
     pub(crate) async fn get_modrinth_id_from_hash(&self, mod_hash: &str) -> Option<String> {
         match self.ferinth.get_version_from_file_hash(mod_hash).await {
             Ok(result) => Some(result.project_id),
@@ -38,6 +41,7 @@ impl Modrinth {
         }
     }
 
+    #[instrument(skip(self, mod_entry))]
     pub(crate) async fn check_for_updates(
         &self,
         mod_entry: &mut ModEntry,
@@ -108,6 +112,7 @@ impl Modrinth {
         Ok(())
     }
 
+    #[instrument(skip(self, mod_entry))]
     pub(crate) async fn update_mod(&self, mod_entry: &ModEntry) -> LibResult<Bytes> {
         if let Some(data) = &mod_entry.sources.modrinth {
             if let Some(version_file) = &data.latest_valid_version {
@@ -120,6 +125,7 @@ impl Modrinth {
         }
     }
 
+    #[instrument(skip(self))]
     pub(crate) async fn create_mod_entry(
         &self,
         modrinth_id: String,
@@ -161,6 +167,7 @@ impl Modrinth {
         }
     }
 
+    #[instrument(skip(self))]
     async fn list_versions(
         &self,
         modrinth_id: &str,

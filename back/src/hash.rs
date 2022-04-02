@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 use sha1::Digest;
 use std::fs::File;
 use std::io::Read;
+use tracing::instrument;
 
 use crate::error::LibResult;
 
@@ -13,6 +14,7 @@ pub struct Hashes {
 }
 
 impl Hashes {
+    #[instrument(skip(file), level = "trace")]
     pub(crate) fn get_hashes_from_file(file: &mut File) -> LibResult<Self> {
         let metadata = file.metadata()?;
         let mut buf = vec![0; metadata.len() as usize];
@@ -23,10 +25,12 @@ impl Hashes {
     }
 
     #[allow(dead_code)]
+    #[instrument(skip(bytes))]
     pub(crate) fn get_hashes_from_bytes(bytes: &Bytes) -> Self {
         get_hashes_from_vec(bytes)
     }
 
+    #[instrument]
     pub(crate) fn dummy() -> Self {
         Self {
             sha1: hex::encode(sha1::Sha1::digest([0])),

@@ -1,5 +1,6 @@
 use std::{
-    fs::{self, OpenOptions},
+    fmt::Debug,
+    fs,
     io::Write,
     path::{Path, PathBuf},
     process,
@@ -23,7 +24,7 @@ mod persistence;
 pub use daedalus::minecraft::Version as GameVersion;
 use parking_lot::Once;
 use persistence::cache::CacheStorage;
-use tracing::{debug, error, info};
+use tracing::{debug, error, info, instrument};
 
 use crate::messages::BackendError;
 
@@ -39,12 +40,27 @@ pub struct Back {
     egui_context: Option<eframe::egui::Context>,
 }
 
+impl Debug for Back {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Back")
+            .field("mod_list", &self.mod_list)
+            .field("cache", &self.cache)
+            .field("folder_path", &self.folder_path)
+            .field("modrinth", &self.modrinth)
+            .field("back_tx", &self.back_tx)
+            .field("front_rx", &self.front_rx)
+            // .field("egui_context", &self.egui_context)
+            .finish()
+    }
+}
+
 impl Back {
+    #[instrument(skip(egui_context), level = "trace")]
     pub fn new(
         mod_folder_path: Option<PathBuf>,
         back_tx: Sender<ToFrontend>,
         front_rx: Receiver<ToBackend>,
-        egui_epi_frame: Option<eframe::egui::Context>,
+        egui_context: Option<eframe::egui::Context>,
     ) -> Self {
         let folder_path = mod_folder_path.unwrap_or_else(minecraft_path::default_mod_dir);
 
@@ -55,10 +71,11 @@ impl Back {
             modrinth: Modrinth::default(),
             back_tx,
             front_rx,
-            egui_context: egui_epi_frame,
+            egui_context,
         }
     }
 
+    #[instrument(skip(self))]
     pub fn init(&mut self) {
         info!("Initializing backend");
 
@@ -141,6 +158,7 @@ impl Back {
         });
     }
 
+    #[instrument(skip(self))]
     fn load_list_cache(&mut self) {
         if let Err(error) = self.cache.load_list_cache() {
             error!(%error, "Could not load cache");
@@ -153,25 +171,26 @@ impl Back {
         }
     }
 
+    #[instrument(skip(self))]
     fn save_list_cache(&mut self) {
         let mut mod_list_clone = self.mod_list.clone();
 
         // Transfer the data for existing entries
         Self::transfer_list_data(&mod_list_clone, self.cache.get_cache_mut(), false);
 
+        let current_cache = self.cache.get_cache();
+
         // Append the mods that did not exist before
         mod_list_clone.retain(|mod_entry| {
             // Check for unique entries by hash
-            !self
-                .cache
-                .get_cache()
+            !current_cache
                 .iter()
                 .any(|cache_entry| cache_entry.hashes.sha1 == mod_entry.hashes.sha1)
         });
 
         self.cache.get_cache_mut().append(&mut mod_list_clone);
 
-        self.cache.set_cache(self.mod_list.clone());
+        // self.cache.set_cache(self.mod_list.clone());
 
         if let Err(error) = self.cache.save_list_cache() {
             error!(%error, "Could not save cache");
@@ -184,6 +203,7 @@ impl Back {
         }
     }
 
+    #[instrument(skip(self))]
     fn sort_and_send_list(&mut self) {
         info!(length = self.mod_list.len(), "Sending the mods list");
         self.mod_list
@@ -196,6 +216,7 @@ impl Back {
             .unwrap();
     }
 
+    #[instrument(skip(self))]
     fn scan_folder(&mut self) {
         info!(folder_path = %self.folder_path.display(), "Scanning the mods folder");
 
@@ -236,10 +257,12 @@ impl Back {
         self.transfer_list_data_to_current(&old_list);
     }
 
+    #[instrument(skip(self, from_list), fields(length_from = from_list.len(), length_to = self.mod_list.len()))]
     fn transfer_list_data_to_current(&mut self, from_list: &[ModEntry]) {
         Self::transfer_list_data(from_list, &mut self.mod_list, true);
     }
 
+    #[instrument(skip(from_list, to_list), fields(length_from = from_list.len(), length_to = to_list.len()))]
     fn transfer_list_data(from_list: &[ModEntry], to_list: &mut Vec<ModEntry>, keep_state: bool) {
         // Ensures the important bits are kept
         for mod_entry in to_list {
@@ -260,6 +283,7 @@ impl Back {
         }
     }
 
+    #[instrument(skip(self))]
     async fn check_for_updates(&mut self, game_version: String) {
         let total_len = self.mod_list.len();
         for (position, mod_entry) in self.mod_list.iter_mut().enumerate() {
@@ -294,6 +318,7 @@ impl Back {
         }
     }
 
+    #[instrument(skip(self, mod_entry))]
     async fn update_mod(&mut self, mod_entry: ModEntry) {
         info!(
             entry_name = %mod_entry.display_name,
@@ -326,6 +351,7 @@ impl Back {
         };
     }
 
+    #[instrument(skip(self))]
     async fn add_mod(&mut self, modrinth_id: String, game_version: String, modloader: ModLoader) {
         match self
             .modrinth
@@ -350,6 +376,7 @@ impl Back {
         };
     }
 
+    #[instrument(skip(self, mod_entry, bytes))]
     fn create_mod_file(&mut self, mod_entry: &ModEntry, bytes: &Bytes) {
         info!(
             entry_name = %mod_entry.display_name,
@@ -368,14 +395,7 @@ impl Back {
                 .filename,
         );
 
-        // Essentially fs::File::create(path) but with read access as well
-        let mut new_mod_file = OpenOptions::new()
-            .read(true)
-            .write(true)
-            .create(true)
-            .truncate(true)
-            .open(&path)
-            .unwrap();
+        let mut new_mod_file = fs::File::create(&path).unwrap();
 
         new_mod_file.write_all(bytes).unwrap();
 
@@ -401,6 +421,7 @@ impl Back {
         self.sort_and_send_list();
     }
 
+    #[instrument(skip(self))]
     fn delete_mod(&mut self, path: &Path) {
         info!(
             file_path = %path.display(),
@@ -427,6 +448,7 @@ impl Back {
         };
     }
 
+    #[instrument(skip(self))]
     async fn get_version_metadata(&self) {
         match daedalus::minecraft::fetch_version_manifest(None).await {
             Ok(manifest) => self
@@ -447,6 +469,7 @@ impl Back {
         };
     }
 
+    #[instrument(skip(self), level = "trace")]
     fn is_relevant_file(&self, path: &Path) -> bool {
         // Minecraft does not really care about mods within folders, therefore skip anything that is not a file
         path.is_file()

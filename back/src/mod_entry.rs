@@ -7,6 +7,7 @@ use mc_mod_meta::{
 };
 
 use serde::{Deserialize, Serialize};
+use tracing::instrument;
 
 use crate::{error::LibResult, hash::Hashes};
 
@@ -114,7 +115,13 @@ impl fmt::Display for CurrentSource {
 }
 
 impl ModEntry {
-    fn new(mc_mod: MinecraftMod, hashes: &Hashes, sources: Option<Sources>, path: PathBuf) -> Self {
+    #[instrument(skip(mc_mod, hashes, sources), level = "debug")]
+    fn from_mod_data(
+        mc_mod: MinecraftMod,
+        hashes: &Hashes,
+        sources: Option<Sources>,
+        path: PathBuf,
+    ) -> Self {
         let MinecraftMod {
             id,
             version,
@@ -135,6 +142,7 @@ impl ModEntry {
         }
     }
 
+    #[instrument(level = "debug")]
     pub fn from_path(path: PathBuf) -> LibResult<Vec<Self>> {
         let mut file = fs::File::open(&path)?;
 
@@ -148,13 +156,13 @@ impl ModEntry {
                 let forge_meta = ForgeManifest::from_file(&mut file)?;
                 for mod_meta in forge_meta.mods {
                     let mc_mod = MinecraftMod::from(mod_meta);
-                    mod_vec.push(Self::new(mc_mod, &hashes, None, path.clone()));
+                    mod_vec.push(Self::from_mod_data(mc_mod, &hashes, None, path.clone()));
                 }
             }
             mc_mod_meta::ModLoader::Fabric => {
                 let mod_meta = FabricManifest::from_file(&mut file)?;
                 let mc_mod = MinecraftMod::from(mod_meta);
-                mod_vec.push(Self::new(mc_mod, &hashes, None, path));
+                mod_vec.push(Self::from_mod_data(mc_mod, &hashes, None, path));
             }
 
             mc_mod_meta::ModLoader::Both => {
@@ -164,7 +172,7 @@ impl ModEntry {
 
                 // However, the modloader is replaced with the "Both" type
                 mc_mod.modloader = mc_mod_meta::ModLoader::Both;
-                mod_vec.push(Self::new(mc_mod, &hashes, None, path));
+                mod_vec.push(Self::from_mod_data(mc_mod, &hashes, None, path));
             }
         };
 

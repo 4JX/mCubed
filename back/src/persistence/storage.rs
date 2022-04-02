@@ -4,11 +4,13 @@ use serde::{de::DeserializeOwned, Serialize};
 
 use crate::error::LibResult;
 
+#[derive(Debug)]
 pub(crate) struct Storage<T> {
     pub json_filepath: PathBuf,
     pub storage: T,
 }
 
+#[allow(dead_code)]
 impl<T> Storage<T>
 where
     T: DeserializeOwned + Serialize + Default,
