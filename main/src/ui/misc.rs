@@ -4,7 +4,7 @@ use eframe::{
     epaint::Shape,
 };
 
-pub fn combobox_icon_fn(ui: &Ui, rect: Rect, visuals: &WidgetVisuals) {
+pub fn combobox_icon_fn(ui: &Ui, rect: Rect, visuals: &WidgetVisuals, _is_open: bool) {
     let rect = Rect::from_center_size(
         rect.center(),
         Vec2::new(rect.width() * 0.6, rect.height() * 0.4),

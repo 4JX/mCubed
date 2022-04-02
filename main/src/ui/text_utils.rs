@@ -125,6 +125,7 @@ pub fn mod_name_job(ui: &Ui, display_name: &str) -> LayoutJob {
             ..Default::default()
         },
     );
+
     job.wrap = TextWrapping {
         max_rows: 1,
         break_anywhere: true,

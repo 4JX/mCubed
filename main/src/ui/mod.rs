@@ -85,7 +85,7 @@ impl MCubedAppUI {
 }
 
 impl epi::App for MCubedAppUI {
-    fn update(&mut self, ctx: &egui::Context, _frame: &epi::Frame) {
+    fn update(&mut self, ctx: &egui::Context, _frame: &mut epi::Frame) {
         if let Some(rx) = &self.back_rx {
             match rx.try_recv() {
                 Ok(message) => match message {
