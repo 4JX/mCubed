@@ -122,14 +122,14 @@ pub fn mod_name_job(ui: &Ui, display_name: &str) -> LayoutJob {
             color: ui.style().visuals.override_text_color.unwrap(),
 
             valign: Align::Center,
-            ..Default::default()
+            ..TextFormat::default()
         },
     );
 
     job.wrap = TextWrapping {
         max_rows: 1,
         break_anywhere: true,
-        ..Default::default()
+        ..TextWrapping::default()
     };
 
     job

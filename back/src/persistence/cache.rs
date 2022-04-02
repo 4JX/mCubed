@@ -24,7 +24,7 @@ impl CacheStorage {
         Self {
             inner: Storage {
                 json_filepath,
-                storage: Default::default(),
+                storage: Vec::default(),
             },
         }
     }

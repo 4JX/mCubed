@@ -15,7 +15,7 @@ fn main() -> Result<(), Report> {
         initial_window_size: Some(Vec2::new(970., 300.)),
         min_window_size: Some(Vec2::new(600., 300.)),
         icon_data: Some(app_icon),
-        ..Default::default()
+        ..eframe::NativeOptions::default()
     };
 
     eframe::run_native(

@@ -11,10 +11,9 @@ use crossbeam_channel::{Receiver, Sender};
 
 use eframe::{
     egui::{
-        self,
         style::{DebugOptions, Margin},
-        Align, Context, ImageButton, Label, Layout, ProgressBar, RichText, Rounding, Style, Ui,
-        Vec2, Widget,
+        Align, CentralPanel, ComboBox, Context, Frame, ImageButton, Label, Layout, ProgressBar,
+        RichText, Rounding, ScrollArea, SidePanel, Style, TextEdit, Ui, Vec2, Widget,
     },
     epi, CreationContext,
 };
@@ -85,7 +84,7 @@ impl MCubedAppUI {
 }
 
 impl epi::App for MCubedAppUI {
-    fn update(&mut self, ctx: &egui::Context, _frame: &mut epi::Frame) {
+    fn update(&mut self, ctx: &Context, _frame: &mut epi::Frame) {
         if let Some(rx) = &self.back_rx {
             match rx.try_recv() {
                 Ok(message) => match message {
@@ -137,7 +136,7 @@ impl epi::App for MCubedAppUI {
 
 impl MCubedAppUI {
     fn render_side_panel(&mut self, ctx: &Context) {
-        egui::SidePanel::left("options_panel")
+        SidePanel::left("options_panel")
             .frame(self.theme.default_panel_frame)
             .resizable(false)
             .max_width(240.)
@@ -148,7 +147,7 @@ impl MCubedAppUI {
                     ui.label("Game Version");
 
                     ui.with_layout(Layout::right_to_left(), |ui| {
-                        egui::ComboBox::from_id_source("version-combo")
+                        ComboBox::from_id_source("version-combo")
                             .icon(misc::combobox_icon_fn)
                             .selected_text(
                                 if let Some(selected_value) = self.selected_version.as_ref() {
@@ -172,18 +171,18 @@ impl MCubedAppUI {
                     });
                 });
 
-                egui::Frame {
+                Frame {
                     fill: self.theme.colors.light_gray,
                     inner_margin: Margin::same(10.0),
                     rounding: Rounding::same(4.),
-                    ..Default::default()
+                    ..Frame::default()
                 }
                 .show(ui, |ui| {
                     // Fill the side panel
                     ui.set_width(ui.available_width());
 
                     ui.horizontal(|ui| {
-                        let edit = egui::TextEdit::singleline(&mut self.add_mod_buf).hint_text(
+                        let edit = TextEdit::singleline(&mut self.add_mod_buf).hint_text(
                             RichText::new("Modrinth ID or Slug").color(self.theme.colors.gray),
                         );
 
@@ -257,13 +256,13 @@ impl MCubedAppUI {
     }
 
     fn render_central_panel(&mut self, ctx: &Context) {
-        egui::CentralPanel::default()
+        CentralPanel::default()
             .frame(self.theme.default_panel_frame)
             .show(ctx, |ui| {
                 ui.style_mut().spacing.item_spacing = Vec2::new(8.0, 8.0);
                 ui.horizontal(|ui| {
                     ui.vertical_centered_justified(|ui| {
-                        let edit = egui::TextEdit::singleline(&mut self.search_buf).hint_text(
+                        let edit = TextEdit::singleline(&mut self.search_buf).hint_text(
                             RichText::new("Search installed mods").color(self.theme.colors.gray),
                         );
                         ui.add(edit);
@@ -271,21 +270,21 @@ impl MCubedAppUI {
                 });
 
                 if !self.backend_context.backend_errors.is_empty() {
-                    egui::ScrollArea::vertical().show(ui, |ui| {
+                    ScrollArea::vertical().show(ui, |ui| {
                         self.backend_context.backend_errors.retain(|error| {
                             let mut retain = true;
 
-                            egui::Frame {
+                            Frame {
                                 fill: self.theme.colors.error_message,
                                 inner_margin: Margin::same(6.0),
                                 rounding: Rounding::same(4.),
-                                ..Default::default()
+                                ..Frame::default()
                             }
                             .show(ui, |ui| {
                                 ui.horizontal(|ui| {
                                     ui.add(Label::new(&error.message).wrap(true))
                                         .on_hover_text(error.error.to_string());
-                                    ui.with_layout(egui::Layout::right_to_left(), |ui| {
+                                    ui.with_layout(Layout::right_to_left(), |ui| {
                                         if ui.button("Close").clicked() {
                                             retain = false;
                                         }
@@ -315,11 +314,11 @@ impl MCubedAppUI {
                 }
 
                 ui.vertical_centered_justified(|ui| {
-                    egui::Frame {
+                    Frame {
                         fill: self.theme.colors.darker_gray,
                         inner_margin: Margin::same(10.0),
                         rounding: Rounding::same(4.),
-                        ..Default::default()
+                        ..Frame::default()
                     }
                     .show(ui, |ui| {
                         ui.set_height(ui.available_height());
@@ -341,7 +340,7 @@ impl MCubedAppUI {
                                     ui.label("No mods match your search");
                                 });
                             } else {
-                                egui::ScrollArea::vertical().show(ui, |ui| {
+                                ScrollArea::vertical().show(ui, |ui| {
                                     ui.style_mut().spacing.item_spacing.y = 10.0;
                                     self.render_mod_cards(ui);
                                 });
@@ -363,10 +362,10 @@ impl MCubedAppUI {
                 continue;
             }
 
-            egui::Frame {
+            Frame {
                 fill: self.theme.colors.dark_gray,
                 rounding: Rounding::same(2.0),
-                ..Default::default()
+                ..Frame::default()
             }
             .show(ui, |ui| {
                 ui.horizontal(|ui| {
@@ -374,10 +373,10 @@ impl MCubedAppUI {
 
                     ui.style_mut().spacing.item_spacing = Vec2::splat(0.0);
 
-                    egui::Frame {
+                    Frame {
                         inner_margin: Margin::symmetric(6.0, 0.0),
                         fill: self.theme.colors.mod_card.mod_status_icon_background,
-                        ..Default::default()
+                        ..Frame::default()
                     }
                     .show(ui, |ui| {
                         let image_size = Vec2::splat(12.0);
@@ -402,9 +401,9 @@ impl MCubedAppUI {
                         };
                     });
 
-                    egui::Frame {
+                    Frame {
                         inner_margin: Margin::symmetric(10.0, 0.0),
-                        ..Default::default()
+                        ..Frame::default()
                     }
                     .show(ui, |ui| {
                         ui.set_width(120.);
@@ -497,7 +496,7 @@ impl MCubedAppUI {
 
                             ui.spacing_mut().button_padding = Vec2::new(3.0, 0.0);
 
-                            egui::ComboBox::from_id_source(&mod_entry.path)
+                            ComboBox::from_id_source(&mod_entry.path)
                                 .selected_text(text)
                                 .width(75.0)
                                 .icon(misc::combobox_icon_fn)
@@ -533,7 +532,7 @@ impl MCubedAppUI {
                         });
                     });
 
-                    ui.with_layout(egui::Layout::right_to_left(), |ui| {
+                    ui.with_layout(Layout::right_to_left(), |ui| {
                         ui.add_space(10.);
 
                         let button = ImageButton::new(
@@ -582,7 +581,7 @@ impl MCubedAppUI {
                 show_expand_height: false,
                 show_resize: false,
             },
-            ..Default::default()
+            ..Style::default()
         };
 
         ctx.set_fonts(text_utils::get_font_def());

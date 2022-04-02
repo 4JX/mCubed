@@ -63,7 +63,7 @@ impl Default for AppTheme {
 
         let selection = Selection {
             bg_fill: colors.light_gray,
-            ..Default::default()
+            ..Selection::default()
         };
 
         let visuals = Visuals {
@@ -72,13 +72,13 @@ impl Default for AppTheme {
             widgets,
             selection,
             extreme_bg_color: colors.darker_gray,
-            ..Default::default()
+            ..Visuals::default()
         };
 
         let default_panel_frame = Frame {
             inner_margin: Margin::same(8.0),
             fill: colors.gray,
-            ..Default::default()
+            ..Frame::default()
         };
 
         Self {
