@@ -1,6 +1,6 @@
 use back::{
     messages::{BackendError, CheckProgress, ToBackend, ToFrontend},
-    mod_entry::{CurrentSource, FileState, ModEntry, ModLoader},
+    mod_entry::ModLoader,
     settings::SettingsBuilder,
     Back, GameVersion,
 };
@@ -13,18 +13,19 @@ use crossbeam_channel::{Receiver, Sender};
 use eframe::{
     egui::{
         style::{DebugOptions, Margin},
-        Align, CentralPanel, ComboBox, Context, Frame, ImageButton, InnerResponse, Label, Layout,
-        ProgressBar, RichText, Rounding, ScrollArea, SidePanel, Style, TextEdit, Ui, Vec2, Widget,
+        Align, CentralPanel, ComboBox, Context, Frame, InnerResponse, Label, Layout, ProgressBar,
+        RichText, Rounding, ScrollArea, SidePanel, Style, TextEdit, Vec2, Widget,
     },
-    epaint::{ColorImage, TextureHandle},
+    epaint::TextureHandle,
     CreationContext,
 };
 
-use self::{app_theme::AppTheme, image_utils::ImageTextures};
+use self::{app_theme::AppTheme, image_utils::ImageTextures, mod_card::ModCard};
 
 mod app_theme;
 mod image_utils;
 mod misc;
+mod mod_card;
 mod text_utils;
 
 static SET_LEFT_PANEL_BOTTOM_BUTTONS_WIDTH: Once = Once::new();
@@ -40,7 +41,7 @@ pub struct MCubedAppUI {
     mod_images: HashMap<String, TextureHandle>,
 
     // Data
-    mod_list: Vec<ModEntry>,
+    mod_list: Vec<ModCard>,
     game_version_list: Vec<GameVersion>,
     selected_version: Option<GameVersion>,
     selected_modloader: ModLoader,
@@ -102,7 +103,10 @@ impl eframe::App for MCubedAppUI {
                     ToFrontend::UpdateModList { mod_list } => {
                         self.backend_context.check_for_update_progress = None;
                         self.mod_images.clear();
-                        self.mod_list = mod_list;
+                        self.mod_list = mod_list
+                            .into_iter()
+                            .map(|entry| ModCard::new(entry, ctx))
+                            .collect();
                         ctx.request_repaint();
                     }
                     ToFrontend::CheckForUpdatesProgress { progress } => {
@@ -124,14 +128,7 @@ impl eframe::App for MCubedAppUI {
     }
 
     fn on_exit(&mut self, _gl: &eframe::glow::Context) {
-        if let Some(tx) = &self.front_tx {
-            tx.send(ToBackend::UpdateBackendList {
-                mod_list: self.mod_list.clone(),
-            })
-            .unwrap();
-
-            tx.send(ToBackend::Shutdown).unwrap();
-        }
+        self.update_backend_list()
     }
 }
 
@@ -222,13 +219,7 @@ impl MCubedAppUI {
                         let rescan_folder_button_res = ui.button("Re-scan Folder");
 
                         if rescan_folder_button_res.clicked() {
-                            if let Some(tx) = &self.front_tx {
-                                tx.send(ToBackend::UpdateBackendList {
-                                    mod_list: self.mod_list.clone(),
-                                })
-                                .unwrap();
-                                tx.send(ToBackend::ScanFolder).unwrap();
-                            }
+                            self.update_backend_list()
                         };
 
                         let refresh_button_res = ui.button("Refresh");
@@ -329,8 +320,9 @@ impl MCubedAppUI {
                                 ui.label("There are no mods to display");
                             });
                         } else {
-                            let search_results_exist = self.mod_list.iter().any(|mod_entry| {
-                                mod_entry
+                            let search_results_exist = self.mod_list.iter().any(|mod_card| {
+                                mod_card
+                                    .entry()
                                     .display_name
                                     .to_lowercase()
                                     .contains(self.search_buf.to_lowercase().as_str())
@@ -343,279 +335,30 @@ impl MCubedAppUI {
                             } else {
                                 ScrollArea::vertical().show(ui, |ui| {
                                     ui.style_mut().spacing.item_spacing.y = 10.0;
-                                    self.render_mod_cards(ctx, ui);
+                                    for mod_card in &mut self.mod_list {
+                                        // Skip the entries that are not within the filtered list
+                                        if !mod_card
+                                            .entry()
+                                            .display_name
+                                            .to_lowercase()
+                                            .contains(self.search_buf.to_lowercase().as_str())
+                                        {
+                                            continue;
+                                        }
+
+                                        mod_card.show(
+                                            ui,
+                                            &self.theme,
+                                            &mut self.images,
+                                            &self.front_tx,
+                                        );
+                                    }
                                 });
                             }
                         }
                     });
                 });
             })
-    }
-
-    fn render_mod_cards(&mut self, ctx: &Context, ui: &mut Ui) {
-        for mod_entry in &mut self.mod_list {
-            // Skip the entries that are not within the filtered list
-            if !mod_entry
-                .display_name
-                .to_lowercase()
-                .contains(self.search_buf.to_lowercase().as_str())
-            {
-                continue;
-            }
-
-            Frame {
-                fill: self.theme.colors.dark_gray,
-                rounding: Rounding::same(2.0),
-                ..Frame::default()
-            }
-            .show(ui, |ui| {
-                ui.horizontal(|ui| {
-                    ui.set_height(36.);
-
-                    ui.style_mut().spacing.item_spacing = Vec2::splat(0.0);
-
-                    Frame {
-                        inner_margin: Margin::symmetric(6.0, 0.0),
-                        fill: self.theme.colors.mod_card.mod_status_icon_background,
-                        ..Frame::default()
-                    }
-                    .show(ui, |ui| {
-                        let image_size = Vec2::splat(12.0);
-                        match mod_entry.state {
-                            FileState::Current => ui.image(
-                                self.images.mod_status_ok.as_mut().unwrap().id(),
-                                image_size,
-                            ),
-                            FileState::Outdated => ui.image(
-                                self.images.mod_status_outdated.as_mut().unwrap().id(),
-                                image_size,
-                            ),
-                            FileState::Invalid => ui.image(
-                                self.images.mod_status_invalid.as_mut().unwrap().id(),
-                                image_size,
-                            ),
-                            FileState::Local => ui.image(
-                                // There's not much that can be done here, assume its all good
-                                self.images.mod_status_ok.as_mut().unwrap().id(),
-                                image_size,
-                            ),
-                        };
-                    });
-
-                    ui.add_space(self.theme.spacing.medium);
-
-                    let icon_size = 26.0;
-
-                    Frame {
-                        rounding: Rounding::same(5.0),
-                        fill: self.theme.colors.mod_card.mod_status_icon_background,
-                        ..Frame::default()
-                    }
-                    .show(ui, |ui| {
-                        ui.set_width(icon_size);
-                        ui.set_height(icon_size);
-                        if let Some(image_raw) = &mod_entry.icon {
-                            let texture_option = self
-                                .mod_images
-                                .entry(mod_entry.hashes.sha1.clone())
-                                .or_insert_with(|| {
-                                    ctx.load_texture(
-                                        mod_entry.hashes.sha1.clone(),
-                                        ColorImage::from_rgba_unmultiplied(
-                                            [
-                                                ICON_RESIZE_QUALITY as usize,
-                                                ICON_RESIZE_QUALITY as usize,
-                                            ],
-                                            image_raw,
-                                        ),
-                                    )
-                                });
-
-                            ui.image(texture_option.id(), Vec2::splat(icon_size));
-                        }
-                    });
-
-                    Frame {
-                        inner_margin: Margin::symmetric(10.0, 0.0),
-                        ..Frame::default()
-                    }
-                    .show(ui, |ui| {
-                        ui.set_width(120.);
-                        ui.set_max_width(120.);
-
-                        ui.centered_and_justified(|ui| {
-                            ui.style_mut().wrap = Some(true);
-                            ui.label(text_utils::mod_name_job(ui, &mod_entry.display_name))
-                                .on_hover_ui(|ui| {
-                                    ui.label(
-                                        text_utils::mod_card_data_text("Mod path:")
-                                            .color(self.theme.colors.lighter_gray),
-                                    );
-
-                                    ui.label(text_utils::mod_card_data_text(
-                                        mod_entry.path.display().to_string(),
-                                    ));
-                                });
-                        });
-                    });
-
-                    ui.add_space(self.theme.spacing.large);
-
-                    ui.vertical(|ui| {
-                        ui.set_width(60.);
-
-                        let image_size = ui.available_height() / 2.0 * 0.5;
-
-                        ui.horizontal(|ui| {
-                            let raw_text =
-                                text_utils::mod_card_data_text(mod_entry.modloader.to_string());
-
-                            let text = match mod_entry.modloader {
-                                ModLoader::Forge => {
-                                    ui.image(
-                                        self.images.forge.as_mut().unwrap(),
-                                        Vec2::splat(image_size),
-                                    );
-
-                                    raw_text.color(self.theme.mod_card_modloader().forge)
-                                }
-                                ModLoader::Fabric => {
-                                    ui.image(
-                                        self.images.fabric.as_mut().unwrap(),
-                                        Vec2::splat(image_size),
-                                    );
-
-                                    raw_text.color(self.theme.mod_card_modloader().fabric)
-                                }
-                                ModLoader::Both => {
-                                    ui.image(
-                                        self.images.forge_and_fabric.as_mut().unwrap(),
-                                        Vec2::splat(image_size),
-                                    );
-
-                                    raw_text.color(self.theme.mod_card_modloader().forge_and_fabric)
-                                }
-                            };
-
-                            ui.add_space(self.theme.spacing.medium);
-
-                            ui.label(text);
-                        });
-
-                        ui.horizontal(|ui| {
-                            let raw_text =
-                                text_utils::mod_card_data_text(mod_entry.sourced_from.to_string());
-
-                            let text = match mod_entry.sourced_from {
-                                CurrentSource::None => {
-                                    ui.image(
-                                        self.images.none.as_mut().unwrap(),
-                                        Vec2::splat(image_size),
-                                    );
-
-                                    raw_text.color(self.theme.mod_card_source().none)
-                                }
-                                CurrentSource::Local => {
-                                    ui.image(
-                                        self.images.local.as_mut().unwrap(),
-                                        Vec2::splat(image_size),
-                                    );
-
-                                    raw_text.color(self.theme.mod_card_source().local)
-                                }
-                                CurrentSource::Modrinth => {
-                                    ui.image(
-                                        self.images.modrinth.as_mut().unwrap(),
-                                        Vec2::splat(image_size),
-                                    );
-
-                                    raw_text.color(self.theme.mod_card_source().modrinth)
-                                }
-                                CurrentSource::CurseForge => {
-                                    ui.image(
-                                        self.images.curseforge.as_mut().unwrap(),
-                                        Vec2::splat(image_size),
-                                    );
-
-                                    raw_text.color(self.theme.mod_card_source().curseforge)
-                                }
-                            };
-
-                            ui.add_space(self.theme.spacing.small);
-
-                            ui.spacing_mut().button_padding = Vec2::new(3.0, 0.0);
-
-                            ComboBox::from_id_source(&mod_entry.path)
-                                .selected_text(text)
-                                .width(75.0)
-                                .icon(misc::combobox_icon_fn)
-                                .show_ui(ui, |ui| {
-                                    ui.selectable_value(
-                                        &mut mod_entry.sourced_from,
-                                        CurrentSource::Local,
-                                        text_utils::mod_card_data_text(
-                                            &CurrentSource::Local.to_string(),
-                                        ),
-                                    );
-
-                                    if mod_entry.sources.curseforge.is_some() {
-                                        ui.selectable_value(
-                                            &mut mod_entry.sourced_from,
-                                            CurrentSource::CurseForge,
-                                            text_utils::mod_card_data_text(
-                                                &CurrentSource::CurseForge.to_string(),
-                                            ),
-                                        );
-                                    }
-
-                                    if mod_entry.sources.modrinth.is_some() {
-                                        ui.selectable_value(
-                                            &mut mod_entry.sourced_from,
-                                            CurrentSource::Modrinth,
-                                            text_utils::mod_card_data_text(
-                                                &CurrentSource::Modrinth.to_string(),
-                                            ),
-                                        );
-                                    }
-                                });
-                        });
-                    });
-
-                    ui.with_layout(Layout::right_to_left(), |ui| {
-                        ui.add_space(self.theme.spacing.large);
-
-                        let button = ImageButton::new(
-                            self.images.bin.as_mut().unwrap().id(),
-                            Vec2::splat(12.),
-                        );
-
-                        if ui.add(button).clicked() {
-                            if let Some(tx) = &self.front_tx {
-                                tx.send(ToBackend::DeleteMod {
-                                    path: mod_entry.path.clone(),
-                                })
-                                .unwrap();
-                            }
-                        };
-
-                        ui.add_space(self.theme.spacing.medium);
-
-                        if mod_entry.state == FileState::Outdated
-                            && ui
-                                .button(text_utils::update_button_text("Update"))
-                                .clicked()
-                        {
-                            if let Some(tx) = &self.front_tx {
-                                tx.send(ToBackend::UpdateMod {
-                                    mod_entry: Box::new(mod_entry.clone()),
-                                })
-                                .unwrap();
-                            }
-                        }
-                    });
-                });
-            });
-        }
     }
 }
 
@@ -635,5 +378,21 @@ impl MCubedAppUI {
 
         ctx.set_fonts(text_utils::get_font_def());
         ctx.set_style(style);
+    }
+
+    fn update_backend_list(&self) {
+        if let Some(tx) = &self.front_tx {
+            tx.send(ToBackend::UpdateBackendList {
+                mod_list: self
+                    .mod_list
+                    .iter()
+                    .map(|card| card.entry())
+                    .cloned()
+                    .collect(),
+            })
+            .unwrap();
+
+            tx.send(ToBackend::Shutdown).unwrap();
+        }
     }
 }
