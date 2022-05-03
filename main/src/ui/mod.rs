@@ -1,11 +1,12 @@
 use back::{
     messages::{BackendError, CheckProgress, ToBackend, ToFrontend},
     mod_entry::{CurrentSource, FileState, ModEntry, ModLoader},
+    settings::SettingsBuilder,
     Back, GameVersion,
 };
 use parking_lot::Once;
 
-use std::thread;
+use std::{collections::HashMap, thread};
 
 use crossbeam_channel::{Receiver, Sender};
 
@@ -15,7 +16,8 @@ use eframe::{
         Align, CentralPanel, ComboBox, Context, Frame, ImageButton, InnerResponse, Label, Layout,
         ProgressBar, RichText, Rounding, ScrollArea, SidePanel, Style, TextEdit, Ui, Vec2, Widget,
     },
-    epi, CreationContext,
+    epaint::{ColorImage, TextureHandle},
+    CreationContext,
 };
 
 use self::{app_theme::AppTheme, image_utils::ImageTextures};
@@ -26,6 +28,7 @@ mod misc;
 mod text_utils;
 
 static SET_LEFT_PANEL_BOTTOM_BUTTONS_WIDTH: Once = Once::new();
+const ICON_RESIZE_QUALITY: u32 = 128;
 
 #[derive(Default)]
 pub struct MCubedAppUI {
@@ -34,11 +37,11 @@ pub struct MCubedAppUI {
     search_buf: String,
     add_mod_buf: String,
     images: ImageTextures,
+    mod_images: HashMap<String, TextureHandle>,
 
     // Data
     mod_list: Vec<ModEntry>,
     game_version_list: Vec<GameVersion>,
-    game_version_string_list: Vec<String>,
     selected_version: Option<GameVersion>,
     selected_modloader: ModLoader,
     backend_context: BackendContext,
@@ -79,28 +82,26 @@ impl MCubedAppUI {
             sender.send(ToBackend::Startup).unwrap();
         }
 
+        SettingsBuilder::new()
+            .icon_resize_size(ICON_RESIZE_QUALITY)
+            .apply();
+
         new_app
     }
 }
 
-impl epi::App for MCubedAppUI {
-    fn update(&mut self, ctx: &Context, _frame: &mut epi::Frame) {
+impl eframe::App for MCubedAppUI {
+    fn update(&mut self, ctx: &Context, _frame: &mut eframe::Frame) {
         if let Some(rx) = &self.back_rx {
             match rx.try_recv() {
                 Ok(message) => match message {
                     ToFrontend::SetVersionMetadata { manifest } => {
                         self.selected_version = Some(manifest.versions[0].clone());
-
-                        // Get both a String and GameVersion vec
-                        self.game_version_string_list = manifest
-                            .versions
-                            .iter()
-                            .map(|game_version| game_version.id.clone())
-                            .collect();
                         self.game_version_list = manifest.versions;
                     }
                     ToFrontend::UpdateModList { mod_list } => {
                         self.backend_context.check_for_update_progress = None;
+                        self.mod_images.clear();
                         self.mod_list = mod_list;
                         ctx.request_repaint();
                     }
@@ -342,7 +343,7 @@ impl MCubedAppUI {
                             } else {
                                 ScrollArea::vertical().show(ui, |ui| {
                                     ui.style_mut().spacing.item_spacing.y = 10.0;
-                                    self.render_mod_cards(ui);
+                                    self.render_mod_cards(ctx, ui);
                                 });
                             }
                         }
@@ -351,7 +352,7 @@ impl MCubedAppUI {
             })
     }
 
-    fn render_mod_cards(&mut self, ui: &mut Ui) {
+    fn render_mod_cards(&mut self, ctx: &Context, ui: &mut Ui) {
         for mod_entry in &mut self.mod_list {
             // Skip the entries that are not within the filtered list
             if !mod_entry
@@ -401,6 +402,39 @@ impl MCubedAppUI {
                         };
                     });
 
+                    ui.add_space(self.theme.spacing.medium);
+
+                    let icon_size = 26.0;
+
+                    Frame {
+                        rounding: Rounding::same(5.0),
+                        fill: self.theme.colors.mod_card.mod_status_icon_background,
+                        ..Frame::default()
+                    }
+                    .show(ui, |ui| {
+                        ui.set_width(icon_size);
+                        ui.set_height(icon_size);
+                        if let Some(image_raw) = &mod_entry.icon {
+                            let texture_option = self
+                                .mod_images
+                                .entry(mod_entry.hashes.sha1.clone())
+                                .or_insert_with(|| {
+                                    ctx.load_texture(
+                                        mod_entry.hashes.sha1.clone(),
+                                        ColorImage::from_rgba_unmultiplied(
+                                            [
+                                                ICON_RESIZE_QUALITY as usize,
+                                                ICON_RESIZE_QUALITY as usize,
+                                            ],
+                                            image_raw,
+                                        ),
+                                    )
+                                });
+
+                            ui.image(texture_option.id(), Vec2::splat(icon_size));
+                        }
+                    });
+
                     Frame {
                         inner_margin: Margin::symmetric(10.0, 0.0),
                         ..Frame::default()
@@ -412,13 +446,20 @@ impl MCubedAppUI {
                         ui.centered_and_justified(|ui| {
                             ui.style_mut().wrap = Some(true);
                             ui.label(text_utils::mod_name_job(ui, &mod_entry.display_name))
-                                .on_hover_text(text_utils::mod_card_data_text(
-                                    mod_entry.path.display().to_string(),
-                                ));
+                                .on_hover_ui(|ui| {
+                                    ui.label(
+                                        text_utils::mod_card_data_text("Mod path:")
+                                            .color(self.theme.colors.lighter_gray),
+                                    );
+
+                                    ui.label(text_utils::mod_card_data_text(
+                                        mod_entry.path.display().to_string(),
+                                    ));
+                                });
                         });
                     });
 
-                    ui.add_space(10.);
+                    ui.add_space(self.theme.spacing.large);
 
                     ui.vertical(|ui| {
                         ui.set_width(60.);
@@ -456,7 +497,7 @@ impl MCubedAppUI {
                                 }
                             };
 
-                            ui.add_space(5.);
+                            ui.add_space(self.theme.spacing.medium);
 
                             ui.label(text);
                         });
@@ -500,7 +541,7 @@ impl MCubedAppUI {
                                 }
                             };
 
-                            ui.add_space(2.0);
+                            ui.add_space(self.theme.spacing.small);
 
                             ui.spacing_mut().button_padding = Vec2::new(3.0, 0.0);
 
@@ -541,7 +582,7 @@ impl MCubedAppUI {
                     });
 
                     ui.with_layout(Layout::right_to_left(), |ui| {
-                        ui.add_space(10.);
+                        ui.add_space(self.theme.spacing.large);
 
                         let button = ImageButton::new(
                             self.images.bin.as_mut().unwrap().id(),
@@ -557,7 +598,7 @@ impl MCubedAppUI {
                             }
                         };
 
-                        ui.add_space(5.0);
+                        ui.add_space(self.theme.spacing.medium);
 
                         if mod_entry.state == FileState::Outdated
                             && ui

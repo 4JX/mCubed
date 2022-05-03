@@ -71,8 +71,15 @@ pub enum Error {
     DaedalusParseError(String),
 
     // Send to trash errors
-    #[error("Error while managing asynchronous tasks")]
+    #[error("Could not delete file")]
     TrashFailedDelete(#[from] trash::Error),
+
+    // Zip parsing errors
+    #[error("Could parse the zip file")]
+    ZipError(#[from] zip::result::ZipError),
+
+    #[error("There was an error when working with an image")]
+    ImageError(#[from] image::ImageError),
 }
 
 impl From<MetaError> for Error {

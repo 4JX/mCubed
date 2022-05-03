@@ -9,7 +9,7 @@ use std::{
 use serde::Deserialize;
 
 use crate::{
-    error::{AppResult, Error},
+    error::{Error, LibResult},
     get_modloader, ModLoader,
 };
 
@@ -32,14 +32,14 @@ pub struct ForgeManifest {
 }
 
 impl ForgeManifest {
-    pub fn from_buffer(buf: &str) -> AppResult<Self> {
+    pub fn from_buffer(buf: &str) -> LibResult<Self> {
         match toml::from_str(buf) {
             Ok(metadata) => Ok(metadata),
             Err(err) => Err(err.into()),
         }
     }
 
-    pub fn from_file(file: &mut File) -> AppResult<Self> {
+    pub fn from_file(file: &mut File) -> LibResult<Self> {
         let modloader = get_modloader(file)?;
 
         if modloader == ModLoader::Forge || modloader == ModLoader::Both {

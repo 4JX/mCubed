@@ -7,6 +7,7 @@ pub struct AppTheme {
     pub colors: Colors,
     pub visuals: Visuals,
     pub default_panel_frame: Frame,
+    pub spacing: Spacing,
 }
 
 impl AppTheme {
@@ -85,6 +86,7 @@ impl Default for AppTheme {
             colors,
             visuals,
             default_panel_frame,
+            spacing: Spacing::default(),
         }
     }
 }
@@ -167,6 +169,22 @@ impl Default for ModloaderTheme {
             forge: Color32::from_rgb(233, 175, 110),
             fabric: Color32::from_rgb(232, 221, 186),
             forge_and_fabric: Color32::from_rgb(234, 201, 123),
+        }
+    }
+}
+
+pub struct Spacing {
+    pub large: f32,
+    pub medium: f32,
+    pub small: f32,
+}
+
+impl Default for Spacing {
+    fn default() -> Self {
+        Self {
+            large: 10.0,
+            medium: 5.0,
+            small: 2.0,
         }
     }
 }

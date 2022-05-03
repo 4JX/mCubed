@@ -38,7 +38,8 @@ where
 
     pub fn save(&self) -> LibResult<()> {
         let mut file = File::create(&self.json_filepath)?;
-        file.write_all(serde_json::to_string(&self.storage)?.as_bytes())?;
+        let stringified_json = serde_json::to_string(&self.storage)?;
+        file.write_all(stringified_json.as_bytes())?;
         Ok(())
     }
 

@@ -10,7 +10,7 @@ use serde::Deserialize;
 use serde_json::Value;
 
 use crate::{
-    error::{AppResult, Error},
+    error::{Error, LibResult},
     get_modloader, ModLoader,
 };
 
@@ -56,14 +56,14 @@ pub struct FabricManifest {
 }
 
 impl FabricManifest {
-    pub fn from_buffer(buf: &str) -> AppResult<Self> {
+    pub fn from_buffer(buf: &str) -> LibResult<Self> {
         match serde_json::from_str(buf) {
             Ok(metadata) => Ok(metadata),
             Err(err) => Err(err.into()),
         }
     }
 
-    pub fn from_file(file: &mut File) -> AppResult<Self> {
+    pub fn from_file(file: &mut File) -> LibResult<Self> {
         let modloader = get_modloader(file)?;
 
         if modloader == ModLoader::Fabric || modloader == ModLoader::Both {

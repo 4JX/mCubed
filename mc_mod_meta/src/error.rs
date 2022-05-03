@@ -6,7 +6,7 @@ use thiserror::Error;
 use toml::de::Error as TomlError;
 use zip::result::ZipError;
 
-pub type AppResult<T> = std::result::Result<T, Error>;
+pub type LibResult<T> = std::result::Result<T, Error>;
 
 #[derive(Debug, Error)]
 #[allow(clippy::enum_variant_names)]

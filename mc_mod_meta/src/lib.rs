@@ -3,16 +3,15 @@
 use core::fmt;
 use std::{fs::File, io::BufReader};
 
-use error::AppResult;
+use error::LibResult;
 use fabric::FABRIC_META_PATH;
 use forge::FORGE_META_PATH;
 
-pub mod common;
 pub mod error;
 pub mod fabric;
 pub mod forge;
 
-pub fn get_modloader(file: &File) -> AppResult<ModLoader> {
+pub fn get_modloader(file: &File) -> LibResult<ModLoader> {
     let reader = BufReader::new(file);
 
     let archive = zip::ZipArchive::new(reader)?;

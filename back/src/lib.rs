@@ -8,18 +8,18 @@ use std::{
 
 use bytes::Bytes;
 use crossbeam_channel::{Receiver, Sender};
-use hash::Hashes;
 use messages::{CheckProgress, ToBackend, ToFrontend};
+use mod_entry::Hashes;
 use mod_entry::{ModEntry, ModLoader};
 use modrinth::Modrinth;
-mod minecraft_path;
-mod modrinth;
 
 mod error;
-mod hash;
 pub mod messages;
+mod minecraft_path;
 pub mod mod_entry;
+mod modrinth;
 mod persistence;
+pub mod settings;
 
 pub use daedalus::minecraft::Version as GameVersion;
 use parking_lot::Once;
@@ -96,7 +96,7 @@ impl Back {
 
                                 self.sort_and_send_list();
 
-                                self.get_version_metadata().await;
+                                // self.get_version_metadata().await;
                             }
 
                             ToBackend::Shutdown => {

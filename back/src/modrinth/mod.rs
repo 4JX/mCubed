@@ -9,8 +9,9 @@ use tracing::instrument;
 
 use crate::{
     error::{self, LibResult},
-    hash,
-    mod_entry::{CurrentSource, FileState, ModEntry, ModLoader, ModrinthData, Sources},
+    mod_entry::{
+        hash::Hashes, CurrentSource, FileState, ModEntry, ModLoader, ModrinthData, Sources,
+    },
 };
 
 #[derive(Debug)]
@@ -150,11 +151,12 @@ impl Modrinth {
                     version: "0.0.0".to_string(),
                     display_name: project.title,
                     modloader,
-                    hashes: hash::Hashes::dummy(),
+                    hashes: Hashes::dummy(),
                     sources,
                     state: FileState::Current,
                     sourced_from: CurrentSource::Modrinth,
                     path: PathBuf::new(),
+                    icon: None,
                 };
 
                 self.check_for_updates(&mut mod_entry, &game_version)

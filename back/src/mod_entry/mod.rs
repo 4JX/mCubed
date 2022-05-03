@@ -1,15 +1,16 @@
 use core::fmt;
-use std::{fmt::Debug, fs, path::PathBuf};
+use std::{fmt::Debug, path::PathBuf};
 
 use ferinth::structures::version_structs::{ModLoader as FeModLoader, VersionFile};
-use mc_mod_meta::{
-    common::MinecraftMod, fabric::FabricManifest, forge::ForgeManifest, ModLoader as McModLoader,
-};
+use mc_mod_meta::{fabric::FabricManifest, forge::ForgeModEntry, ModLoader as McModLoader};
 
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 
-use crate::{error::LibResult, hash::Hashes};
+pub use self::hash::Hashes;
+
+pub mod from_file;
+pub mod hash;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct ModEntry {
@@ -22,6 +23,8 @@ pub struct ModEntry {
     pub state: FileState,
     pub sourced_from: CurrentSource,
     pub path: PathBuf,
+    #[serde(skip_serializing, skip_deserializing)]
+    pub icon: Option<Vec<u8>>,
 }
 
 // Middleman "ModLoader" enum to convert between those of the other crates
@@ -104,67 +107,48 @@ impl fmt::Display for CurrentSource {
 }
 
 impl ModEntry {
-    #[instrument(skip(mc_mod, hashes, sources), level = "debug")]
-    fn from_mod_data(
-        mc_mod: MinecraftMod,
-        hashes: &Hashes,
+    #[instrument(skip(forge_mod_entry, hashes, sources, path), level = "debug")]
+    fn from_forge_manifest(
+        forge_mod_entry: ForgeModEntry,
+        hashes: Hashes,
         sources: Option<Sources>,
         path: PathBuf,
     ) -> Self {
-        let MinecraftMod {
-            id,
-            version,
-            display_name,
-            modloader,
-        } = mc_mod;
-
         Self {
-            id,
-            version,
-            display_name,
-            modloader: modloader.into(),
-            hashes: hashes.clone(),
+            id: forge_mod_entry.mod_id,
+            version: forge_mod_entry.version,
+            display_name: forge_mod_entry.display_name,
+            modloader: ModLoader::Forge,
+            hashes,
             sources: sources.unwrap_or_default(),
             state: FileState::Local,
             sourced_from: CurrentSource::None,
             path,
+            icon: None,
         }
     }
 
-    #[instrument(level = "debug")]
-    pub fn from_path(path: PathBuf) -> LibResult<Vec<Self>> {
-        let mut file = fs::File::open(&path)?;
-
-        let hashes = Hashes::get_hashes_from_file(&mut file)?;
-
-        let mut mod_vec = Vec::new();
-
-        let modloader = mc_mod_meta::get_modloader(&file)?;
-        match modloader {
-            mc_mod_meta::ModLoader::Forge => {
-                let forge_meta = ForgeManifest::from_file(&mut file)?;
-                for mod_meta in forge_meta.mods {
-                    let mc_mod = MinecraftMod::from(mod_meta);
-                    mod_vec.push(Self::from_mod_data(mc_mod, &hashes, None, path.clone()));
-                }
-            }
-            mc_mod_meta::ModLoader::Fabric => {
-                let mod_meta = FabricManifest::from_file(&mut file)?;
-                let mc_mod = MinecraftMod::from(mod_meta);
-                mod_vec.push(Self::from_mod_data(mc_mod, &hashes, None, path));
-            }
-
-            mc_mod_meta::ModLoader::Both => {
-                // Given the mod has entries for both forge and fabric, simplify things by just displaying one entry with the fabric data
-                let mod_meta = FabricManifest::from_file(&mut file)?;
-                let mut mc_mod = MinecraftMod::from(mod_meta);
-
-                // However, the modloader is replaced with the "Both" type
-                mc_mod.modloader = mc_mod_meta::ModLoader::Both;
-                mod_vec.push(Self::from_mod_data(mc_mod, &hashes, None, path));
-            }
-        };
-
-        Ok(mod_vec)
+    #[instrument(skip(fabric_manifest, hashes, sources, path), level = "debug")]
+    fn from_fabric_manifest(
+        fabric_manifest: FabricManifest,
+        hashes: Hashes,
+        sources: Option<Sources>,
+        path: PathBuf,
+    ) -> Self {
+        let mod_name = fabric_manifest
+            .name
+            .unwrap_or_else(|| fabric_manifest.id.clone());
+        Self {
+            id: fabric_manifest.id,
+            version: fabric_manifest.version,
+            display_name: mod_name,
+            modloader: ModLoader::Fabric,
+            hashes,
+            sources: sources.unwrap_or_default(),
+            state: FileState::Local,
+            sourced_from: CurrentSource::None,
+            path,
+            icon: None,
+        }
     }
 }
