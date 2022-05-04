@@ -11,11 +11,11 @@ pub struct AppTheme {
 }
 
 impl AppTheme {
-    pub fn mod_card_source(&self) -> &SourceTheme {
+    pub const fn mod_card_source(&self) -> &SourceTheme {
         &self.colors.mod_card.source
     }
 
-    pub fn mod_card_modloader(&self) -> &ModloaderTheme {
+    pub const fn mod_card_modloader(&self) -> &ModloaderTheme {
         &self.colors.mod_card.modloader
     }
 }

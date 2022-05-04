@@ -15,12 +15,14 @@ pub struct SettingsBuilder {
 
 impl SettingsBuilder {
     /// Create a new [SettingsBuilder](SettingsBuilder) off of the default struct values
+    #[must_use]
     pub fn new() -> Self {
         Self::default()
     }
 
     /// Set the icon resize size
-    pub fn icon_resize_size(mut self, size: u32) -> Self {
+    #[must_use]
+    pub const fn icon_resize_size(mut self, size: u32) -> Self {
         self.icon_resize_size = size;
         self
     }
@@ -34,7 +36,7 @@ impl SettingsBuilder {
 
 impl Default for SettingsBuilder {
     fn default() -> Self {
-        SettingsBuilder {
+        Self {
             icon_resize_size: 128,
         }
     }

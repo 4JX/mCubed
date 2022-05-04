@@ -73,7 +73,7 @@ impl MCubedAppUI {
 
         let frame_clone = cc.egui_ctx.clone();
         thread::spawn(move || {
-            Back::new(None, back_tx, front_rx, Some(frame_clone)).init();
+            Back::new(None, back_tx, front_rx, frame_clone).init();
         });
 
         new_app.front_tx = Some(front_tx);
@@ -128,7 +128,7 @@ impl eframe::App for MCubedAppUI {
     }
 
     fn on_exit(&mut self, _gl: &eframe::glow::Context) {
-        self.update_backend_list()
+        self.update_backend_list();
     }
 }
 
@@ -219,7 +219,7 @@ impl MCubedAppUI {
                         let rescan_folder_button_res = ui.button("Re-scan Folder");
 
                         if rescan_folder_button_res.clicked() {
-                            self.update_backend_list()
+                            self.update_backend_list();
                         };
 
                         let refresh_button_res = ui.button("Refresh");
@@ -383,12 +383,7 @@ impl MCubedAppUI {
     fn update_backend_list(&self) {
         if let Some(tx) = &self.front_tx {
             tx.send(ToBackend::UpdateBackendList {
-                mod_list: self
-                    .mod_list
-                    .iter()
-                    .map(|card| card.entry())
-                    .cloned()
-                    .collect(),
+                mod_list: self.mod_list.iter().map(ModCard::entry).cloned().collect(),
             })
             .unwrap();
 

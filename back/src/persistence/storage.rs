@@ -5,7 +5,7 @@ use serde::{de::DeserializeOwned, Serialize};
 use crate::error::LibResult;
 
 #[derive(Debug)]
-pub(crate) struct Storage<T> {
+pub struct Storage<T> {
     pub json_filepath: PathBuf,
     pub storage: T,
 }

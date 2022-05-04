@@ -26,22 +26,22 @@ impl ModEntry {
                 let forge_meta = ForgeManifest::from_file(&mut file)?;
                 for forge_mod_entry in forge_meta.mods {
                     let icon_path = forge_mod_entry.logo_file.clone();
-                    let mod_entry = ModEntry::from_forge_manifest(
+                    let mod_entry = Self::from_forge_manifest(
                         forge_mod_entry,
                         hashes.clone(),
                         None,
                         path.clone(),
                     );
 
-                    add_to_mod_vec(&mut mod_vec, &file, mod_entry, icon_path)?;
+                    add_to_mod_vec(&mut mod_vec, &file, mod_entry, icon_path);
                 }
             }
             mc_mod_meta::ModLoader::Fabric => {
                 let fabric_manifest = FabricManifest::from_file(&mut file)?;
                 let icon_path = fabric_manifest.icon.clone();
 
-                let mod_entry = ModEntry::from_fabric_manifest(fabric_manifest, hashes, None, path);
-                add_to_mod_vec(&mut mod_vec, &file, mod_entry, icon_path)?;
+                let mod_entry = Self::from_fabric_manifest(fabric_manifest, hashes, None, path);
+                add_to_mod_vec(&mut mod_vec, &file, mod_entry, icon_path);
             }
 
             mc_mod_meta::ModLoader::Both => {
@@ -49,13 +49,12 @@ impl ModEntry {
                 let fabric_manifest = FabricManifest::from_file(&mut file)?;
                 let icon_path = fabric_manifest.icon.clone();
 
-                let mut mod_entry =
-                    ModEntry::from_fabric_manifest(fabric_manifest, hashes, None, path);
+                let mut mod_entry = Self::from_fabric_manifest(fabric_manifest, hashes, None, path);
 
                 // However, the modloader is replaced with the "Both" type
                 mod_entry.modloader = ModLoader::Both;
 
-                add_to_mod_vec(&mut mod_vec, &file, mod_entry, icon_path)?
+                add_to_mod_vec(&mut mod_vec, &file, mod_entry, icon_path);
             }
         };
 
@@ -68,7 +67,7 @@ fn add_to_mod_vec(
     file: &fs::File,
     mut mod_entry: ModEntry,
     icon_path: Option<String>,
-) -> LibResult<()> {
+) {
     if let Some(icon_path) = icon_path {
         if let Ok(icon) = load_icon(file, &icon_path) {
             mod_entry.icon = Some(icon);
@@ -76,7 +75,6 @@ fn add_to_mod_vec(
     }
 
     mod_vec.push(mod_entry);
-    Ok(())
 }
 
 fn load_icon(zip_file: &fs::File, icon_path: &str) -> LibResult<Vec<u8>> {

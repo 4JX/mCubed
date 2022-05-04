@@ -37,7 +37,7 @@ pub struct Back {
     modrinth: Modrinth,
     back_tx: Sender<ToFrontend>,
     front_rx: Receiver<ToBackend>,
-    egui_context: Option<eframe::egui::Context>,
+    egui_context: eframe::egui::Context,
 }
 
 impl Debug for Back {
@@ -60,7 +60,7 @@ impl Back {
         mod_folder_path: Option<PathBuf>,
         back_tx: Sender<ToFrontend>,
         front_rx: Receiver<ToBackend>,
-        egui_context: Option<eframe::egui::Context>,
+        egui_context: eframe::egui::Context,
     ) -> Self {
         let folder_path = mod_folder_path.unwrap_or_else(minecraft_path::default_mod_dir);
 
@@ -142,10 +142,7 @@ impl Back {
                                 self.delete_mod(&path);
                             },
                         }
-
-                        if let Some(context) = &self.egui_context {
-                            context.request_repaint();
-                        }
+                        self.egui_context.request_repaint();
                     }
                     Err(error) => {
                         // As the only reason this will error out is if the channel is closed (sender is dropped) a one time log of the error is enough
@@ -298,9 +295,7 @@ impl Back {
                 })
                 .unwrap();
 
-            if let Some(context) = &self.egui_context {
-                context.request_repaint();
-            }
+            self.egui_context.request_repaint();
 
             if let Err(error) = self
                 .modrinth

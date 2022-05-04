@@ -57,6 +57,7 @@ fn setup_logging() -> Result<(), Report> {
     Ok(())
 }
 
+#[must_use]
 pub fn load_icon_data(image_data: &[u8]) -> IconData {
     let image = image::load_from_memory(image_data).unwrap();
     let image_buffer = image.to_rgba8();

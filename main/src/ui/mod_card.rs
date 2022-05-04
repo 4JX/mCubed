@@ -46,7 +46,7 @@ impl ModCard {
         }
     }
 
-    pub fn entry(&self) -> &ModEntry {
+    pub const fn entry(&self) -> &ModEntry {
         &self.mod_entry
     }
 
@@ -101,7 +101,7 @@ impl ModCard {
             });
 
         if state_res.1.inner.clicked() {
-            self.extra_details_open = !self.extra_details_open
+            self.extra_details_open = !self.extra_details_open;
         }
     }
 
