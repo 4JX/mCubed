@@ -1,6 +1,6 @@
 [package]
 name = "m_cubed"
-version = "0.1.0"
+version = "0.2.0"
 authors = ["4JX"]
 edition = "2021"
 homepage = "https://github.com/4JX/mCubed"

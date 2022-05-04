@@ -24,8 +24,8 @@ pub struct ModCard {
 }
 
 impl ModCard {
-    pub fn new(mod_entry: ModEntry, ctx: &Context) -> Self {
-        let mod_icon = if let Some(image_raw) = mod_entry.icon.clone() {
+    pub fn new(mut mod_entry: ModEntry, ctx: &Context) -> Self {
+        let mod_icon = if let Some(image_raw) = mod_entry.icon {
             let texture_handle = ctx.load_texture(
                 mod_entry.hashes.sha1.clone(),
                 ColorImage::from_rgba_unmultiplied(
@@ -38,6 +38,9 @@ impl ModCard {
         } else {
             None
         };
+
+        // No need to keep the icon data afterwards
+        mod_entry.icon = None;
 
         Self {
             mod_entry,

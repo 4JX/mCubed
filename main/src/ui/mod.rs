@@ -6,7 +6,7 @@ use back::{
 };
 use parking_lot::Once;
 
-use std::{collections::HashMap, thread};
+use std::thread;
 
 use crossbeam_channel::{Receiver, Sender};
 
@@ -16,7 +16,6 @@ use eframe::{
         Align, CentralPanel, ComboBox, Context, Frame, InnerResponse, Label, Layout, ProgressBar,
         RichText, Rounding, ScrollArea, SidePanel, Style, TextEdit, Vec2, Widget,
     },
-    epaint::TextureHandle,
     CreationContext,
 };
 
@@ -38,7 +37,6 @@ pub struct MCubedAppUI {
     search_buf: String,
     add_mod_buf: String,
     images: ImageTextures,
-    mod_images: HashMap<String, TextureHandle>,
 
     // Data
     mod_list: Vec<ModCard>,
@@ -102,7 +100,6 @@ impl eframe::App for MCubedAppUI {
                     }
                     ToFrontend::UpdateModList { mod_list } => {
                         self.backend_context.check_for_update_progress = None;
-                        self.mod_images.clear();
                         self.mod_list = mod_list
                             .into_iter()
                             .map(|entry| ModCard::new(entry, ctx))
@@ -128,7 +125,14 @@ impl eframe::App for MCubedAppUI {
     }
 
     fn on_exit(&mut self, _gl: &eframe::glow::Context) {
-        self.update_backend_list();
+        if let Some(tx) = &self.front_tx {
+            tx.send(ToBackend::UpdateBackendList {
+                mod_list: self.mod_list.iter().map(ModCard::entry).cloned().collect(),
+            })
+            .unwrap();
+
+            tx.send(ToBackend::Shutdown).unwrap();
+        }
     }
 }
 
@@ -219,7 +223,19 @@ impl MCubedAppUI {
                         let rescan_folder_button_res = ui.button("Re-scan Folder");
 
                         if rescan_folder_button_res.clicked() {
-                            self.update_backend_list();
+                            if let Some(tx) = &self.front_tx {
+                                tx.send(ToBackend::UpdateBackendList {
+                                    mod_list: self
+                                        .mod_list
+                                        .iter()
+                                        .map(ModCard::entry)
+                                        .cloned()
+                                        .collect(),
+                                })
+                                .unwrap();
+
+                                tx.send(ToBackend::ScanFolder).unwrap();
+                            }
                         };
 
                         let refresh_button_res = ui.button("Refresh");
@@ -378,16 +394,5 @@ impl MCubedAppUI {
 
         ctx.set_fonts(text_utils::get_font_def());
         ctx.set_style(style);
-    }
-
-    fn update_backend_list(&self) {
-        if let Some(tx) = &self.front_tx {
-            tx.send(ToBackend::UpdateBackendList {
-                mod_list: self.mod_list.iter().map(ModCard::entry).cloned().collect(),
-            })
-            .unwrap();
-
-            tx.send(ToBackend::Shutdown).unwrap();
-        }
     }
 }
