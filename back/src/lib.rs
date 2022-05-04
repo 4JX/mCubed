@@ -96,7 +96,7 @@ impl Back {
 
                                 self.sort_and_send_list();
 
-                                // self.get_version_metadata().await;
+                                self.get_version_metadata().await;
                             }
 
                             ToBackend::Shutdown => {

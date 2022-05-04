@@ -18,7 +18,7 @@ hex = "0.4.3"
 bytes = "1.1.0"
 # daedalus = "0.1.14"
 daedalus = { git = "https://github.com/4JX/daedalus", rev = "c977bb0" }
-eframe = { git = "https://github.com/4JX/egui", rev = "8aa827a" }
+eframe = { git = "https://github.com/4JX/egui", rev = "f3234a1" }
 # eframe = { path = "../../egui/eframe" }
 thiserror = "1.0.30"
 directories = "4.0.1"

@@ -4,7 +4,11 @@ use back::{
 };
 use crossbeam_channel::Sender;
 use eframe::{
-    egui::{style::Margin, ComboBox, Context, Frame, ImageButton, Layout, Ui},
+    egui::{
+        collapsing_header::{self, CollapserPosition},
+        style::Margin,
+        ComboBox, Context, Frame, Id, ImageButton, Layout, Response, Sense, Ui,
+    },
     emath::Vec2,
     epaint::{ColorImage, Rounding, TextureHandle},
 };
@@ -16,6 +20,7 @@ use super::{
 pub struct ModCard {
     mod_entry: ModEntry,
     mod_icon: Option<TextureHandle>,
+    extra_details_open: bool,
 }
 
 impl ModCard {
@@ -37,6 +42,7 @@ impl ModCard {
         Self {
             mod_entry,
             mod_icon,
+            extra_details_open: false,
         }
     }
 
@@ -51,7 +57,45 @@ impl ModCard {
         images: &mut ImageTextures,
         front_tx: &Option<Sender<ToBackend>>,
     ) {
-        Frame {
+        let mut state = collapsing_header::CollapsingState::load_with_default_open(
+            ui.ctx(),
+            ui.make_persistent_id("mod_collapsing_header")
+                .with(&self.mod_entry.path),
+            false,
+        )
+        .icon(misc::collapsing_state_icon_fn)
+        .collapser_position(CollapserPosition::Invisible);
+
+        state.set_open(self.extra_details_open);
+
+        let state_res = state
+            .show_header(ui, |ui| self.render_header(ui, theme, images, front_tx))
+            .body(|ui| {
+                ui.horizontal(|ui| {
+                    ui.label(
+                        text_utils::mod_card_data_text("Mod path:")
+                            .color(theme.colors.lighter_gray),
+                    );
+
+                    ui.label(text_utils::mod_card_data_text(
+                        self.mod_entry.path.display().to_string(),
+                    ));
+                });
+            });
+
+        if state_res.1.inner.clicked() {
+            self.extra_details_open = !self.extra_details_open
+        }
+    }
+
+    pub fn render_header(
+        &mut self,
+        ui: &mut Ui,
+        theme: &AppTheme,
+        images: &mut ImageTextures,
+        front_tx: &Option<Sender<ToBackend>>,
+    ) -> Response {
+        let frame_res = Frame {
             fill: theme.colors.dark_gray,
             rounding: Rounding::same(2.0),
             ..Frame::default()
@@ -115,17 +159,7 @@ impl ModCard {
 
                     ui.centered_and_justified(|ui| {
                         ui.style_mut().wrap = Some(true);
-                        ui.label(text_utils::mod_name_job(ui, &self.mod_entry.display_name))
-                            .on_hover_ui(|ui| {
-                                ui.label(
-                                    text_utils::mod_card_data_text("Mod path:")
-                                        .color(theme.colors.lighter_gray),
-                                );
-
-                                ui.label(text_utils::mod_card_data_text(
-                                    self.mod_entry.path.display().to_string(),
-                                ));
-                            });
+                        ui.label(text_utils::mod_name_job(ui, &self.mod_entry.display_name));
                     });
                 });
 
@@ -271,5 +305,11 @@ impl ModCard {
                 });
             });
         });
+
+        ui.interact(
+            frame_res.response.rect,
+            Id::new(ui.id()).with(&self.mod_entry.path),
+            Sense::click(),
+        )
     }
 }
