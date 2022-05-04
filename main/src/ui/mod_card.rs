@@ -71,16 +71,33 @@ impl ModCard {
         let state_res = state
             .show_header(ui, |ui| self.render_header(ui, theme, images, front_tx))
             .body(|ui| {
-                ui.horizontal(|ui| {
-                    ui.label(
-                        text_utils::mod_card_data_text("Mod path:")
-                            .color(theme.colors.lighter_gray),
-                    );
+                ui.spacing_mut().item_spacing.y = theme.spacing.small;
+                mod_info_text(
+                    "Description:",
+                    self.mod_entry
+                        .description
+                        .as_ref()
+                        .unwrap_or(&"None".to_string()),
+                    ui,
+                    theme,
+                );
 
-                    ui.label(text_utils::mod_card_data_text(
-                        self.mod_entry.path.display().to_string(),
-                    ));
-                });
+                mod_info_text(
+                    "Authors:",
+                    self.mod_entry
+                        .authors
+                        .as_ref()
+                        .unwrap_or(&"None".to_string()),
+                    ui,
+                    theme,
+                );
+
+                mod_info_text(
+                    "Mod path:",
+                    self.mod_entry.path.display().to_string(),
+                    ui,
+                    theme,
+                );
             });
 
         if state_res.1.inner.clicked() {
@@ -172,7 +189,7 @@ impl ModCard {
 
                     ui.horizontal(|ui| {
                         let raw_text =
-                            text_utils::mod_card_data_text(self.mod_entry.modloader.to_string());
+                            text_utils::mod_card_data_header(self.mod_entry.modloader.to_string());
 
                         let text = match self.mod_entry.modloader {
                             ModLoader::Forge => {
@@ -201,8 +218,9 @@ impl ModCard {
                     });
 
                     ui.horizontal(|ui| {
-                        let raw_text =
-                            text_utils::mod_card_data_text(self.mod_entry.sourced_from.to_string());
+                        let raw_text = text_utils::mod_card_data_header(
+                            self.mod_entry.sourced_from.to_string(),
+                        );
 
                         let text = match self.mod_entry.sourced_from {
                             CurrentSource::None => {
@@ -245,7 +263,7 @@ impl ModCard {
                                 ui.selectable_value(
                                     &mut self.mod_entry.sourced_from,
                                     CurrentSource::Local,
-                                    text_utils::mod_card_data_text(
+                                    text_utils::mod_card_data_header(
                                         &CurrentSource::Local.to_string(),
                                     ),
                                 );
@@ -254,7 +272,7 @@ impl ModCard {
                                     ui.selectable_value(
                                         &mut self.mod_entry.sourced_from,
                                         CurrentSource::CurseForge,
-                                        text_utils::mod_card_data_text(
+                                        text_utils::mod_card_data_header(
                                             &CurrentSource::CurseForge.to_string(),
                                         ),
                                     );
@@ -264,7 +282,7 @@ impl ModCard {
                                     ui.selectable_value(
                                         &mut self.mod_entry.sourced_from,
                                         CurrentSource::Modrinth,
-                                        text_utils::mod_card_data_text(
+                                        text_utils::mod_card_data_header(
                                             &CurrentSource::Modrinth.to_string(),
                                         ),
                                     );
@@ -312,4 +330,17 @@ impl ModCard {
             Sense::click(),
         )
     }
+}
+
+fn mod_info_text(
+    header: impl Into<String>,
+    body: impl Into<String>,
+    ui: &mut Ui,
+    theme: &AppTheme,
+) {
+    ui.horizontal(|ui| {
+        ui.label(text_utils::mod_card_data_header(header).color(theme.colors.lighter_gray));
+
+        ui.label(text_utils::mod_card_data_text(body));
+    });
 }

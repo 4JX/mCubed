@@ -17,6 +17,8 @@ pub struct ModEntry {
     pub id: String,
     pub version: String,
     pub display_name: String,
+    pub description: Option<String>,
+    pub authors: Option<String>,
     pub modloader: ModLoader,
     pub hashes: Hashes,
     pub sources: Sources,
@@ -118,6 +120,8 @@ impl ModEntry {
             id: forge_mod_entry.mod_id,
             version: forge_mod_entry.version,
             display_name: forge_mod_entry.display_name,
+            description: Some(forge_mod_entry.description),
+            authors: forge_mod_entry.authors,
             modloader: ModLoader::Forge,
             hashes,
             sources: sources.unwrap_or_default(),
@@ -138,10 +142,30 @@ impl ModEntry {
         let mod_name = fabric_manifest
             .name
             .unwrap_or_else(|| fabric_manifest.id.clone());
+
+        let parsed_authors = fabric_manifest.authors.map_or_else(
+            || None,
+            |authors| {
+                Some(
+                    authors
+                        .iter()
+                        .map(|author| match author {
+                            mc_mod_meta::fabric::Author::Name(name) => name,
+                            mc_mod_meta::fabric::Author::AuthorObject(object) => &object.name,
+                        })
+                        .cloned()
+                        .collect::<Vec<String>>()
+                        .join(", "),
+                )
+            },
+        );
+
         Self {
             id: fabric_manifest.id,
             version: fabric_manifest.version,
             display_name: mod_name,
+            description: fabric_manifest.description,
+            authors: parsed_authors,
             modloader: ModLoader::Fabric,
             hashes,
             sources: sources.unwrap_or_default(),

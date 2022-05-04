@@ -95,14 +95,24 @@ pub fn default_text_styles() -> TextStyles {
     );
 
     // Custom
-    insert_style(&mut text_styles, "Mod-Card-Data", "Inter-Bold", 9.0);
+    insert_style(
+        &mut text_styles,
+        "Mod-Card-Data-Header",
+        "Inter-SemiBold",
+        10.0,
+    );
+    insert_style(&mut text_styles, "Mod-Card-Data-Text", "Inter-Medium", 10.0);
     insert_style(&mut text_styles, "Update-Button", "Inter-SemiBold", 9.0);
 
     text_styles
 }
 
+pub fn mod_card_data_header(text: impl Into<String>) -> RichText {
+    RichText::new(text).text_style(TextStyle::Name("Mod-Card-Data-Header".into()))
+}
+
 pub fn mod_card_data_text(text: impl Into<String>) -> RichText {
-    RichText::new(text).text_style(TextStyle::Name("Mod-Card-Data".into()))
+    RichText::new(text).text_style(TextStyle::Name("Mod-Card-Data-Text".into()))
 }
 
 pub fn update_button_text(text: impl Into<String>) -> RichText {

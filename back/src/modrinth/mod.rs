@@ -150,6 +150,8 @@ impl Modrinth {
                     id: project.slug,
                     version: "0.0.0".to_string(),
                     display_name: project.title,
+                    description: None,
+                    authors: None,
                     modloader,
                     hashes: Hashes::dummy(),
                     sources,
