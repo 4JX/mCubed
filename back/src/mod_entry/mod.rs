@@ -151,7 +151,7 @@ impl ModEntry {
                         .iter()
                         .map(|author| match author {
                             mc_mod_meta::fabric::Author::Name(name) => name,
-                            mc_mod_meta::fabric::Author::AuthorObject(object) => &object.name,
+                            mc_mod_meta::fabric::Author::Object(object) => &object.name,
                         })
                         .cloned()
                         .collect::<Vec<String>>()

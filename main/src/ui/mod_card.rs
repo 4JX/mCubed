@@ -74,20 +74,14 @@ impl ModCard {
                 ui.spacing_mut().item_spacing.y = theme.spacing.small;
                 mod_info_text(
                     "Description:",
-                    self.mod_entry
-                        .description
-                        .as_ref()
-                        .unwrap_or(&"None".to_string()),
+                    self.mod_entry.description.as_deref().unwrap_or("None"),
                     ui,
                     theme,
                 );
 
                 mod_info_text(
                     "Authors:",
-                    self.mod_entry
-                        .authors
-                        .as_ref()
-                        .unwrap_or(&"None".to_string()),
+                    self.mod_entry.authors.as_deref().unwrap_or("None"),
                     ui,
                     theme,
                 );

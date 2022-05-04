@@ -119,8 +119,8 @@ pub struct Entrypoints {
 #[derive(Deserialize, Clone)]
 #[serde(untagged)]
 pub enum Entrypoint {
-    JavaEntrypoint(String),
-    AdapterEntrypoint(AdapterEntrypoint),
+    Java(String),
+    Adapter(AdapterEntrypoint),
 }
 
 #[derive(Deserialize, Clone)]
@@ -138,7 +138,7 @@ pub struct JarFilePath {
 #[serde(untagged)]
 pub enum Mixin {
     Path(String),
-    MixinObject(MixinObject),
+    Object(MixinObject),
 }
 
 #[derive(Deserialize, Clone)]
@@ -172,7 +172,7 @@ pub struct ContactObject {
 #[serde(untagged)]
 pub enum Author {
     Name(String),
-    AuthorObject(AuthorObject),
+    Object(AuthorObject),
 }
 
 #[derive(Deserialize, Clone)]
