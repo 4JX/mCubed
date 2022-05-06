@@ -17,6 +17,7 @@ pub fn combobox_icon_fn(ui: &Ui, rect: Rect, visuals: &WidgetVisuals, _is_open: 
     ));
 }
 
+#[allow(dead_code)]
 pub fn collapsing_state_icon_fn(ui: &mut Ui, openness: f32, response: &Response) {
     let visuals = ui.style().interact(response);
     let stroke = visuals.fg_stroke;

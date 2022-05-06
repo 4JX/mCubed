@@ -5,9 +5,8 @@ use back::{
 use crossbeam_channel::Sender;
 use eframe::{
     egui::{
-        collapsing_header::{self, CollapserPosition},
-        style::Margin,
-        ComboBox, Context, Frame, Id, ImageButton, Layout, Response, Sense, Ui,
+        collapsing_header, style::Margin, ComboBox, Context, Frame, ImageButton, Layout, Response,
+        Sense, Ui,
     },
     emath::Vec2,
     epaint::{ColorImage, Rounding, TextureHandle},
@@ -20,7 +19,6 @@ use super::{
 pub struct ModCard {
     mod_entry: ModEntry,
     mod_icon: Option<TextureHandle>,
-    extra_details_open: bool,
 }
 
 impl ModCard {
@@ -45,7 +43,6 @@ impl ModCard {
         Self {
             mod_entry,
             mod_icon,
-            extra_details_open: false,
         }
     }
 
@@ -65,41 +62,40 @@ impl ModCard {
             ui.make_persistent_id("mod_collapsing_header")
                 .with(&self.mod_entry.path),
             false,
-        )
-        .icon(misc::collapsing_state_icon_fn)
-        .collapser_position(CollapserPosition::Invisible);
+        );
 
-        state.set_open(self.extra_details_open);
+        let header_res = self.render_header(ui, theme, images, front_tx);
 
-        let state_res = state
-            .show_header(ui, |ui| self.render_header(ui, theme, images, front_tx))
-            .body(|ui| {
-                ui.spacing_mut().item_spacing.y = theme.spacing.small;
-                mod_info_text(
-                    "Description:",
-                    self.mod_entry.description.as_deref().unwrap_or("None"),
-                    ui,
-                    theme,
-                );
-
-                mod_info_text(
-                    "Authors:",
-                    self.mod_entry.authors.as_deref().unwrap_or("None"),
-                    ui,
-                    theme,
-                );
-
-                mod_info_text(
-                    "Mod path:",
-                    self.mod_entry.path.display().to_string(),
-                    ui,
-                    theme,
-                );
-            });
-
-        if state_res.1.inner.clicked() {
-            self.extra_details_open = !self.extra_details_open;
+        if header_res.clicked() {
+            state.toggle(ui);
         }
+
+        state.show_body_indented(&header_res, ui, |ui| {
+            ui.spacing_mut().item_spacing.y = theme.spacing.small;
+
+            mod_info_text("Version:", &self.mod_entry.version, ui, theme);
+
+            mod_info_text(
+                "Description:",
+                self.mod_entry.description.as_deref().unwrap_or("None"),
+                ui,
+                theme,
+            );
+
+            mod_info_text(
+                "Authors:",
+                self.mod_entry.authors.as_deref().unwrap_or("None"),
+                ui,
+                theme,
+            );
+
+            mod_info_text(
+                "Mod path:",
+                self.mod_entry.path.display().to_string(),
+                ui,
+                theme,
+            );
+        });
     }
 
     pub fn render_header(
@@ -323,7 +319,7 @@ impl ModCard {
 
         ui.interact(
             frame_res.response.rect,
-            Id::new(ui.id()).with(&self.mod_entry.path),
+            ui.make_persistent_id(&self.mod_entry.path),
             Sense::click(),
         )
     }

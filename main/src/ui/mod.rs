@@ -350,7 +350,8 @@ impl MCubedAppUI {
                                 });
                             } else {
                                 ScrollArea::vertical().show(ui, |ui| {
-                                    ui.style_mut().spacing.item_spacing.y = 10.0;
+                                    ui.style_mut().spacing.item_spacing.y =
+                                        self.theme.spacing.large;
                                     for mod_card in &mut self.mod_list {
                                         // Skip the entries that are not within the filtered list
                                         if !mod_card
