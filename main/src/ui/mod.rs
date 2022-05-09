@@ -319,7 +319,7 @@ impl MCubedAppUI {
 
                         ProgressBar::new(count / total)
                             .text(format!(
-                                "({}/{}) Fetching info for mod \"{}\"",
+                                "({}/{}) Fetching info for file \"{}\"",
                                 count, total, progress.name,
                             ))
                             .ui(ui);

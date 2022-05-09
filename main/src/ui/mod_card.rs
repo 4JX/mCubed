@@ -332,7 +332,7 @@ impl ModCard {
                     {
                         if let Some(tx) = &front_tx {
                             tx.send(ToBackend::UpdateMod {
-                                mod_entry: Box::new(mod_file.clone()),
+                                mod_file: Box::new(mod_file.clone()),
                             })
                             .unwrap();
                         }

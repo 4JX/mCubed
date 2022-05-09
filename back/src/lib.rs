@@ -9,8 +9,8 @@ use std::{
 use bytes::Bytes;
 use crossbeam_channel::{Receiver, Sender};
 use messages::{CheckProgress, ToBackend, ToFrontend};
+use mod_entry::ModLoader;
 use mod_entry::{Hashes, ModFile};
-use mod_entry::{ ModLoader};
 use modrinth::Modrinth;
 
 mod error;
@@ -132,8 +132,8 @@ impl Back {
                             } => {
                                 self.add_mod(modrinth_id, game_version, modloader).await;
                             }
-                            ToBackend::UpdateMod { mod_entry } => {
-                                self.update_mod(*mod_entry).await;
+                            ToBackend::UpdateMod { mod_file } => {
+                                self.update_mod(*mod_file).await;
                             }
 
                             ToBackend::DeleteMod { path } => {
@@ -173,11 +173,11 @@ impl Back {
         let current_cache = self.cache.get_cache();
 
         // Append the mods that did not exist before
-        mod_list_clone.retain(|mod_entry| {
+        mod_list_clone.retain(|mod_file| {
             // Check for unique entries by hash
             !current_cache
                 .iter()
-                .any(|cache_entry| cache_entry.hashes.sha1 == mod_entry.hashes.sha1)
+                .any(|cache_entry| cache_entry.hashes.sha1 == mod_file.hashes.sha1)
         });
 
         self.cache.get_cache_mut().append(&mut mod_list_clone);
@@ -209,7 +209,7 @@ impl Back {
     #[instrument(skip(self))]
     fn scan_folder(&mut self) {
         info!(folder_path = %self.folder_path.display(), "Scanning the mods folder");
-       
+
         self.mod_list.clear();
 
         let read_dir = fs::read_dir(&self.folder_path).unwrap();
@@ -246,12 +246,12 @@ impl Back {
     #[instrument(skip(self))]
     async fn check_for_updates(&mut self, game_version: String) {
         let total_len = self.mod_list.len();
-        for (position, mod_entry) in self.mod_list.iter_mut().enumerate() {
+        for (position, mod_file) in self.mod_list.iter_mut().enumerate() {
             // Update the frontend on whats happening
             self.back_tx
                 .send(ToFrontend::CheckForUpdatesProgress {
                     progress: CheckProgress {
-                        name: mod_entry.hashes.sha1.clone(),
+                        name: mod_file.path.display().to_string(),
                         position,
                         total_len,
                     },
@@ -262,7 +262,7 @@ impl Back {
 
             if let Err(error) = self
                 .modrinth
-                .check_for_updates(mod_entry, &game_version)
+                .check_for_updates(mod_file, &game_version)
                 .await
             {
                 error!("Failed to check for updates");
@@ -276,15 +276,15 @@ impl Back {
         }
     }
 
-    #[instrument(skip(self, mod_entry))]
-    async fn update_mod(&mut self, mod_entry: ModFile) {
+    #[instrument(skip(self, mod_file))]
+    async fn update_mod(&mut self, mod_file: ModFile) {
         info!(
-            path = ?mod_entry.path,
-            sha1 = %mod_entry.hashes.sha1,
+            path = ?mod_file.path,
+            sha1 = %mod_file.hashes.sha1,
             "Updating mod"
         );
 
-        if let Ok(bytes) = self.modrinth.update_mod(&mod_entry).await {
+        if let Ok(bytes) = self.modrinth.update_mod(&mod_file).await {
             debug!("Update downloaded");
             let read_dir = fs::read_dir(&self.folder_path).unwrap();
 
@@ -296,11 +296,11 @@ impl Back {
 
                     let hashes = Hashes::get_hashes_from_file(&mut file).unwrap();
 
-                    // We found the file the mod_entry belongs to
-                    if mod_entry.hashes.sha1 == hashes.sha1 {
+                    // We found the file the mod_file belongs to
+                    if mod_file.hashes.sha1 == hashes.sha1 {
                         std::fs::remove_file(path).unwrap();
 
-                        self.create_mod_file(&mod_entry, &bytes);
+                        self.create_mod_file(&mod_file, &bytes);
                         break 'file_loop;
                     }
                 }
@@ -315,8 +315,8 @@ impl Back {
             .create_mod_file(modrinth_id.clone(), game_version, modloader)
             .await
         {
-            Ok((mod_entry, bytes)) => {
-                self.create_mod_file(&mod_entry, &bytes);
+            Ok((mod_file, bytes)) => {
+                self.create_mod_file(&mod_file, &bytes);
             }
             Err(error) => {
                 error!(%modrinth_id, "Could not add mod");
@@ -333,12 +333,12 @@ impl Back {
         };
     }
 
-    #[instrument(skip(self, mod_entry, bytes))]
-    fn create_mod_file(&mut self, mod_entry: &ModFile, bytes: &Bytes) {
+    #[instrument(skip(self, mod_file, bytes))]
+    fn create_mod_file(&mut self, mod_file: &ModFile, bytes: &Bytes) {
         info!("Creating a new mod file");
         // The data is guaranteed to exist, unwrapping here is fine
         let path = self.folder_path.join(
-            &mod_entry
+            &mod_file
                 .sources
                 .modrinth
                 .as_ref()
@@ -356,8 +356,8 @@ impl Back {
         let mut new_file = ModFile::from_path(path).unwrap();
 
         // Ensure the data for the entry is kept
-        new_file.sources.modrinth = mod_entry.sources.modrinth.clone();
-        new_file.sourced_from = mod_entry.sourced_from;
+        new_file.sources.modrinth = mod_file.sources.modrinth.clone();
+        new_file.sourced_from = mod_file.sourced_from;
 
         self.scan_folder();
 
@@ -383,7 +383,7 @@ impl Back {
                 })
                 .unwrap();
         } else {
-            self.mod_list.retain(|mod_entry| mod_entry.path != path);
+            self.mod_list.retain(|mod_file| mod_file.path != path);
 
             debug!("File deleted successfully");
 

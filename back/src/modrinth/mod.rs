@@ -104,9 +104,9 @@ impl Modrinth {
         Ok(())
     }
 
-    #[instrument(skip(self, mod_entry))]
-    pub(crate) async fn update_mod(&self, mod_entry: &ModFile) -> LibResult<Bytes> {
-        if let Some(data) = &mod_entry.sources.modrinth {
+    #[instrument(skip(self, mod_file))]
+    pub(crate) async fn update_mod(&self, mod_file: &ModFile) -> LibResult<Bytes> {
+        if let Some(data) = &mod_file.sources.modrinth {
             if let Some(version_file) = &data.latest_valid_version {
                 Ok(self.ferinth.download_version_file(version_file).await?)
             } else {
@@ -139,7 +139,7 @@ impl Modrinth {
                 let loaders = vec![modloader];
 
                 // Create an entry from whatever data is available
-                let mut mod_entry = ModFile {
+                let mut mod_file = ModFile {
                     state: FileState::Current,
                     sourced_from: CurrentSource::Modrinth,
                     entries: Vec::new(),
@@ -149,11 +149,10 @@ impl Modrinth {
                     sources,
                 };
 
-                self.check_for_updates(&mut mod_entry, &game_version)
-                    .await?;
+                self.check_for_updates(&mut mod_file, &game_version).await?;
 
-                let bytes = self.update_mod(&mod_entry).await?;
-                Ok((mod_entry, bytes))
+                let bytes = self.update_mod(&mod_file).await?;
+                Ok((mod_file, bytes))
             }
             Err(_err) => Err(error::Error::NotValidModrinthId),
         }
