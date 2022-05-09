@@ -14,9 +14,7 @@ use eframe::{
     epaint::{ColorImage, Rounding, TextureHandle},
 };
 
-use super::{
-    app_theme::AppTheme, image_utils::ImageTextures, misc, text_utils, ICON_RESIZE_QUALITY,
-};
+use super::{misc, text_utils, ICON_RESIZE_QUALITY, IMAGES, THEME};
 
 pub struct FileCard {
     mod_file: ModFile,
@@ -58,8 +56,6 @@ impl FileCard {
         &mut self,
         current_search: &str,
         ui: &mut Ui,
-        theme: &AppTheme,
-        images: &mut ImageTextures,
         front_tx: &Option<Sender<ToBackend>>,
     ) {
         let mod_file = &mut self.mod_file;
@@ -76,7 +72,7 @@ impl FileCard {
             let key = format!("{}{}", mod_file.hashes.sha1, entry.id);
             let mod_icon = self.mod_icons.get(&key);
 
-            ModCard::show(&entry, mod_file, ui, theme, images, front_tx, mod_icon);
+            ModCard::show(&entry, mod_file, ui, front_tx, mod_icon);
         }
     }
 }
@@ -88,8 +84,6 @@ impl ModCard {
         mod_entry: &ModEntry,
         mod_file: &mut ModFile,
         ui: &mut Ui,
-        theme: &AppTheme,
-        images: &mut ImageTextures,
         front_tx: &Option<Sender<ToBackend>>,
         mod_icon: Option<&TextureHandle>,
     ) {
@@ -100,33 +94,30 @@ impl ModCard {
             false,
         );
 
-        let header_res =
-            Self::render_header(mod_entry, mod_file, ui, theme, images, front_tx, mod_icon);
+        let header_res = Self::render_header(mod_entry, mod_file, ui, front_tx, mod_icon);
 
         if header_res.clicked() {
             state.toggle(ui);
         }
 
         state.show_body_indented(&header_res, ui, |ui| {
-            ui.spacing_mut().item_spacing.y = theme.spacing.small;
+            ui.spacing_mut().item_spacing.y = THEME.spacing.small;
 
-            mod_info_text("Version:", &mod_entry.version, ui, theme);
+            mod_info_text("Version:", &mod_entry.version, ui);
 
             mod_info_text(
                 "Description:",
                 mod_entry.description.as_deref().unwrap_or("None"),
                 ui,
-                theme,
             );
 
             mod_info_text(
                 "Authors:",
                 mod_entry.authors.as_deref().unwrap_or("None"),
                 ui,
-                theme,
             );
 
-            mod_info_text("Mod path:", mod_file.path.display().to_string(), ui, theme);
+            mod_info_text("Mod path:", mod_file.path.display().to_string(), ui);
         });
     }
 
@@ -134,13 +125,13 @@ impl ModCard {
         mod_entry: &ModEntry,
         mod_file: &mut ModFile,
         ui: &mut Ui,
-        theme: &AppTheme,
-        images: &mut ImageTextures,
         front_tx: &Option<Sender<ToBackend>>,
         mod_icon: Option<&TextureHandle>,
     ) -> Response {
+        let images = IMAGES.lock();
+
         let frame_res = Frame {
-            fill: theme.colors.dark_gray,
+            fill: THEME.colors.dark_gray,
             rounding: Rounding::same(2.0),
             ..Frame::default()
         }
@@ -152,37 +143,37 @@ impl ModCard {
 
                 Frame {
                     inner_margin: Margin::symmetric(6.0, 0.0),
-                    fill: theme.colors.mod_card.mod_status_icon_background,
+                    fill: THEME.colors.mod_card.mod_status_icon_background,
                     ..Frame::default()
                 }
                 .show(ui, |ui| {
                     let image_size = Vec2::splat(12.0);
                     match mod_file.state {
                         FileState::Current => {
-                            ui.image(images.mod_status_ok.as_mut().unwrap().id(), image_size)
+                            ui.image(images.mod_status_ok.as_ref().unwrap().id(), image_size)
                         }
                         FileState::Outdated => ui.image(
-                            images.mod_status_outdated.as_mut().unwrap().id(),
+                            images.mod_status_outdated.as_ref().unwrap().id(),
                             image_size,
                         ),
                         FileState::Invalid => {
-                            ui.image(images.mod_status_invalid.as_mut().unwrap().id(), image_size)
+                            ui.image(images.mod_status_invalid.as_ref().unwrap().id(), image_size)
                         }
                         FileState::Local => ui.image(
                             // There's not much that can be done here, assume its all good
-                            images.mod_status_ok.as_mut().unwrap().id(),
+                            images.mod_status_ok.as_ref().unwrap().id(),
                             image_size,
                         ),
                     };
                 });
 
-                ui.add_space(theme.spacing.medium);
+                ui.add_space(THEME.spacing.medium);
 
                 let icon_size = 26.0;
 
                 Frame {
                     rounding: Rounding::same(5.0),
-                    fill: theme.colors.mod_card.mod_status_icon_background,
+                    fill: THEME.colors.mod_card.mod_status_icon_background,
                     ..Frame::default()
                 }
                 .show(ui, |ui| {
@@ -207,7 +198,7 @@ impl ModCard {
                     });
                 });
 
-                ui.add_space(theme.spacing.large);
+                ui.add_space(THEME.spacing.large);
 
                 ui.vertical(|ui| {
                     ui.set_width(60.);
@@ -220,26 +211,26 @@ impl ModCard {
 
                         let text = match mod_entry.modloader {
                             ModLoader::Forge => {
-                                ui.image(images.forge.as_mut().unwrap(), Vec2::splat(image_size));
+                                ui.image(images.forge.as_ref().unwrap(), Vec2::splat(image_size));
 
-                                raw_text.color(theme.mod_card_modloader().forge)
+                                raw_text.color(THEME.mod_card_modloader().forge)
                             }
                             ModLoader::Fabric => {
-                                ui.image(images.fabric.as_mut().unwrap(), Vec2::splat(image_size));
+                                ui.image(images.fabric.as_ref().unwrap(), Vec2::splat(image_size));
 
-                                raw_text.color(theme.mod_card_modloader().fabric)
+                                raw_text.color(THEME.mod_card_modloader().fabric)
                             }
                             ModLoader::Both => {
                                 ui.image(
-                                    images.forge_and_fabric.as_mut().unwrap(),
+                                    images.forge_and_fabric.as_ref().unwrap(),
                                     Vec2::splat(image_size),
                                 );
 
-                                raw_text.color(theme.mod_card_modloader().forge_and_fabric)
+                                raw_text.color(THEME.mod_card_modloader().forge_and_fabric)
                             }
                         };
 
-                        ui.add_space(theme.spacing.medium);
+                        ui.add_space(THEME.spacing.medium);
 
                         ui.label(text);
                     });
@@ -250,34 +241,34 @@ impl ModCard {
 
                         let text = match mod_file.sourced_from {
                             CurrentSource::None => {
-                                ui.image(images.none.as_mut().unwrap(), Vec2::splat(image_size));
+                                ui.image(images.none.as_ref().unwrap(), Vec2::splat(image_size));
 
-                                raw_text.color(theme.mod_card_source().none)
+                                raw_text.color(THEME.mod_card_source().none)
                             }
                             CurrentSource::Local => {
-                                ui.image(images.local.as_mut().unwrap(), Vec2::splat(image_size));
+                                ui.image(images.local.as_ref().unwrap(), Vec2::splat(image_size));
 
-                                raw_text.color(theme.mod_card_source().local)
+                                raw_text.color(THEME.mod_card_source().local)
                             }
                             CurrentSource::Modrinth => {
                                 ui.image(
-                                    images.modrinth.as_mut().unwrap(),
+                                    images.modrinth.as_ref().unwrap(),
                                     Vec2::splat(image_size),
                                 );
 
-                                raw_text.color(theme.mod_card_source().modrinth)
+                                raw_text.color(THEME.mod_card_source().modrinth)
                             }
                             CurrentSource::CurseForge => {
                                 ui.image(
-                                    images.curseforge.as_mut().unwrap(),
+                                    images.curseforge.as_ref().unwrap(),
                                     Vec2::splat(image_size),
                                 );
 
-                                raw_text.color(theme.mod_card_source().curseforge)
+                                raw_text.color(THEME.mod_card_source().curseforge)
                             }
                         };
 
-                        ui.add_space(theme.spacing.small);
+                        ui.add_space(THEME.spacing.small);
 
                         ui.spacing_mut().button_padding = Vec2::new(3.0, 0.0);
 
@@ -318,10 +309,10 @@ impl ModCard {
                 });
 
                 ui.with_layout(Layout::right_to_left(), |ui| {
-                    ui.add_space(theme.spacing.large);
+                    ui.add_space(THEME.spacing.large);
 
                     let button =
-                        ImageButton::new(images.bin.as_mut().unwrap().id(), Vec2::splat(12.));
+                        ImageButton::new(images.bin.as_ref().unwrap().id(), Vec2::splat(12.));
 
                     if ui.add(button).clicked() {
                         if let Some(tx) = &front_tx {
@@ -332,7 +323,7 @@ impl ModCard {
                         }
                     };
 
-                    ui.add_space(theme.spacing.medium);
+                    ui.add_space(THEME.spacing.medium);
 
                     if mod_file.state == FileState::Outdated
                         && ui
@@ -358,14 +349,9 @@ impl ModCard {
     }
 }
 
-fn mod_info_text(
-    header: impl Into<String>,
-    body: impl Into<String>,
-    ui: &mut Ui,
-    theme: &AppTheme,
-) {
+fn mod_info_text(header: impl Into<String>, body: impl Into<String>, ui: &mut Ui) {
     ui.horizontal(|ui| {
-        ui.label(text_utils::mod_card_data_header(header).color(theme.colors.lighter_gray));
+        ui.label(text_utils::mod_card_data_header(header).color(THEME.colors.lighter_gray));
 
         ui.label(text_utils::mod_card_data_text(body));
     });
