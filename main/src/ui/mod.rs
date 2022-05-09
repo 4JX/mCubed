@@ -19,7 +19,7 @@ use eframe::{
     CreationContext,
 };
 
-use self::{app_theme::AppTheme, image_utils::ImageTextures, mod_card::ModCard};
+use self::{app_theme::AppTheme, image_utils::ImageTextures, mod_card::FileCard};
 
 mod app_theme;
 mod image_utils;
@@ -39,7 +39,7 @@ pub struct MCubedAppUI {
     images: ImageTextures,
 
     // Data
-    mod_list: Vec<ModCard>,
+    mod_list: Vec<FileCard>,
     game_version_list: Vec<GameVersion>,
     selected_version: Option<GameVersion>,
     selected_modloader: ModLoader,
@@ -102,7 +102,7 @@ impl eframe::App for MCubedAppUI {
                         self.backend_context.check_for_update_progress = None;
                         self.mod_list = mod_list
                             .into_iter()
-                            .map(|entry| ModCard::new(entry, ctx))
+                            .map(|file| FileCard::new(file, ctx))
                             .collect();
                         ctx.request_repaint();
                     }
@@ -127,7 +127,12 @@ impl eframe::App for MCubedAppUI {
     fn on_exit(&mut self, _gl: &eframe::glow::Context) {
         if let Some(tx) = &self.front_tx {
             tx.send(ToBackend::UpdateBackendList {
-                mod_list: self.mod_list.iter().map(ModCard::entry).cloned().collect(),
+                mod_list: self
+                    .mod_list
+                    .iter()
+                    .map(FileCard::mod_file)
+                    .cloned()
+                    .collect(),
             })
             .unwrap();
 
@@ -228,7 +233,7 @@ impl MCubedAppUI {
                                     mod_list: self
                                         .mod_list
                                         .iter()
-                                        .map(ModCard::entry)
+                                        .map(FileCard::mod_file)
                                         .cloned()
                                         .collect(),
                                 })
@@ -337,11 +342,12 @@ impl MCubedAppUI {
                             });
                         } else {
                             let search_results_exist = self.mod_list.iter().any(|mod_card| {
-                                mod_card
-                                    .entry()
-                                    .display_name
-                                    .to_lowercase()
-                                    .contains(self.search_buf.to_lowercase().as_str())
+                                mod_card.mod_file().entries.iter().any(|entry| {
+                                    entry
+                                        .display_name
+                                        .to_lowercase()
+                                        .contains(self.search_buf.to_lowercase().as_str())
+                                })
                             });
 
                             if !search_results_exist && !self.search_buf.is_empty() {
@@ -352,18 +358,9 @@ impl MCubedAppUI {
                                 ScrollArea::vertical().show(ui, |ui| {
                                     ui.style_mut().spacing.item_spacing.y =
                                         self.theme.spacing.large;
-                                    for mod_card in &mut self.mod_list {
-                                        // Skip the entries that are not within the filtered list
-                                        if !mod_card
-                                            .entry()
-                                            .display_name
-                                            .to_lowercase()
-                                            .contains(self.search_buf.to_lowercase().as_str())
-                                        {
-                                            continue;
-                                        }
-
-                                        mod_card.show(
+                                    for file_card in &mut self.mod_list {
+                                        file_card.show(
+                                            &self.search_buf,
                                             ui,
                                             &self.theme,
                                             &mut self.images,

@@ -9,8 +9,8 @@ use std::{
 use bytes::Bytes;
 use crossbeam_channel::{Receiver, Sender};
 use messages::{CheckProgress, ToBackend, ToFrontend};
-use mod_entry::Hashes;
-use mod_entry::{ModEntry, ModLoader};
+use mod_entry::{Hashes, ModFile};
+use mod_entry::{ ModLoader};
 use modrinth::Modrinth;
 
 mod error;
@@ -31,7 +31,7 @@ use crate::messages::BackendError;
 static LOG_CHANNEL_CLOSED: Once = Once::new();
 
 pub struct Back {
-    mod_list: Vec<ModEntry>,
+    mod_list: Vec<ModFile>,
     cache: CacheStorage,
     folder_path: PathBuf,
     modrinth: Modrinth,
@@ -91,10 +91,8 @@ impl Back {
                                 self.load_list_cache();
 
                                 self.scan_folder();
-
-                                self.transfer_list_data_to_current(&self.cache.get_cache().clone());
-
-                                self.sort_and_send_list();
+                                
+                                self.send_list();
 
                                 self.get_version_metadata().await;
                             }
@@ -107,7 +105,7 @@ impl Back {
                             ToBackend::ScanFolder => {
                                 self.scan_folder();
 
-                                self.sort_and_send_list();
+                                self.send_list();
                             }
 
                             ToBackend::UpdateBackendList { mod_list } => {
@@ -120,7 +118,7 @@ impl Back {
 
                                 self.check_for_updates(game_version).await;
 
-                                self.sort_and_send_list();
+                                self.send_list();
                             }
 
                             ToBackend::GetVersionMetadata => {
@@ -172,9 +170,6 @@ impl Back {
     fn save_list_cache(&mut self) {
         let mut mod_list_clone = self.mod_list.clone();
 
-        // Transfer the data for existing entries
-        Self::transfer_list_data(&mod_list_clone, self.cache.get_cache_mut(), false);
-
         let current_cache = self.cache.get_cache();
 
         // Append the mods that did not exist before
@@ -201,10 +196,8 @@ impl Back {
     }
 
     #[instrument(skip(self))]
-    fn sort_and_send_list(&mut self) {
+    fn send_list(&mut self) {
         info!(length = self.mod_list.len(), "Sending the mods list");
-        self.mod_list
-            .sort_by(|entry_1, entry_2| entry_1.display_name.cmp(&entry_2.display_name));
 
         self.back_tx
             .send(ToFrontend::UpdateModList {
@@ -216,9 +209,7 @@ impl Back {
     #[instrument(skip(self))]
     fn scan_folder(&mut self) {
         info!(folder_path = %self.folder_path.display(), "Scanning the mods folder");
-
-        let old_list = self.mod_list.clone();
-
+       
         self.mod_list.clear();
 
         let read_dir = fs::read_dir(&self.folder_path).unwrap();
@@ -229,8 +220,8 @@ impl Back {
             if self.is_relevant_file(&path) {
                 debug!(?path, "Parsing file");
 
-                match ModEntry::from_path(path.clone()) {
-                    Ok(mut entry) => self.mod_list.append(&mut entry),
+                match ModFile::from_path(path.clone()) {
+                    Ok(entry) => self.mod_list.push(entry),
                     Err(error) => {
                         // In the case of an error the mod list will be cleared
                         self.mod_list.clear();
@@ -250,34 +241,6 @@ impl Back {
                 }
             }
         }
-
-        self.transfer_list_data_to_current(&old_list);
-    }
-
-    #[instrument(skip(self, from_list), fields(length_from = from_list.len(), length_to = self.mod_list.len()))]
-    fn transfer_list_data_to_current(&mut self, from_list: &[ModEntry]) {
-        Self::transfer_list_data(from_list, &mut self.mod_list, true);
-    }
-
-    #[instrument(skip(from_list, to_list), fields(length_from = from_list.len(), length_to = to_list.len()))]
-    fn transfer_list_data(from_list: &[ModEntry], to_list: &mut Vec<ModEntry>, keep_state: bool) {
-        // Ensures the important bits are kept
-        for mod_entry in to_list {
-            let filtered_old: Vec<&ModEntry> = from_list
-                .iter()
-                .filter(|filter_entry| filter_entry.id == mod_entry.id)
-                .collect();
-
-            if !filtered_old.is_empty() {
-                mod_entry.sourced_from = filtered_old[0].sourced_from;
-                mod_entry.sources.modrinth = filtered_old[0].sources.modrinth.clone();
-
-                // If the file has not changed, the state can also be kept
-                if keep_state && mod_entry.hashes.sha1 == filtered_old[0].hashes.sha1 {
-                    mod_entry.state = filtered_old[0].state;
-                }
-            }
-        }
     }
 
     #[instrument(skip(self))]
@@ -288,7 +251,7 @@ impl Back {
             self.back_tx
                 .send(ToFrontend::CheckForUpdatesProgress {
                     progress: CheckProgress {
-                        name: mod_entry.display_name.clone(),
+                        name: mod_entry.hashes.sha1.clone(),
                         position,
                         total_len,
                     },
@@ -314,9 +277,8 @@ impl Back {
     }
 
     #[instrument(skip(self, mod_entry))]
-    async fn update_mod(&mut self, mod_entry: ModEntry) {
+    async fn update_mod(&mut self, mod_entry: ModFile) {
         info!(
-            entry_name = %mod_entry.display_name,
             path = ?mod_entry.path,
             sha1 = %mod_entry.hashes.sha1,
             "Updating mod"
@@ -350,7 +312,7 @@ impl Back {
     async fn add_mod(&mut self, modrinth_id: String, game_version: String, modloader: ModLoader) {
         match self
             .modrinth
-            .create_mod_entry(modrinth_id.clone(), game_version, modloader)
+            .create_mod_file(modrinth_id.clone(), game_version, modloader)
             .await
         {
             Ok((mod_entry, bytes)) => {
@@ -372,11 +334,8 @@ impl Back {
     }
 
     #[instrument(skip(self, mod_entry, bytes))]
-    fn create_mod_file(&mut self, mod_entry: &ModEntry, bytes: &Bytes) {
-        info!(
-            entry_name = %mod_entry.display_name,
-            "Creating a new mod file"
-        );
+    fn create_mod_file(&mut self, mod_entry: &ModFile, bytes: &Bytes) {
+        info!("Creating a new mod file");
         // The data is guaranteed to exist, unwrapping here is fine
         let path = self.folder_path.join(
             &mod_entry
@@ -394,26 +353,15 @@ impl Back {
 
         new_mod_file.write_all(bytes).unwrap();
 
-        let mut new_entries = ModEntry::from_path(path).unwrap();
+        let mut new_file = ModFile::from_path(path).unwrap();
 
-        for new_mod_entry in &mut new_entries {
-            // Ensure the data for the entry is kept
-            new_mod_entry.sources.modrinth = mod_entry.sources.modrinth.clone();
-            new_mod_entry.sourced_from = mod_entry.sourced_from;
-
-            for list_entry in &mut self.mod_list {
-                // The hash has to be compared to the old entry, the slug/id can be compared to the new one
-                if list_entry.hashes.sha1 == mod_entry.hashes.sha1
-                    && list_entry.id == new_mod_entry.id.clone()
-                {
-                    *list_entry = new_mod_entry.clone();
-                }
-            }
-        }
+        // Ensure the data for the entry is kept
+        new_file.sources.modrinth = mod_entry.sources.modrinth.clone();
+        new_file.sourced_from = mod_entry.sourced_from;
 
         self.scan_folder();
 
-        self.sort_and_send_list();
+        self.send_list();
     }
 
     #[instrument(skip(self))]
@@ -439,7 +387,7 @@ impl Back {
 
             debug!("File deleted successfully");
 
-            self.sort_and_send_list();
+            self.send_list();
         };
     }
 

@@ -55,6 +55,8 @@ pub enum Error {
     FerinthNotSHA1Error,
     #[error("Could not parse url")]
     FerinthURLParseError,
+    #[error("Could not parse url")]
+    FerinthRatelimitExceeded(usize),
 
     // Daedalus errors
     #[error("Failed to validate file checksum at url {url} with hash {hash} after {tries} tries")]
@@ -105,6 +107,7 @@ impl From<ferinth::Error> for Error {
                 item: "Unknown (Ferinth)".to_string(),
             },
             ferinth::Error::URLParseError(_) => Self::FerinthURLParseError,
+            ferinth::Error::RateLimitExceeded(seconds) => Self::FerinthRatelimitExceeded(seconds),
         }
     }
 }

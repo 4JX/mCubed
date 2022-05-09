@@ -30,7 +30,7 @@ impl Hashes {
         get_hashes_from_vec(bytes)
     }
 
-    #[instrument]
+    #[instrument(level = "trace")]
     pub(crate) fn dummy() -> Self {
         Self {
             sha1: hex::encode(sha1::Sha1::digest([0])),
