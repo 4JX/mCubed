@@ -4,12 +4,14 @@ use std::{
     io::Write,
     path::{Path, PathBuf},
     process,
+    sync::Arc,
 };
 
 use bytes::Bytes;
 use crossbeam_channel::{Receiver, Sender};
-use messages::{CheckProgress, ToBackend, ToFrontend};
-use mod_file::{ModLoader, ModFileData, FileState};
+use futures::future;
+use messages::{ToBackend, ToFrontend};
+use mod_file::{FileState, ModFileData, ModLoader};
 use mod_file::{Hashes, ModFile};
 use modrinth::Modrinth;
 
@@ -22,7 +24,7 @@ mod persistence;
 pub mod settings;
 
 pub use daedalus::minecraft::Version as GameVersion;
-use parking_lot::Once;
+use parking_lot::{Mutex, Once};
 use persistence::cache::CacheStorage;
 use tracing::{debug, error, info, instrument};
 
@@ -30,11 +32,14 @@ use crate::messages::BackendError;
 
 static LOG_CHANNEL_CLOSED: Once = Once::new();
 
+lazy_static::lazy_static!(
+    static ref MODRINTH: Modrinth = Modrinth::default();
+);
+
 pub struct Back {
     mod_list: Vec<ModFile>,
     cache: CacheStorage,
     folder_path: PathBuf,
-    modrinth: Modrinth,
     back_tx: Sender<ToFrontend>,
     front_rx: Receiver<ToBackend>,
     egui_context: eframe::egui::Context,
@@ -46,7 +51,6 @@ impl Debug for Back {
             .field("mod_list", &self.mod_list)
             .field("cache", &self.cache)
             .field("folder_path", &self.folder_path)
-            .field("modrinth", &self.modrinth)
             .field("back_tx", &self.back_tx)
             .field("front_rx", &self.front_rx)
             // .field("egui_context", &self.egui_context)
@@ -68,7 +72,6 @@ impl Back {
             mod_list: Vec::default(),
             cache: CacheStorage::new(&folder_path),
             folder_path,
-            modrinth: Modrinth::default(),
             back_tx,
             front_rx,
             egui_context,
@@ -253,35 +256,37 @@ impl Back {
 
     #[instrument(skip(self))]
     async fn check_for_updates(&mut self, game_version: String) {
-        let total_len = self.mod_list.len();
-        for (position, mod_file) in self.mod_list.iter_mut().enumerate() {
-            // Update the frontend on whats happening
-            self.back_tx
-                .send(ToFrontend::CheckForUpdatesProgress {
-                    progress: CheckProgress {
-                        name: mod_file.path.display().to_string(),
-                        position,
-                        total_len,
-                    },
-                })
-                .unwrap();
+        let back_tx = &self.back_tx;
+        let mod_list_m = self
+            .mod_list
+            .iter_mut()
+            .map(|file| Arc::new(Mutex::new(file)));
 
-            self.egui_context.request_repaint();
+        let mut handles = Vec::new();
 
-            if let Err(error) = self
-                .modrinth
-                .check_for_updates(&mut mod_file.data, Some(&mod_file.hashes),&game_version)
-                .await
-            {
-                error!("Failed to check for updates");
+        for file in mod_list_m {
+            let game_version = game_version.clone();
+            handles.push(async move {
+                let mut file = file.lock();
 
-                self.back_tx
-                    .send(ToFrontend::BackendError {
-                        error: BackendError::new("Failed to check for updates", error),
-                    })
-                    .unwrap();
-            };
+                let hashes = file.hashes.clone();
+
+                if let Err(error) = MODRINTH
+                    .check_for_updates(&mut file.data, Some(&hashes), &game_version)
+                    .await
+                {
+                    error!("Failed to check for updates");
+
+                    back_tx
+                        .send(ToFrontend::BackendError {
+                            error: BackendError::new("Failed to check for updates", error),
+                        })
+                        .unwrap();
+                };
+            });
         }
+
+        future::join_all(handles).await;
     }
 
     #[instrument(skip(self, mod_file))]
@@ -292,7 +297,7 @@ impl Back {
             "Updating mod"
         );
 
-        if let Ok(bytes) = self.modrinth.update_mod(&mod_file.data).await {
+        if let Ok(bytes) = MODRINTH.update_mod(&mod_file.data).await {
             debug!("Update downloaded");
             let read_dir = fs::read_dir(&self.folder_path).unwrap();
 
@@ -318,8 +323,7 @@ impl Back {
 
     #[instrument(skip(self))]
     async fn add_mod(&mut self, modrinth_id: String, game_version: String, modloader: ModLoader) {
-        match self
-            .modrinth
+        match MODRINTH
             .create_mod_file(modrinth_id.clone(), game_version, modloader)
             .await
         {
@@ -452,7 +456,7 @@ impl Back {
             if !filtered_old.is_empty() {
                 mod_file.data.sourced_from = filtered_old[0].data.sourced_from;
                 mod_file.data.sources = filtered_old[0].data.sources.clone();
-               
+
                 if keep_state {
                     mod_file.data.state = filtered_old[0].data.state;
                 } else {

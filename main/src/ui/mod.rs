@@ -1,6 +1,6 @@
 use self::{app_theme::AppTheme, image_utils::ImageTextures, mod_card::FileCard};
 use back::{
-    messages::{BackendError, CheckProgress, ToBackend, ToFrontend},
+    messages::{BackendError, ToBackend, ToFrontend},
     mod_file::ModLoader,
     settings::SettingsBuilder,
     Back, GameVersion,
@@ -9,8 +9,8 @@ use crossbeam_channel::{Receiver, Sender};
 use eframe::{
     egui::{
         style::{DebugOptions, Margin},
-        Align, CentralPanel, ComboBox, Context, Frame, InnerResponse, Label, Layout, ProgressBar,
-        RichText, Rounding, ScrollArea, SidePanel, Style, TextEdit, Vec2, Widget,
+        Align, CentralPanel, ComboBox, Context, Frame, InnerResponse, Label, Layout, RichText,
+        Rounding, ScrollArea, SidePanel, Spinner, Style, TextEdit, Vec2, Widget,
     },
     CreationContext,
 };
@@ -55,7 +55,7 @@ pub struct MCubedAppUI {
 
 #[derive(Default)]
 struct BackendContext {
-    check_for_update_progress: Option<CheckProgress>,
+    checking_for_updates: bool,
     backend_errors: Vec<BackendError>,
 }
 
@@ -99,15 +99,12 @@ impl eframe::App for MCubedAppUI {
                         self.game_version_list = manifest.versions;
                     }
                     ToFrontend::UpdateModList { mod_list } => {
-                        self.backend_context.check_for_update_progress = None;
+                        self.backend_context.checking_for_updates = false;
                         self.mod_list = mod_list
                             .into_iter()
                             .map(|file| FileCard::new(file, ctx))
                             .collect();
                         ctx.request_repaint();
-                    }
-                    ToFrontend::CheckForUpdatesProgress { progress } => {
-                        self.backend_context.check_for_update_progress = Some(progress);
                     }
                     ToFrontend::BackendError { error } => {
                         self.backend_context.backend_errors.push(error);
@@ -245,6 +242,7 @@ impl MCubedAppUI {
 
                         let refresh_button_res = ui.button("Refresh");
                         if refresh_button_res.clicked() {
+                            self.backend_context.checking_for_updates = true;
                             if let Some(tx) = &self.front_tx {
                                 if let Some(version) = &self.selected_version {
                                     tx.send(ToBackend::CheckForUpdates {
@@ -310,19 +308,10 @@ impl MCubedAppUI {
                     });
                 }
 
-                if let Some(progress) = &self.backend_context.check_for_update_progress {
-                    let count = progress.position as f32 + 1.0;
-                    let total = progress.total_len as f32;
-
-                    ui.vertical_centered(|ui| {
-                        ui.style_mut().spacing.interact_size.y = 20.;
-
-                        ProgressBar::new(count / total)
-                            .text(format!(
-                                "({}/{}) Fetching info for file \"{}\"",
-                                count, total, progress.name,
-                            ))
-                            .ui(ui);
+                if self.backend_context.checking_for_updates {
+                    ui.horizontal(|ui| {
+                        Spinner::new().size(14.0).ui(ui);
+                        ui.label("Checking for updates");
                     });
                 }
 

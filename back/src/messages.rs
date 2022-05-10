@@ -44,20 +44,7 @@ pub enum ToFrontend {
 
     UpdateModList { mod_list: Vec<ModFile> },
 
-    CheckForUpdatesProgress { progress: CheckProgress },
-
     BackendError { error: BackendError },
-}
-
-pub struct CheckProgress {
-    /// The name of the project
-    pub name: String,
-
-    /// What position is it in
-    pub position: usize,
-
-    /// The total amount of projects being fetched
-    pub total_len: usize,
 }
 
 #[derive(Debug)]
