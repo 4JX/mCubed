@@ -1,0 +1,56 @@
+name: Compile Commits
+
+on:
+  push:
+    branches-ignore: [master]
+  pull_request:
+    branches-ignore: [master]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  publish:
+    name: Compile for ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - name: linux
+            os: ubuntu-latest
+            artifact_name: target/debug/m_cubed
+            asset_name: mCubed-linux
+          - name: windows
+            os: windows-latest
+            artifact_name: target/debug/m_cubed.exe
+            asset_name: mCubed-windows
+          - name: macos
+            os: macos-latest
+            artifact_name: target/debug/m_cubed
+            asset_name: mCubed-macos
+
+    steps:
+      - uses: actions/cache@v2
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+      - name: Download dependencies
+        run: |
+          if [ "$RUNNER_OS" == "Linux" ]; then
+           sudo apt install libxcb-shape0-dev libxcb-xfixes0-dev
+          fi
+        shell: bash
+      - uses: actions/checkout@v2
+      - name: Build
+        shell: bash
+        run: cargo build --verbose
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v2
+        with:
+          name: ${{ matrix.asset_name }}
+          path: ${{ matrix.artifact_name }}
