@@ -4,7 +4,7 @@ use daedalus::minecraft::VersionManifest;
 
 use crate::{
     error,
-    mod_entry::{ModFile, ModLoader},
+    mod_file::{ModFile, ModLoader},
 };
 
 pub enum ToBackend {

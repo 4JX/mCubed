@@ -15,8 +15,13 @@ pub mod hash;
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct ModFile {
     pub entries: Vec<ModEntry>,
+    pub data: ModFileData,
     pub hashes: Hashes,
     pub path: PathBuf,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct ModFileData {
     pub sources: Sources,
     pub sourced_from: CurrentSource,
     pub state: FileState,

@@ -1,7 +1,7 @@
 use self::{app_theme::AppTheme, image_utils::ImageTextures, mod_card::FileCard};
 use back::{
     messages::{BackendError, CheckProgress, ToBackend, ToFrontend},
-    mod_entry::ModLoader,
+    mod_file::ModLoader,
     settings::SettingsBuilder,
     Back, GameVersion,
 };

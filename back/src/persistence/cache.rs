@@ -2,7 +2,7 @@ use std::path::{Path, PathBuf};
 
 use crate::{
     error::{self, LibResult},
-    mod_entry::ModFile,
+    mod_file::ModFile,
 };
 
 use tracing::{error, instrument};

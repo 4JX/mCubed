@@ -9,7 +9,7 @@ use tracing::instrument;
 
 use crate::{error::LibResult, settings::CONF};
 
-use super::{CurrentSource, FileState, Hashes, ModEntry, ModFile, ModLoader, Sources};
+use super::{CurrentSource, FileState, Hashes, ModEntry, ModFile, ModFileData, ModLoader, Sources};
 
 impl ModFile {
     pub fn from_path(path: PathBuf) -> LibResult<Self> {
@@ -22,14 +22,18 @@ impl ModFile {
         let mut loaders: Vec<ModLoader> = entries.iter().map(|entry| entry.modloader).collect();
         loaders.dedup();
 
-        Ok(Self {
-            entries,
+        let data = ModFileData {
             sources: Sources::default(),
             sourced_from: CurrentSource::None,
             state: FileState::Current,
+            loaders,
+        };
+
+        Ok(Self {
+            entries,
+            data,
             hashes,
             path,
-            loaders,
         })
     }
 }

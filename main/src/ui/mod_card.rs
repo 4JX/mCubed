@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use back::{
     messages::ToBackend,
-    mod_entry::{CurrentSource, FileState, ModEntry, ModFile, ModLoader},
+    mod_file::{CurrentSource, FileState, ModEntry, ModFile, ModLoader},
 };
 use crossbeam_channel::Sender;
 use eframe::{
@@ -59,8 +59,9 @@ impl FileCard {
         front_tx: &Option<Sender<ToBackend>>,
     ) {
         let mod_file = &mut self.mod_file;
-        // Skip the entries that are not within the filtered list
+
         for entry in mod_file.entries.clone() {
+            // Skip the entries that are not within the filtered list
             if !entry
                 .display_name
                 .to_lowercase()
@@ -72,17 +73,17 @@ impl FileCard {
             let key = format!("{}{}", mod_file.hashes.sha1, entry.id);
             let mod_icon = self.mod_icons.get(&key);
 
-            ModCard::show(&entry, mod_file, ui, front_tx, mod_icon);
+            ModCard::show(mod_file, &entry, ui, front_tx, mod_icon);
         }
     }
 }
 
-pub struct ModCard {}
+pub struct ModCard;
 
 impl ModCard {
     pub fn show(
-        mod_entry: &ModEntry,
         mod_file: &mut ModFile,
+        mod_entry: &ModEntry,
         ui: &mut Ui,
         front_tx: &Option<Sender<ToBackend>>,
         mod_icon: Option<&TextureHandle>,
@@ -148,7 +149,7 @@ impl ModCard {
                 }
                 .show(ui, |ui| {
                     let image_size = Vec2::splat(12.0);
-                    match mod_file.state {
+                    match mod_file.data.state {
                         FileState::Current => {
                             ui.image(images.mod_status_ok.as_ref().unwrap().id(), image_size)
                         }
@@ -236,10 +237,11 @@ impl ModCard {
                     });
 
                     ui.horizontal(|ui| {
-                        let raw_text =
-                            text_utils::mod_card_data_header(mod_file.sourced_from.to_string());
+                        let raw_text = text_utils::mod_card_data_header(
+                            mod_file.data.sourced_from.to_string(),
+                        );
 
-                        let text = match mod_file.sourced_from {
+                        let text = match mod_file.data.sourced_from {
                             CurrentSource::None => {
                                 ui.image(images.none.as_ref().unwrap(), Vec2::splat(image_size));
 
@@ -278,16 +280,16 @@ impl ModCard {
                             .icon(misc::combobox_icon_fn)
                             .show_ui(ui, |ui| {
                                 ui.selectable_value(
-                                    &mut mod_file.sourced_from,
+                                    &mut mod_file.data.sourced_from,
                                     CurrentSource::Local,
                                     text_utils::mod_card_data_header(
                                         &CurrentSource::Local.to_string(),
                                     ),
                                 );
 
-                                if mod_file.sources.curseforge.is_some() {
+                                if mod_file.data.sources.curseforge.is_some() {
                                     ui.selectable_value(
-                                        &mut mod_file.sourced_from,
+                                        &mut mod_file.data.sourced_from,
                                         CurrentSource::CurseForge,
                                         text_utils::mod_card_data_header(
                                             &CurrentSource::CurseForge.to_string(),
@@ -295,9 +297,9 @@ impl ModCard {
                                     );
                                 }
 
-                                if mod_file.sources.modrinth.is_some() {
+                                if mod_file.data.sources.modrinth.is_some() {
                                     ui.selectable_value(
-                                        &mut mod_file.sourced_from,
+                                        &mut mod_file.data.sourced_from,
                                         CurrentSource::Modrinth,
                                         text_utils::mod_card_data_header(
                                             &CurrentSource::Modrinth.to_string(),
@@ -325,7 +327,7 @@ impl ModCard {
 
                     ui.add_space(THEME.spacing.medium);
 
-                    if mod_file.state == FileState::Outdated
+                    if mod_file.data.state == FileState::Outdated
                         && ui
                             .button(text_utils::update_button_text("Update"))
                             .clicked()

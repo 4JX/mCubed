@@ -1,5 +1,3 @@
-use std::path::PathBuf;
-
 use bytes::Bytes;
 use ferinth::{
     structures::version_structs::{ListVersionsParams, Version},
@@ -9,7 +7,7 @@ use tracing::instrument;
 
 use crate::{
     error::{self, LibResult},
-    mod_entry::{CurrentSource, FileState, Hashes, ModFile, ModLoader, ModrinthData, Sources},
+    mod_file::{CurrentSource, FileState, Hashes, ModFileData, ModLoader, ModrinthData, Sources},
 };
 
 #[derive(Debug)]
@@ -34,50 +32,53 @@ impl Modrinth {
         }
     }
 
-    #[instrument(skip(self, mod_file))]
+    #[instrument(skip(self, data))]
     pub(crate) async fn check_for_updates(
         &self,
-        mod_file: &mut ModFile,
+        data: impl Into<&mut ModFileData>,
+        hashes: Option<&Hashes>,
         game_version: &str,
     ) -> LibResult<()> {
+        let mod_data = data.into();
         // Get and set the modrinth ID, without one the operation cannot proceed
-        if mod_file.sources.modrinth.is_none() {
-            let modrinth_id = self.get_modrinth_id_from_hash(&mod_file.hashes.sha1).await;
+        if mod_data.sources.modrinth.is_none() && hashes.is_some() {
+            let hashes = hashes.as_ref().unwrap();
+            let modrinth_id = self.get_modrinth_id_from_hash(&hashes.sha1).await;
 
             if let Some(id) = modrinth_id {
-                mod_file.sources.modrinth = Some(ModrinthData {
+                mod_data.sources.modrinth = Some(ModrinthData {
                     id,
                     latest_valid_version: None,
                 });
 
                 // If the source has not been set by the user, automatically track Modrinth
-                if mod_file.sourced_from == CurrentSource::None {
-                    mod_file.sourced_from = CurrentSource::Modrinth;
+                if mod_data.sourced_from == CurrentSource::None {
+                    mod_data.sourced_from = CurrentSource::Modrinth;
                 }
             }
         }
 
-        if mod_file.sourced_from == CurrentSource::Modrinth {
+        if mod_data.sourced_from == CurrentSource::Modrinth {
             // This will not always give a result, therefore the data needs to be checked again (In case it is "Some", assume its correct)
-            if let Some(modrinth_data) = &mut mod_file.sources.modrinth {
+            if let Some(modrinth_data) = &mut mod_data.sources.modrinth {
                 // The version list can now be fetched
                 let version_list = self
-                    .list_versions(&modrinth_data.id, &mod_file.loaders, game_version)
+                    .list_versions(&modrinth_data.id, &mod_data.loaders, game_version)
                     .await?;
 
                 if version_list.is_empty() {
                     // No versions could be found that match the criteria, therefore the mod is incompatible for this version
-                    mod_file.state = FileState::Invalid;
+                    mod_data.state = FileState::Invalid;
                 } else {
                     // There are results, consider the state to be up to date unless proven otherwise
-                    mod_file.state = FileState::Current;
+                    mod_data.state = FileState::Current;
 
                     let filtered_list: Vec<&Version> = version_list
                         .iter()
                         .filter(|version| {
                             // version.version_type == VersionType::Release
                             // &&
-                            mod_file.loaders.iter().all(|loader| {
+                            mod_data.loaders.iter().all(|loader| {
                                 version.loaders.contains(&loader.to_string().to_lowercase())
                             }) && !version.files.is_empty()
                         })
@@ -85,15 +86,22 @@ impl Modrinth {
 
                     if !filtered_list.is_empty() {
                         {
-                            // If the version being checked contains a file with the hash of our local copy, it means it is already on the latest possible version
-                            if !filtered_list[0]
-                                .files
-                                .iter()
-                                .any(|file| file.hashes.sha1 == Some(mod_file.hashes.sha1.clone()))
-                            {
+                            if let Some(hashes) = &hashes {
+                                // If the version being checked contains a file with the hash of our local copy, it means it is already on the latest possible version
+                                if !filtered_list[0]
+                                    .files
+                                    .iter()
+                                    .any(|file| file.hashes.sha1 == Some(hashes.sha1.clone()))
+                                {
+                                    modrinth_data.latest_valid_version =
+                                        Some(filtered_list[0].files[0].clone());
+                                    mod_data.state = FileState::Outdated;
+                                }
+                            } else {
+                                // If hashes aren't provided assume its outdated
                                 modrinth_data.latest_valid_version =
                                     Some(filtered_list[0].files[0].clone());
-                                mod_file.state = FileState::Outdated;
+                                mod_data.state = FileState::Outdated;
                             }
                         }
                     }
@@ -104,9 +112,9 @@ impl Modrinth {
         Ok(())
     }
 
-    #[instrument(skip(self, mod_file))]
-    pub(crate) async fn update_mod(&self, mod_file: &ModFile) -> LibResult<Bytes> {
-        if let Some(data) = &mod_file.sources.modrinth {
+    #[instrument(skip(self, mod_data))]
+    pub(crate) async fn update_mod(&self, mod_data: &ModFileData) -> LibResult<Bytes> {
+        if let Some(data) = &mod_data.sources.modrinth {
             if let Some(version_file) = &data.latest_valid_version {
                 Ok(self.ferinth.download_version_file(version_file).await?)
             } else {
@@ -123,7 +131,7 @@ impl Modrinth {
         modrinth_id: String,
         game_version: String,
         modloader: ModLoader,
-    ) -> LibResult<(ModFile, Bytes)> {
+    ) -> LibResult<(ModFileData, Bytes)> {
         match self.ferinth.get_project(modrinth_id.as_str()).await {
             Ok(project) => {
                 let modrinth = ModrinthData {
@@ -139,17 +147,15 @@ impl Modrinth {
                 let loaders = vec![modloader];
 
                 // Create an entry from whatever data is available
-                let mut mod_file = ModFile {
+                let mut mod_file = ModFileData {
                     state: FileState::Current,
                     sourced_from: CurrentSource::Modrinth,
-                    entries: Vec::new(),
-                    hashes: Hashes::dummy(),
-                    path: PathBuf::new(),
                     loaders,
                     sources,
                 };
 
-                self.check_for_updates(&mut mod_file, &game_version).await?;
+                self.check_for_updates(&mut mod_file, None, &game_version)
+                    .await?;
 
                 let bytes = self.update_mod(&mod_file).await?;
                 Ok((mod_file, bytes))
