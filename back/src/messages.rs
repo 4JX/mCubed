@@ -4,7 +4,7 @@ use daedalus::minecraft::VersionManifest;
 
 use crate::{
     error,
-    mod_entry::{ModEntry, ModLoader},
+    mod_file::{ModFile, ModLoader},
 };
 
 pub enum ToBackend {
@@ -15,7 +15,7 @@ pub enum ToBackend {
     ScanFolder,
 
     UpdateBackendList {
-        mod_list: Vec<ModEntry>,
+        mod_list: Vec<ModFile>,
     },
 
     CheckForUpdates {
@@ -31,7 +31,7 @@ pub enum ToBackend {
     },
 
     UpdateMod {
-        mod_entry: Box<ModEntry>,
+        mod_file: Box<ModFile>,
     },
 
     DeleteMod {
@@ -42,7 +42,7 @@ pub enum ToBackend {
 pub enum ToFrontend {
     SetVersionMetadata { manifest: VersionManifest },
 
-    UpdateModList { mod_list: Vec<ModEntry> },
+    UpdateModList { mod_list: Vec<ModFile> },
 
     CheckForUpdatesProgress { progress: CheckProgress },
 

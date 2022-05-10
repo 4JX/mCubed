@@ -2,7 +2,7 @@ use std::path::{Path, PathBuf};
 
 use crate::{
     error::{self, LibResult},
-    mod_entry::ModEntry,
+    mod_file::ModFile,
 };
 
 use tracing::{error, instrument};
@@ -13,7 +13,7 @@ const APP_CACHE_FILE_NAME: &str = "mods.mCubed.json";
 
 #[derive(Debug)]
 pub struct CacheStorage {
-    inner: Storage<Vec<ModEntry>>,
+    inner: Storage<Vec<ModFile>>,
 }
 
 impl CacheStorage {
@@ -49,17 +49,17 @@ impl CacheStorage {
     }
 
     #[instrument(skip(self, new_list))]
-    pub fn set_cache(&mut self, new_list: Vec<ModEntry>) {
+    pub fn set_cache(&mut self, new_list: Vec<ModFile>) {
         self.inner.set(new_list);
     }
 
     #[instrument(skip(self))]
-    pub fn get_cache(&self) -> &Vec<ModEntry> {
+    pub fn get_cache(&self) -> &Vec<ModFile> {
         self.inner.get()
     }
 
     #[instrument(skip(self))]
-    pub fn get_cache_mut(&mut self) -> &mut Vec<ModEntry> {
+    pub fn get_cache_mut(&mut self) -> &mut Vec<ModFile> {
         self.inner.get_mut()
     }
 }

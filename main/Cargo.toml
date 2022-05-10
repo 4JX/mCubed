@@ -17,4 +17,5 @@ back = { path = "../back" }
 color-eyre = "0.6.0"
 tracing-subscriber = { version = "0.3.9", features = ["env-filter"] }
 crossbeam-channel = "0.5.2"
-parking_lot = "0.12.0"
+parking_lot = { version = "0.12.0", features = ["deadlock_detection"] }
+lazy_static = "1.4.0"

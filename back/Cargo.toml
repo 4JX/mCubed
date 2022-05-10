@@ -8,7 +8,7 @@ edition = "2021"
 [dependencies]
 tokio = { version = "1.17.0", features = ["rt", "rt-multi-thread"] }
 # ferinth = "1.4.1"
-ferinth = { git = "https://github.com/4JX/ferinth", rev = "bf23b8d" }
+ferinth = { git = "https://github.com/4JX/ferinth", rev = "104b5e3" }
 # ferinth = { path = "../../ferinth" }
 sha-1 = "0.10.0"
 sha2 = "0.10.2"

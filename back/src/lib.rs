@@ -9,14 +9,14 @@ use std::{
 use bytes::Bytes;
 use crossbeam_channel::{Receiver, Sender};
 use messages::{CheckProgress, ToBackend, ToFrontend};
-use mod_entry::Hashes;
-use mod_entry::{ModEntry, ModLoader};
+use mod_file::{ModLoader, ModFileData, FileState};
+use mod_file::{Hashes, ModFile};
 use modrinth::Modrinth;
 
 mod error;
 pub mod messages;
 mod minecraft_path;
-pub mod mod_entry;
+pub mod mod_file;
 mod modrinth;
 mod persistence;
 pub mod settings;
@@ -31,7 +31,7 @@ use crate::messages::BackendError;
 static LOG_CHANNEL_CLOSED: Once = Once::new();
 
 pub struct Back {
-    mod_list: Vec<ModEntry>,
+    mod_list: Vec<ModFile>,
     cache: CacheStorage,
     folder_path: PathBuf,
     modrinth: Modrinth,
@@ -93,8 +93,8 @@ impl Back {
                                 self.scan_folder();
 
                                 self.transfer_list_data_to_current(&self.cache.get_cache().clone());
-
-                                self.sort_and_send_list();
+                                
+                                self.send_list();
 
                                 self.get_version_metadata().await;
                             }
@@ -107,7 +107,7 @@ impl Back {
                             ToBackend::ScanFolder => {
                                 self.scan_folder();
 
-                                self.sort_and_send_list();
+                                self.send_list();
                             }
 
                             ToBackend::UpdateBackendList { mod_list } => {
@@ -120,7 +120,7 @@ impl Back {
 
                                 self.check_for_updates(game_version).await;
 
-                                self.sort_and_send_list();
+                                self.send_list();
                             }
 
                             ToBackend::GetVersionMetadata => {
@@ -134,8 +134,8 @@ impl Back {
                             } => {
                                 self.add_mod(modrinth_id, game_version, modloader).await;
                             }
-                            ToBackend::UpdateMod { mod_entry } => {
-                                self.update_mod(*mod_entry).await;
+                            ToBackend::UpdateMod { mod_file } => {
+                                self.update_mod(*mod_file).await;
                             }
 
                             ToBackend::DeleteMod { path } => {
@@ -178,11 +178,11 @@ impl Back {
         let current_cache = self.cache.get_cache();
 
         // Append the mods that did not exist before
-        mod_list_clone.retain(|mod_entry| {
+        mod_list_clone.retain(|mod_file| {
             // Check for unique entries by hash
             !current_cache
                 .iter()
-                .any(|cache_entry| cache_entry.hashes.sha1 == mod_entry.hashes.sha1)
+                .any(|cache_entry| cache_entry.hashes.sha1 == mod_file.hashes.sha1)
         });
 
         self.cache.get_cache_mut().append(&mut mod_list_clone);
@@ -201,10 +201,8 @@ impl Back {
     }
 
     #[instrument(skip(self))]
-    fn sort_and_send_list(&mut self) {
+    fn send_list(&mut self) {
         info!(length = self.mod_list.len(), "Sending the mods list");
-        self.mod_list
-            .sort_by(|entry_1, entry_2| entry_1.display_name.cmp(&entry_2.display_name));
 
         self.back_tx
             .send(ToFrontend::UpdateModList {
@@ -218,7 +216,6 @@ impl Back {
         info!(folder_path = %self.folder_path.display(), "Scanning the mods folder");
 
         let old_list = self.mod_list.clone();
-
         self.mod_list.clear();
 
         let read_dir = fs::read_dir(&self.folder_path).unwrap();
@@ -229,8 +226,8 @@ impl Back {
             if self.is_relevant_file(&path) {
                 debug!(?path, "Parsing file");
 
-                match ModEntry::from_path(path.clone()) {
-                    Ok(mut entry) => self.mod_list.append(&mut entry),
+                match ModFile::from_path(path.clone()) {
+                    Ok(entry) => self.mod_list.push(entry),
                     Err(error) => {
                         // In the case of an error the mod list will be cleared
                         self.mod_list.clear();
@@ -254,41 +251,15 @@ impl Back {
         self.transfer_list_data_to_current(&old_list);
     }
 
-    #[instrument(skip(self, from_list), fields(length_from = from_list.len(), length_to = self.mod_list.len()))]
-    fn transfer_list_data_to_current(&mut self, from_list: &[ModEntry]) {
-        Self::transfer_list_data(from_list, &mut self.mod_list, true);
-    }
-
-    #[instrument(skip(from_list, to_list), fields(length_from = from_list.len(), length_to = to_list.len()))]
-    fn transfer_list_data(from_list: &[ModEntry], to_list: &mut Vec<ModEntry>, keep_state: bool) {
-        // Ensures the important bits are kept
-        for mod_entry in to_list {
-            let filtered_old: Vec<&ModEntry> = from_list
-                .iter()
-                .filter(|filter_entry| filter_entry.id == mod_entry.id)
-                .collect();
-
-            if !filtered_old.is_empty() {
-                mod_entry.sourced_from = filtered_old[0].sourced_from;
-                mod_entry.sources.modrinth = filtered_old[0].sources.modrinth.clone();
-
-                // If the file has not changed, the state can also be kept
-                if keep_state && mod_entry.hashes.sha1 == filtered_old[0].hashes.sha1 {
-                    mod_entry.state = filtered_old[0].state;
-                }
-            }
-        }
-    }
-
     #[instrument(skip(self))]
     async fn check_for_updates(&mut self, game_version: String) {
         let total_len = self.mod_list.len();
-        for (position, mod_entry) in self.mod_list.iter_mut().enumerate() {
+        for (position, mod_file) in self.mod_list.iter_mut().enumerate() {
             // Update the frontend on whats happening
             self.back_tx
                 .send(ToFrontend::CheckForUpdatesProgress {
                     progress: CheckProgress {
-                        name: mod_entry.display_name.clone(),
+                        name: mod_file.path.display().to_string(),
                         position,
                         total_len,
                     },
@@ -299,7 +270,7 @@ impl Back {
 
             if let Err(error) = self
                 .modrinth
-                .check_for_updates(mod_entry, &game_version)
+                .check_for_updates(&mut mod_file.data, Some(&mod_file.hashes),&game_version)
                 .await
             {
                 error!("Failed to check for updates");
@@ -313,16 +284,15 @@ impl Back {
         }
     }
 
-    #[instrument(skip(self, mod_entry))]
-    async fn update_mod(&mut self, mod_entry: ModEntry) {
+    #[instrument(skip(self, mod_file))]
+    async fn update_mod(&mut self, mod_file: ModFile) {
         info!(
-            entry_name = %mod_entry.display_name,
-            path = ?mod_entry.path,
-            sha1 = %mod_entry.hashes.sha1,
+            path = ?mod_file.path,
+            sha1 = %mod_file.hashes.sha1,
             "Updating mod"
         );
 
-        if let Ok(bytes) = self.modrinth.update_mod(&mod_entry).await {
+        if let Ok(bytes) = self.modrinth.update_mod(&mod_file.data).await {
             debug!("Update downloaded");
             let read_dir = fs::read_dir(&self.folder_path).unwrap();
 
@@ -334,11 +304,11 @@ impl Back {
 
                     let hashes = Hashes::get_hashes_from_file(&mut file).unwrap();
 
-                    // We found the file the mod_entry belongs to
-                    if mod_entry.hashes.sha1 == hashes.sha1 {
+                    // We found the file the mod_file belongs to
+                    if mod_file.hashes.sha1 == hashes.sha1 {
                         std::fs::remove_file(path).unwrap();
 
-                        self.create_mod_file(&mod_entry, &bytes);
+                        self.create_mod_file(&mod_file.data, &bytes);
                         break 'file_loop;
                     }
                 }
@@ -350,11 +320,11 @@ impl Back {
     async fn add_mod(&mut self, modrinth_id: String, game_version: String, modloader: ModLoader) {
         match self
             .modrinth
-            .create_mod_entry(modrinth_id.clone(), game_version, modloader)
+            .create_mod_file(modrinth_id.clone(), game_version, modloader)
             .await
         {
-            Ok((mod_entry, bytes)) => {
-                self.create_mod_file(&mod_entry, &bytes);
+            Ok((mod_data, bytes)) => {
+                self.create_mod_file(&mod_data, &bytes);
             }
             Err(error) => {
                 error!(%modrinth_id, "Could not add mod");
@@ -371,15 +341,12 @@ impl Back {
         };
     }
 
-    #[instrument(skip(self, mod_entry, bytes))]
-    fn create_mod_file(&mut self, mod_entry: &ModEntry, bytes: &Bytes) {
-        info!(
-            entry_name = %mod_entry.display_name,
-            "Creating a new mod file"
-        );
+    #[instrument(skip(self, mod_data, bytes))]
+    fn create_mod_file(&mut self, mod_data: &ModFileData, bytes: &Bytes) {
+        info!("Creating a new mod file");
         // The data is guaranteed to exist, unwrapping here is fine
         let path = self.folder_path.join(
-            &mod_entry
+            &mod_data
                 .sources
                 .modrinth
                 .as_ref()
@@ -394,26 +361,15 @@ impl Back {
 
         new_mod_file.write_all(bytes).unwrap();
 
-        let mut new_entries = ModEntry::from_path(path).unwrap();
+        let mut new_file = ModFile::from_path(path).unwrap();
 
-        for new_mod_entry in &mut new_entries {
-            // Ensure the data for the entry is kept
-            new_mod_entry.sources.modrinth = mod_entry.sources.modrinth.clone();
-            new_mod_entry.sourced_from = mod_entry.sourced_from;
-
-            for list_entry in &mut self.mod_list {
-                // The hash has to be compared to the old entry, the slug/id can be compared to the new one
-                if list_entry.hashes.sha1 == mod_entry.hashes.sha1
-                    && list_entry.id == new_mod_entry.id.clone()
-                {
-                    *list_entry = new_mod_entry.clone();
-                }
-            }
-        }
+        // Ensure the data for the entry is kept
+        new_file.data.sources.modrinth = mod_data.sources.modrinth.clone();
+        new_file.data.sourced_from = mod_data.sourced_from;
 
         self.scan_folder();
 
-        self.sort_and_send_list();
+        self.send_list();
     }
 
     #[instrument(skip(self))]
@@ -435,11 +391,11 @@ impl Back {
                 })
                 .unwrap();
         } else {
-            self.mod_list.retain(|mod_entry| mod_entry.path != path);
+            self.mod_list.retain(|mod_file| mod_file.path != path);
 
             debug!("File deleted successfully");
 
-            self.sort_and_send_list();
+            self.send_list();
         };
     }
 
@@ -477,5 +433,32 @@ impl Back {
                 .next()
                 .map(|ext| ext.eq_ignore_ascii_case("jar"))
                 == Some(true)
+    }
+
+    #[instrument(skip(self, from_list), fields(length_from = from_list.len(), length_to = self.mod_list.len()))]
+    fn transfer_list_data_to_current(&mut self, from_list: &[ModFile]) {
+        Self::transfer_list_data(from_list, &mut self.mod_list, true);
+    }
+
+    #[instrument(skip(from_list, to_list), fields(length_from = from_list.len(), length_to = to_list.len()))]
+    fn transfer_list_data(from_list: &[ModFile], to_list: &mut Vec<ModFile>, keep_state: bool) {
+        // Ensures the important bits are kept
+        for mod_file in to_list {
+            let filtered_old: Vec<&ModFile> = from_list
+                .iter()
+                .filter(|m_file| m_file.hashes.sha1 == mod_file.hashes.sha1)
+                .collect();
+
+            if !filtered_old.is_empty() {
+                mod_file.data.sourced_from = filtered_old[0].data.sourced_from;
+                mod_file.data.sources = filtered_old[0].data.sources.clone();
+               
+                if keep_state {
+                    mod_file.data.state = filtered_old[0].data.state;
+                } else {
+                    mod_file.data.state = FileState::Current;
+                }
+            }
+        }
     }
 }

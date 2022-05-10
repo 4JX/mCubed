@@ -1,15 +1,11 @@
+use self::{app_theme::AppTheme, image_utils::ImageTextures, mod_card::FileCard};
 use back::{
     messages::{BackendError, CheckProgress, ToBackend, ToFrontend},
-    mod_entry::ModLoader,
+    mod_file::ModLoader,
     settings::SettingsBuilder,
     Back, GameVersion,
 };
-use parking_lot::Once;
-
-use std::thread;
-
 use crossbeam_channel::{Receiver, Sender};
-
 use eframe::{
     egui::{
         style::{DebugOptions, Margin},
@@ -18,8 +14,9 @@ use eframe::{
     },
     CreationContext,
 };
-
-use self::{app_theme::AppTheme, image_utils::ImageTextures, mod_card::ModCard};
+use lazy_static::lazy_static;
+use parking_lot::{Mutex, Once};
+use std::thread;
 
 mod app_theme;
 mod image_utils;
@@ -30,16 +27,19 @@ mod text_utils;
 static SET_LEFT_PANEL_BOTTOM_BUTTONS_WIDTH: Once = Once::new();
 const ICON_RESIZE_QUALITY: u32 = 128;
 
+lazy_static! {
+    static ref THEME: AppTheme = AppTheme::default();
+    static ref IMAGES: Mutex<ImageTextures> = Mutex::new(ImageTextures::default());
+}
+
 #[derive(Default)]
 pub struct MCubedAppUI {
     // UI
-    theme: AppTheme,
     search_buf: String,
     add_mod_buf: String,
-    images: ImageTextures,
 
     // Data
-    mod_list: Vec<ModCard>,
+    mod_list: Vec<FileCard>,
     game_version_list: Vec<GameVersion>,
     selected_version: Option<GameVersion>,
     selected_modloader: ModLoader,
@@ -64,7 +64,7 @@ impl MCubedAppUI {
         let mut new_app = Self::default();
 
         new_app.configure_style(&cc.egui_ctx);
-        new_app.images.load_images(&cc.egui_ctx);
+        IMAGES.lock().load_images(&cc.egui_ctx);
 
         let (front_tx, front_rx) = crossbeam_channel::unbounded();
         let (back_tx, back_rx) = crossbeam_channel::unbounded();
@@ -102,7 +102,7 @@ impl eframe::App for MCubedAppUI {
                         self.backend_context.check_for_update_progress = None;
                         self.mod_list = mod_list
                             .into_iter()
-                            .map(|entry| ModCard::new(entry, ctx))
+                            .map(|file| FileCard::new(file, ctx))
                             .collect();
                         ctx.request_repaint();
                     }
@@ -127,7 +127,12 @@ impl eframe::App for MCubedAppUI {
     fn on_exit(&mut self, _gl: &eframe::glow::Context) {
         if let Some(tx) = &self.front_tx {
             tx.send(ToBackend::UpdateBackendList {
-                mod_list: self.mod_list.iter().map(ModCard::entry).cloned().collect(),
+                mod_list: self
+                    .mod_list
+                    .iter()
+                    .map(FileCard::mod_file)
+                    .cloned()
+                    .collect(),
             })
             .unwrap();
 
@@ -139,7 +144,7 @@ impl eframe::App for MCubedAppUI {
 impl MCubedAppUI {
     fn render_side_panel(&mut self, ctx: &Context) -> InnerResponse<()> {
         SidePanel::left("options_panel")
-            .frame(self.theme.default_panel_frame)
+            .frame(THEME.default_panel_frame)
             .resizable(false)
             .max_width(240.)
             .show(ctx, |ui| {
@@ -174,7 +179,7 @@ impl MCubedAppUI {
                 });
 
                 Frame {
-                    fill: self.theme.colors.light_gray,
+                    fill: THEME.colors.light_gray,
                     inner_margin: Margin::same(10.0),
                     rounding: Rounding::same(4.),
                     ..Frame::default()
@@ -185,7 +190,7 @@ impl MCubedAppUI {
 
                     ui.horizontal(|ui| {
                         let edit = TextEdit::singleline(&mut self.add_mod_buf).hint_text(
-                            RichText::new("Modrinth ID or Slug").color(self.theme.colors.gray),
+                            RichText::new("Modrinth ID or Slug").color(THEME.colors.gray),
                         );
 
                         ui.add_sized(Vec2::new(130.0, ui.available_height()), edit);
@@ -228,7 +233,7 @@ impl MCubedAppUI {
                                     mod_list: self
                                         .mod_list
                                         .iter()
-                                        .map(ModCard::entry)
+                                        .map(FileCard::mod_file)
                                         .cloned()
                                         .collect(),
                                 })
@@ -265,13 +270,13 @@ impl MCubedAppUI {
 
     fn render_central_panel(&mut self, ctx: &Context) -> InnerResponse<()> {
         CentralPanel::default()
-            .frame(self.theme.default_panel_frame)
+            .frame(THEME.default_panel_frame)
             .show(ctx, |ui| {
                 ui.style_mut().spacing.item_spacing = Vec2::new(8.0, 8.0);
                 ui.horizontal(|ui| {
                     ui.vertical_centered_justified(|ui| {
                         let edit = TextEdit::singleline(&mut self.search_buf).hint_text(
-                            RichText::new("Search installed mods").color(self.theme.colors.gray),
+                            RichText::new("Search installed mods").color(THEME.colors.gray),
                         );
                         ui.add(edit);
                     });
@@ -283,7 +288,7 @@ impl MCubedAppUI {
                             let mut retain = true;
 
                             Frame {
-                                fill: self.theme.colors.error_message,
+                                fill: THEME.colors.error_message,
                                 inner_margin: Margin::same(6.0),
                                 rounding: Rounding::same(4.),
                                 ..Frame::default()
@@ -314,7 +319,7 @@ impl MCubedAppUI {
 
                         ProgressBar::new(count / total)
                             .text(format!(
-                                "({}/{}) Fetching info for mod \"{}\"",
+                                "({}/{}) Fetching info for file \"{}\"",
                                 count, total, progress.name,
                             ))
                             .ui(ui);
@@ -323,7 +328,7 @@ impl MCubedAppUI {
 
                 ui.vertical_centered_justified(|ui| {
                     Frame {
-                        fill: self.theme.colors.darker_gray,
+                        fill: THEME.colors.darker_gray,
                         inner_margin: Margin::same(10.0),
                         rounding: Rounding::same(4.),
                         ..Frame::default()
@@ -337,11 +342,12 @@ impl MCubedAppUI {
                             });
                         } else {
                             let search_results_exist = self.mod_list.iter().any(|mod_card| {
-                                mod_card
-                                    .entry()
-                                    .display_name
-                                    .to_lowercase()
-                                    .contains(self.search_buf.to_lowercase().as_str())
+                                mod_card.mod_file().entries.iter().any(|entry| {
+                                    entry
+                                        .display_name
+                                        .to_lowercase()
+                                        .contains(self.search_buf.to_lowercase().as_str())
+                                })
                             });
 
                             if !search_results_exist && !self.search_buf.is_empty() {
@@ -350,24 +356,9 @@ impl MCubedAppUI {
                                 });
                             } else {
                                 ScrollArea::vertical().show(ui, |ui| {
-                                    ui.style_mut().spacing.item_spacing.y = 10.0;
-                                    for mod_card in &mut self.mod_list {
-                                        // Skip the entries that are not within the filtered list
-                                        if !mod_card
-                                            .entry()
-                                            .display_name
-                                            .to_lowercase()
-                                            .contains(self.search_buf.to_lowercase().as_str())
-                                        {
-                                            continue;
-                                        }
-
-                                        mod_card.show(
-                                            ui,
-                                            &self.theme,
-                                            &mut self.images,
-                                            &self.front_tx,
-                                        );
+                                    ui.style_mut().spacing.item_spacing.y = THEME.spacing.large;
+                                    for file_card in &mut self.mod_list {
+                                        file_card.show(&self.search_buf, ui, &self.front_tx);
                                     }
                                 });
                             }
@@ -382,7 +373,7 @@ impl MCubedAppUI {
     fn configure_style(&self, ctx: &Context) {
         let style = Style {
             text_styles: text_utils::default_text_styles(),
-            visuals: self.theme.visuals.clone(),
+            visuals: THEME.visuals.clone(),
             debug: DebugOptions {
                 debug_on_hover: false,
                 show_expand_width: false,

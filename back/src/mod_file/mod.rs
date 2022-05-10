@@ -13,6 +13,22 @@ pub mod from_file;
 pub mod hash;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct ModFile {
+    pub entries: Vec<ModEntry>,
+    pub data: ModFileData,
+    pub hashes: Hashes,
+    pub path: PathBuf,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct ModFileData {
+    pub sources: Sources,
+    pub sourced_from: CurrentSource,
+    pub state: FileState,
+    pub loaders: Vec<ModLoader>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct ModEntry {
     pub id: String,
     pub version: String,
@@ -20,11 +36,6 @@ pub struct ModEntry {
     pub description: Option<String>,
     pub authors: Option<String>,
     pub modloader: ModLoader,
-    pub hashes: Hashes,
-    pub sources: Sources,
-    pub state: FileState,
-    pub sourced_from: CurrentSource,
-    pub path: PathBuf,
     #[serde(skip_serializing, skip_deserializing)]
     pub icon: Option<Vec<u8>>,
 }
@@ -109,13 +120,8 @@ impl fmt::Display for CurrentSource {
 }
 
 impl ModEntry {
-    #[instrument(skip(forge_mod_entry, hashes, sources, path), level = "debug")]
-    fn from_forge_manifest(
-        forge_mod_entry: ForgeModEntry,
-        hashes: Hashes,
-        sources: Option<Sources>,
-        path: PathBuf,
-    ) -> Self {
+    #[instrument(skip(forge_mod_entry), level = "debug")]
+    fn from_forge_manifest(forge_mod_entry: ForgeModEntry) -> Self {
         Self {
             id: forge_mod_entry.mod_id,
             version: forge_mod_entry.version,
@@ -123,22 +129,12 @@ impl ModEntry {
             description: Some(forge_mod_entry.description),
             authors: forge_mod_entry.authors,
             modloader: ModLoader::Forge,
-            hashes,
-            sources: sources.unwrap_or_default(),
-            state: FileState::Local,
-            sourced_from: CurrentSource::None,
-            path,
             icon: None,
         }
     }
 
-    #[instrument(skip(fabric_manifest, hashes, sources, path), level = "debug")]
-    fn from_fabric_manifest(
-        fabric_manifest: FabricManifest,
-        hashes: Hashes,
-        sources: Option<Sources>,
-        path: PathBuf,
-    ) -> Self {
+    #[instrument(skip(fabric_manifest), level = "debug")]
+    fn from_fabric_manifest(fabric_manifest: FabricManifest) -> Self {
         let mod_name = fabric_manifest
             .name
             .unwrap_or_else(|| fabric_manifest.id.clone());
@@ -167,11 +163,6 @@ impl ModEntry {
             description: fabric_manifest.description,
             authors: parsed_authors,
             modloader: ModLoader::Fabric,
-            hashes,
-            sources: sources.unwrap_or_default(),
-            state: FileState::Local,
-            sourced_from: CurrentSource::None,
-            path,
             icon: None,
         }
     }
