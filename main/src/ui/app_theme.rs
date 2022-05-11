@@ -12,6 +12,7 @@ pub struct AppTheme {
     pub default_panel_frame: Frame,
     pub prompt_frame: Frame,
     pub spacing: Spacing,
+    pub rounding: RoundingTypes,
 }
 
 impl AppTheme {
@@ -86,7 +87,8 @@ impl Default for AppTheme {
             ..Frame::default()
         };
 
-        let prompt_frame = default_panel_frame.rounding(Rounding::same(4.0));
+        let rounding = RoundingTypes::default();
+        let prompt_frame = default_panel_frame.rounding(rounding.big);
 
         Self {
             colors,
@@ -94,6 +96,7 @@ impl Default for AppTheme {
             default_panel_frame,
             prompt_frame,
             spacing: Spacing::default(),
+            rounding,
         }
     }
 }
@@ -194,6 +197,20 @@ impl Default for Spacing {
             medium: 5.0,
             small: 2.0,
             widget_spacing: Vec2::splat(8.0),
+        }
+    }
+}
+
+pub struct RoundingTypes {
+    pub small: Rounding,
+    pub big: Rounding,
+}
+
+impl Default for RoundingTypes {
+    fn default() -> Self {
+        Self {
+            small: Rounding::same(2.0),
+            big: Rounding::same(4.0),
         }
     }
 }

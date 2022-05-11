@@ -13,7 +13,7 @@ use eframe::{
     egui::{
         style::{DebugOptions, Margin},
         Align, CentralPanel, ComboBox, Context, Frame, ImageButton, InnerResponse, Label, Layout,
-        RichText, Rounding, ScrollArea, SidePanel, Spinner, Style, TextEdit, Vec2, Widget,
+        RichText, ScrollArea, SidePanel, Spinner, Style, TextEdit, Vec2, Widget,
     },
     CreationContext,
 };
@@ -209,7 +209,7 @@ impl MCubedAppUI {
                 Frame {
                     fill: THEME.colors.light_gray,
                     inner_margin: Margin::same(10.0),
-                    rounding: Rounding::same(4.),
+                    rounding: THEME.rounding.big,
                     ..Frame::default()
                 }
                 .show(ui, |ui| {
@@ -316,7 +316,7 @@ impl MCubedAppUI {
                             Frame {
                                 fill: THEME.colors.error_message,
                                 inner_margin: Margin::same(6.0),
-                                rounding: Rounding::same(4.),
+                                rounding: THEME.rounding.big,
                                 ..Frame::default()
                             }
                             .show(ui, |ui| {
@@ -347,7 +347,7 @@ impl MCubedAppUI {
                     Frame {
                         fill: THEME.colors.darker_gray,
                         inner_margin: Margin::same(10.0),
-                        rounding: Rounding::same(4.),
+                        rounding: THEME.rounding.big,
                         ..Frame::default()
                     }
                     .show(ui, |ui| {

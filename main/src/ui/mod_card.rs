@@ -11,7 +11,7 @@ use eframe::{
         Sense, Ui,
     },
     emath::Vec2,
-    epaint::{ColorImage, Rounding, TextureHandle},
+    epaint::{ColorImage, TextureHandle},
 };
 
 use super::{misc, text_utils, ICON_RESIZE_QUALITY, IMAGES, THEME};
@@ -133,7 +133,7 @@ impl ModCard {
 
         let frame_res = Frame {
             fill: THEME.colors.dark_gray,
-            rounding: Rounding::same(2.0),
+            rounding: THEME.rounding.small,
             ..Frame::default()
         }
         .show(ui, |ui| {
@@ -173,7 +173,7 @@ impl ModCard {
                 let icon_size = 26.0;
 
                 Frame {
-                    rounding: Rounding::same(5.0),
+                    rounding: THEME.rounding.big,
                     fill: THEME.colors.mod_card.mod_status_icon_background,
                     ..Frame::default()
                 }
