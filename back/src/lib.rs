@@ -2,7 +2,7 @@ use std::{
     fmt::Debug,
     fs,
     io::Write,
-    path::{Path},
+    path::Path,
     process,
     sync::Arc,
 };
