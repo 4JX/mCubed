@@ -2,7 +2,9 @@ use std::path::PathBuf;
 use tracing::instrument;
 
 lazy_static::lazy_static! {
-    pub static ref HOME_DIR: std::path::PathBuf = directories::BaseDirs::new().expect("Could not get home dir").home_dir().to_owned();
+    static ref BASE_DIRS: directories::BaseDirs = directories::BaseDirs::new().expect("Could not get base dirs");
+    static ref HOME_DIR: std::path::PathBuf = BASE_DIRS.home_dir().to_owned();
+    pub static ref CONFIG_DIR: std::path::PathBuf = BASE_DIRS.config_dir().join("mCubed");
 }
 
 #[cfg(target_os = "windows")]

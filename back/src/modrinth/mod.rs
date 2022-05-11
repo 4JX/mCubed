@@ -1,6 +1,6 @@
 use bytes::Bytes;
 use ferinth::{
-    structures::version_structs::{ListVersionsParams, Version},
+    structures::version_structs::{ListVersionsParams, Version, VersionType},
     Ferinth,
 };
 use tracing::instrument;
@@ -8,6 +8,7 @@ use tracing::instrument;
 use crate::{
     error::{self, LibResult},
     mod_file::{CurrentSource, FileState, Hashes, ModFileData, ModLoader, ModrinthData, Sources},
+    settings::CONF,
 };
 
 #[derive(Debug)]
@@ -73,14 +74,17 @@ impl Modrinth {
                     // There are results, consider the state to be up to date unless proven otherwise
                     mod_data.state = FileState::Current;
 
+                    let accepted_version_types = accepted_versions_vec();
                     let filtered_list: Vec<&Version> = version_list
                         .iter()
                         .filter(|version| {
-                            // version.version_type == VersionType::Release
-                            // &&
-                            mod_data.loaders.iter().all(|loader| {
-                                version.loaders.contains(&loader.to_string().to_lowercase())
-                            }) && !version.files.is_empty()
+                            accepted_version_types
+                                .iter()
+                                .any(|ver_type| ver_type == &version.version_type)
+                                && mod_data.loaders.iter().all(|loader| {
+                                    version.loaders.contains(&loader.to_string().to_lowercase())
+                                })
+                                && !version.files.is_empty()
                         })
                         .collect();
 
@@ -182,4 +186,15 @@ impl Modrinth {
             .list_versions(modrinth_id, Some(query_params))
             .await?)
     }
+}
+
+fn accepted_versions_vec() -> Vec<VersionType> {
+    let min_ver = CONF.lock().modrinth_version_type;
+    let ver_arr = [VersionType::Release, VersionType::Beta, VersionType::Alpha];
+    let mut allowed_versions = Vec::new();
+    for version in ver_arr {
+        allowed_versions.push(version)
+    }
+    allowed_versions.push(min_ver);
+    allowed_versions
 }

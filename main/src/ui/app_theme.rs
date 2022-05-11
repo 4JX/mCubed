@@ -1,12 +1,16 @@
-use eframe::egui::{
-    style::{Margin, Selection, WidgetVisuals, Widgets},
-    Color32, Frame, Rounding, Stroke, Visuals,
+use eframe::{
+    egui::{
+        style::{Margin, Selection, WidgetVisuals, Widgets},
+        Color32, Frame, Rounding, Stroke, Visuals,
+    },
+    emath::Vec2,
 };
 
 pub struct AppTheme {
     pub colors: Colors,
     pub visuals: Visuals,
     pub default_panel_frame: Frame,
+    pub prompt_frame: Frame,
     pub spacing: Spacing,
 }
 
@@ -82,10 +86,13 @@ impl Default for AppTheme {
             ..Frame::default()
         };
 
+        let prompt_frame = default_panel_frame.rounding(Rounding::same(4.0));
+
         Self {
             colors,
             visuals,
             default_panel_frame,
+            prompt_frame,
             spacing: Spacing::default(),
         }
     }
@@ -177,6 +184,7 @@ pub struct Spacing {
     pub large: f32,
     pub medium: f32,
     pub small: f32,
+    pub widget_spacing: Vec2,
 }
 
 impl Default for Spacing {
@@ -185,6 +193,7 @@ impl Default for Spacing {
             large: 10.0,
             medium: 5.0,
             small: 2.0,
+            widget_spacing: Vec2::splat(8.0),
         }
     }
 }

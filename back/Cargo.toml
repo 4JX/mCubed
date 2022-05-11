@@ -8,7 +8,7 @@ edition = "2021"
 [dependencies]
 tokio = { version = "1.17.0", features = ["rt", "rt-multi-thread"] }
 # ferinth = "1.4.1"
-ferinth = { git = "https://github.com/4JX/ferinth", rev = "104b5e3" }
+ferinth = { git = "https://github.com/4JX/ferinth", rev = "48d3409" }
 # ferinth = { path = "../../ferinth" }
 sha-1 = "0.10.0"
 sha2 = "0.10.2"
@@ -18,7 +18,7 @@ hex = "0.4.3"
 bytes = "1.1.0"
 # daedalus = "0.1.14"
 daedalus = { git = "https://github.com/4JX/daedalus", rev = "c977bb0" }
-eframe = { git = "https://github.com/4JX/egui", rev = "f3234a1" }
+eframe = { git = "https://github.com/4JX/egui", rev = "1ca27c4" }
 # eframe = { path = "../../egui/eframe" }
 thiserror = "1.0.30"
 directories = "4.0.1"

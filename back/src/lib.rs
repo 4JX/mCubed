@@ -2,7 +2,7 @@ use std::{
     fmt::Debug,
     fs,
     io::Write,
-    path::{Path, PathBuf},
+    path::{Path},
     process,
     sync::Arc,
 };
@@ -14,21 +14,22 @@ use messages::{ToBackend, ToFrontend};
 use mod_file::{FileState, ModFileData, ModLoader};
 use mod_file::{Hashes, ModFile};
 use modrinth::Modrinth;
-
-mod error;
-pub mod messages;
-mod minecraft_path;
-pub mod mod_file;
-mod modrinth;
-mod persistence;
-pub mod settings;
-
-pub use daedalus::minecraft::Version as GameVersion;
 use parking_lot::{Mutex, Once};
 use persistence::cache::CacheStorage;
 use tracing::{debug, error, info, instrument};
+use crate::{messages::BackendError, settings::CONF};
 
-use crate::messages::BackendError;
+mod error;
+pub mod messages;
+mod paths;
+pub mod mod_file;
+mod modrinth;
+mod persistence;
+
+pub use persistence::settings;
+pub use daedalus::minecraft::Version as GameVersion;
+pub use ferinth::structures::version_structs::VersionType;
+
 
 static LOG_CHANNEL_CLOSED: Once = Once::new();
 
@@ -39,7 +40,6 @@ lazy_static::lazy_static!(
 pub struct Back {
     mod_list: Vec<ModFile>,
     cache: CacheStorage,
-    folder_path: PathBuf,
     back_tx: Sender<ToFrontend>,
     front_rx: Receiver<ToBackend>,
     egui_context: eframe::egui::Context,
@@ -50,7 +50,6 @@ impl Debug for Back {
         f.debug_struct("Back")
             .field("mod_list", &self.mod_list)
             .field("cache", &self.cache)
-            .field("folder_path", &self.folder_path)
             .field("back_tx", &self.back_tx)
             .field("front_rx", &self.front_rx)
             // .field("egui_context", &self.egui_context)
@@ -61,17 +60,14 @@ impl Debug for Back {
 impl Back {
     #[instrument(skip(egui_context), level = "trace")]
     pub fn new(
-        mod_folder_path: Option<PathBuf>,
         back_tx: Sender<ToFrontend>,
         front_rx: Receiver<ToBackend>,
         egui_context: eframe::egui::Context,
     ) -> Self {
-        let folder_path = mod_folder_path.unwrap_or_else(minecraft_path::default_mod_dir);
 
         Self {
             mod_list: Vec::default(),
-            cache: CacheStorage::new(&folder_path),
-            folder_path,
+            cache: CacheStorage::default(),
             back_tx,
             front_rx,
             egui_context,
@@ -103,6 +99,10 @@ impl Back {
                             }
 
                             ToBackend::Shutdown => {
+                                if let Err(error) = CONF.lock().save_config(&paths::CONFIG_DIR) {
+                                    error!(%error, "Could not save config");
+                                }
+                                
                                 self.save_list_cache();
                                 process::exit(0);
                             }
@@ -216,12 +216,13 @@ impl Back {
 
     #[instrument(skip(self))]
     fn scan_folder(&mut self) {
-        info!(folder_path = %self.folder_path.display(), "Scanning the mods folder");
+        let mod_folder_path = CONF.lock().mod_folder_path.clone();
+        info!(folder_path = %mod_folder_path.display(), "Scanning the mods folder");
 
         let old_list = self.mod_list.clone();
         self.mod_list.clear();
 
-        let read_dir = fs::read_dir(&self.folder_path).unwrap();
+        let read_dir = fs::read_dir(&mod_folder_path).unwrap();
 
         'file_loop: for file_entry in read_dir {
             let path = file_entry.unwrap().path();
@@ -299,7 +300,7 @@ impl Back {
 
         if let Ok(bytes) = MODRINTH.update_mod(&mod_file.data).await {
             debug!("Update downloaded");
-            let read_dir = fs::read_dir(&self.folder_path).unwrap();
+            let read_dir = fs::read_dir(&CONF.lock().mod_folder_path).unwrap();
 
             'file_loop: for file_entry in read_dir {
                 let path = file_entry.unwrap().path();
@@ -349,7 +350,7 @@ impl Back {
     fn create_mod_file(&mut self, mod_data: &ModFileData, bytes: &Bytes) {
         info!("Creating a new mod file");
         // The data is guaranteed to exist, unwrapping here is fine
-        let path = self.folder_path.join(
+        let path = CONF.lock().mod_folder_path.join(
             &mod_data
                 .sources
                 .modrinth
