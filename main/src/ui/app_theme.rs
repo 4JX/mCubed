@@ -13,6 +13,7 @@ pub struct AppTheme {
     pub prompt_frame: Frame,
     pub spacing: Spacing,
     pub rounding: RoundingTypes,
+    pub image_size: ImageSize,
 }
 
 impl AppTheme {
@@ -97,6 +98,7 @@ impl Default for AppTheme {
             prompt_frame,
             spacing: Spacing::default(),
             rounding,
+            image_size: ImageSize::default(),
         }
     }
 }
@@ -211,6 +213,22 @@ impl Default for RoundingTypes {
         Self {
             small: Rounding::same(2.0),
             big: Rounding::same(4.0),
+        }
+    }
+}
+
+pub struct ImageSize {
+    pub mod_card_status: Vec2,
+    pub mod_card_data: Vec2,
+    pub mod_card_icon: Vec2,
+}
+
+impl Default for ImageSize {
+    fn default() -> Self {
+        Self {
+            mod_card_status: Vec2::splat(12.0),
+            mod_card_data: Vec2::splat(10.0),
+            mod_card_icon: Vec2::splat(26.0),
         }
     }
 }
