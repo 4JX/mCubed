@@ -1,7 +1,4 @@
-use self::{
-    app_theme::AppTheme, image_utils::ImageTextures, mod_card::FileCard,
-    widgets::screen_prompt::PROMPT_BASE_ID,
-};
+use self::{app_theme::AppTheme, image_utils::ImageTextures, mod_card::FileCard};
 use back::{
     messages::{BackendError, ToBackend, ToFrontend},
     mod_file::ModLoader,
@@ -123,7 +120,7 @@ impl eframe::App for MCubedAppUI {
             }
         }
 
-        ScreenPrompt::with_id(PROMPT_BASE_ID.with("settings")).show(ctx, |ui, state| {
+        ScreenPrompt::new("settings").show(ctx, |ui, state| {
             ui.label("Minimum release type");
             ui.horizontal(|ui| {
                 let current = CONF.lock().modrinth_version_type;
@@ -296,7 +293,7 @@ impl MCubedAppUI {
                 );
 
                 if ui.add(button).clicked() {
-                    ScreenPrompt::show_with_id(ctx, PROMPT_BASE_ID.with("settings"), true);
+                    ScreenPrompt::set_shown(ctx, "settings", true);
                 };
 
                 ui.horizontal(|ui| {

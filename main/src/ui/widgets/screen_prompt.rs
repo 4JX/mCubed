@@ -1,3 +1,5 @@
+use std::hash::Hash;
+
 use eframe::{
     egui::{Area, Context, Frame, Id, Order, Sense, Ui},
     emath::{Align2, Pos2, Vec2},
@@ -5,10 +7,6 @@ use eframe::{
 };
 
 use crate::ui::THEME;
-
-lazy_static::lazy_static!(
-    pub static ref PROMPT_BASE_ID: Id = Id::new("ui_prompt");
-);
 
 #[derive(Clone)]
 pub struct ScreenPrompt {
@@ -30,19 +28,21 @@ impl State {
 }
 
 impl ScreenPrompt {
-    pub fn with_id(id: Id) -> Self {
+    const PROMPT_BASE_ID: &'static str = "ui_prompt";
+
+    pub fn new(name: impl Hash) -> Self {
         Self {
-            id,
+            id: Id::new(Self::PROMPT_BASE_ID).with(name),
             prompt_frame: THEME.prompt_frame,
             bg_overlay_color: Color32::from_black_alpha(200),
             outside_click_closes: true,
         }
     }
 
-    pub fn show_with_id(ctx: &Context, toggle_id: impl Into<Id>, shown: bool) {
+    pub fn set_shown(ctx: &Context, name: impl Hash, shown: bool) {
         ctx.memory()
             .data
-            .get_persisted_mut_or_default::<State>(toggle_id.into())
+            .get_persisted_mut_or_default::<State>(Id::new(Self::PROMPT_BASE_ID).with(name))
             .is_shown = shown;
     }
 }
