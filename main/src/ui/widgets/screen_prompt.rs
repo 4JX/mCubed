@@ -1,7 +1,7 @@
 use std::hash::Hash;
 
 use eframe::{
-    egui::{Area, Context, Frame, Id, Order, Sense, Ui},
+    egui::{Area, Context, Frame, Id, InnerResponse, Order, Sense, Ui},
     emath::{Align2, Pos2, Vec2},
     epaint::{Color32, Rounding, Shape},
 };
@@ -35,7 +35,7 @@ impl ScreenPrompt {
             id: Id::new(Self::PROMPT_BASE_ID).with(name),
             prompt_frame: THEME.prompt_frame,
             bg_overlay_color: Color32::from_black_alpha(200),
-            outside_click_closes: true,
+            outside_click_closes: false,
         }
     }
 
@@ -48,12 +48,16 @@ impl ScreenPrompt {
 }
 
 impl ScreenPrompt {
-    pub fn show<R>(&mut self, ctx: &Context, add_contents: impl FnOnce(&mut Ui, &mut State) -> R) {
+    pub fn show<R>(
+        &mut self,
+        ctx: &Context,
+        add_contents: impl FnOnce(&mut Ui, &mut State) -> R,
+    ) -> Option<InnerResponse<R>> {
         let state = ctx.memory().data.get_persisted::<State>(self.id);
         let mut state = state.unwrap_or_default();
 
-        if state.is_shown {
-            Area::new("prompt_bg")
+        let res = if state.is_shown {
+            let area_res = Area::new("prompt_bg")
                 .fixed_pos(Pos2::ZERO)
                 .show(ctx, |ui| {
                     let screen_rect = ctx.input().screen_rect;
@@ -66,22 +70,31 @@ impl ScreenPrompt {
                         self.bg_overlay_color,
                     ));
 
-                    let area_res = Area::new("prompt_centered")
+                    let prompt_area_res = Area::new("prompt_centered")
                         .fixed_pos(Pos2::ZERO)
                         .anchor(Align2::CENTER_CENTER, Vec2::splat(0.0))
                         .order(Order::Foreground)
                         .show(ctx, |ui| {
-                            self.prompt_frame.show(ui, |ui| {
-                                add_contents(ui, &mut state);
-                            });
+                            let InnerResponse { inner, .. } = self
+                                .prompt_frame
+                                .show(ui, |ui| add_contents(ui, &mut state));
+
+                            inner
                         });
 
-                    if area_res.response.clicked_elsewhere() && self.outside_click_closes {
+                    if prompt_area_res.response.clicked_elsewhere() && self.outside_click_closes {
                         state.is_shown = false
                     };
+
+                    prompt_area_res.inner
                 });
-        }
+            Some(area_res)
+        } else {
+            None
+        };
 
         ctx.memory().data.insert_persisted(self.id, state);
+
+        res
     }
 }
