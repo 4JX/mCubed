@@ -1,14 +1,15 @@
-use self::{app_theme::AppTheme, image_utils::ImageTextures, mod_card::FileCard};
+use self::{
+    app_theme::AppTheme, image_utils::ImageTextures, mod_card::FileCard, settings::SettingsUi,
+};
 use back::{
     messages::{BackendError, ToBackend, ToFrontend},
     mod_file::ModLoader,
-    settings::{SettingsBuilder, CONF},
-    Back, GameVersion, VersionType,
+    settings::SettingsBuilder,
+    Back, GameVersion,
 };
 use crossbeam_channel::{Receiver, Sender};
 use eframe::{
     egui::{
-        collapsing_header,
         style::{DebugOptions, Margin},
         Align, CentralPanel, ComboBox, Context, Frame, ImageButton, InnerResponse, Label, Layout,
         RichText, ScrollArea, Sense, SidePanel, Spinner, Style, TextEdit, Vec2, Widget,
@@ -26,6 +27,7 @@ mod app_theme;
 mod image_utils;
 mod misc;
 mod mod_card;
+mod settings;
 mod text_utils;
 mod widgets;
 
@@ -126,70 +128,11 @@ impl eframe::App for MCubedAppUI {
             let rect = ui.allocate_exact_size(size, Sense::hover());
             ui.set_max_size(ui.available_size() - Vec2::splat(50.0));
 
-            let contents_res = ui.allocate_ui_at_rect(rect.0, |ui| {
-                let mut state = collapsing_header::CollapsingState::load_with_default_open(
-                    ui.ctx(),
-                    ui.make_persistent_id("modrinth_settings_state"),
-                    false,
-                );
-
-                let header_res = Frame {
-                    fill: THEME.colors.darker_gray,
-                    inner_margin: Margin::same(6.0),
-                    rounding: THEME.rounding.big,
-                    ..Frame::default()
-                }
-                .show(ui, |ui| {
-                    ui.horizontal(|ui| {
-                        ui.image(
-                            IMAGES.lock().modrinth.as_ref().unwrap(),
-                            THEME.image_size.settings_heading,
-                        );
-                        ui.heading("Modrinth");
-                        ui.with_layout(Layout::right_to_left(), |ui| {
-                            state.show_toggle_button(ui, misc::collapsing_state_icon_fn);
-                        });
-                    });
-                });
-
-                let interact = ui.interact(
-                    header_res.response.rect,
-                    ui.id().with("interact"),
-                    Sense::click(),
-                );
-
-                if interact.clicked() {
-                    state.toggle(ui);
-                }
-
-                state.show_body_indented(&header_res.response, ui, |ui| {
-                    ui.label("Base release type");
-
-                    let current = CONF.lock().modrinth_version_type;
-
-                    ComboBox::from_id_source(ui.id().with("version-type"))
-                        .icon(misc::combobox_icon_fn)
-                        .selected_text(format!("{:?}", current))
-                        .show_ui(ui, |ui| {
-                            let release_res =
-                                ui.selectable_label(current == VersionType::Release, "Release");
-                            let beta_res =
-                                ui.selectable_label(current == VersionType::Beta, "Beta");
-                            let alpha_res =
-                                ui.selectable_label(current == VersionType::Alpha, "Alpha");
-                            let builder = SettingsBuilder::from_current();
-                            if release_res.clicked() {
-                                builder.modrinth_version_type(VersionType::Release).apply()
-                            } else if beta_res.clicked() {
-                                builder.modrinth_version_type(VersionType::Beta).apply()
-                            } else if alpha_res.clicked() {
-                                builder.modrinth_version_type(VersionType::Alpha).apply()
-                            }
-                        });
-                });
+            let settings_res = ui.allocate_ui_at_rect(rect.0, |ui| {
+                SettingsUi::show(ui);
             });
 
-            ui.set_max_width(contents_res.response.rect.width());
+            ui.set_max_width(settings_res.response.rect.width());
 
             ui.add_space(THEME.spacing.medium);
 
