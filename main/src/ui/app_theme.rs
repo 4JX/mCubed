@@ -33,7 +33,7 @@ impl Default for AppTheme {
         let widgets = Widgets {
             noninteractive: WidgetVisuals {
                 bg_fill: colors.gray,                                 // window background
-                bg_stroke: Stroke::new(1.0, colors.gray), // separators, indentation lines, windows outlines
+                bg_stroke: Stroke::new(1.0, colors.dark_gray), // separators, indentation lines, windows outlines
                 fg_stroke: Stroke::new(1.0, Color32::from_gray(140)), // normal text color
                 rounding: Rounding::same(2.0),
                 expansion: 0.0,
@@ -221,6 +221,7 @@ pub struct ImageSize {
     pub mod_card_status: Vec2,
     pub mod_card_data: Vec2,
     pub mod_card_icon: Vec2,
+    pub settings_heading: Vec2,
 }
 
 impl Default for ImageSize {
@@ -229,6 +230,7 @@ impl Default for ImageSize {
             mod_card_status: Vec2::splat(12.0),
             mod_card_data: Vec2::splat(10.0),
             mod_card_icon: Vec2::splat(26.0),
+            settings_heading: Vec2::splat(16.0),
         }
     }
 }
