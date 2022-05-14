@@ -1,23 +1,17 @@
-use std::{
-    path::{Path, PathBuf},
-    sync::Arc,
-};
+use std::{path::PathBuf, sync::Arc};
 
 use ferinth::structures::version_structs::VersionType;
 use lazy_static::lazy_static;
 use parking_lot::Mutex;
 use serde::{Deserialize, Serialize};
 
-use crate::{
-    error::LibResult,
-    paths::{self, CONFIG_DIR},
-};
+use crate::{error::LibResult, paths};
 
 use super::storage_trait::StorageTrait;
 
 lazy_static! {
     pub static ref CONF: Arc<Mutex<SettingsBuilder>> = Arc::new(Mutex::new(
-        SettingsBuilder::load_from_file(CONFIG_DIR.as_path()).unwrap_or_default()
+        SettingsBuilder::load_from_file().unwrap_or_default()
     ));
 }
 
@@ -32,12 +26,6 @@ pub struct SettingsBuilder {
 }
 
 impl SettingsBuilder {
-    /// Create a new [SettingsBuilder](SettingsBuilder) off of the default struct values
-    #[must_use]
-    pub fn new() -> Self {
-        Self::from_current()
-    }
-
     /// Create a new [SettingsBuilder](SettingsBuilder) from the current values
     #[must_use]
     pub fn from_current() -> Self {
@@ -45,26 +33,33 @@ impl SettingsBuilder {
     }
 
     /// Create a new [SettingsBuilder](SettingsBuilder) from a file on the disk
-    pub fn load_from_file(folder_path: &Path) -> LibResult<Self> {
-        Self::load(folder_path)
+    pub fn load_from_file() -> LibResult<Self> {
+        Self::load()
     }
 
     /// Save the current configuration to disk
-    pub fn save_config(&self, folder_path: &Path) -> LibResult<()> {
-        self.save(folder_path)
+    pub fn save_config(&self) -> LibResult<()> {
+        self.save()
     }
 
     /// Set the icon resize size
     #[must_use]
-    pub const fn icon_resize_size(mut self, size: u32) -> Self {
+    pub fn icon_resize_size(mut self, size: u32) -> Self {
         self.icon_resize_size = size;
         self
     }
 
     /// Set the modrinth release type
     #[must_use]
-    pub const fn modrinth_version_type(mut self, version_type: VersionType) -> Self {
+    pub fn modrinth_version_type(mut self, version_type: VersionType) -> Self {
         self.modrinth_version_type = version_type;
+        self
+    }
+
+    /// Set the path to the mods folder
+    #[must_use]
+    pub fn mod_folder_path(mut self, path: PathBuf) -> Self {
+        self.mod_folder_path = path;
         self
     }
 
@@ -88,5 +83,7 @@ impl Default for SettingsBuilder {
 impl<'a> StorageTrait<'a> for SettingsBuilder {
     const FILE_NAME: &'static str = "settings.json";
 
-    type Result = LibResult<Self>;
+    fn get_folder() -> PathBuf {
+        paths::CONFIG_DIR.to_path_buf()
+    }
 }

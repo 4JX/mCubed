@@ -88,7 +88,7 @@ impl MCubedAppUI {
             sender.send(ToBackend::Startup).unwrap();
         }
 
-        SettingsBuilder::new()
+        SettingsBuilder::from_current()
             .icon_resize_size(ICON_RESIZE_QUALITY)
             .apply();
 

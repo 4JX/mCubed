@@ -99,7 +99,7 @@ impl Back {
                             }
 
                             ToBackend::Shutdown => {
-                                if let Err(error) = CONF.lock().save_config(&paths::CONFIG_DIR) {
+                                if let Err(error) = CONF.lock().save_config() {
                                     error!(%error, "Could not save config");
                                 }
                                 

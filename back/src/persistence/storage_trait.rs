@@ -3,7 +3,7 @@ use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use std::{
     fs::{self, File},
     io::Write,
-    path::Path,
+    path::PathBuf,
 };
 
 pub(super) trait StorageTrait<'a>
@@ -12,9 +12,12 @@ where
     for<'de> Self: Deserialize<'de> + 'a,
 {
     const FILE_NAME: &'static str;
-    type Result;
 
-    fn load(folder_path: &Path) -> LibResult<Self> {
+    fn get_folder() -> PathBuf;
+
+    fn load() -> LibResult<Self> {
+        let folder_path = Self::get_folder();
+
         if !folder_path.exists() {
             fs::create_dir_all(&folder_path)?;
         }
@@ -37,7 +40,9 @@ where
         }
     }
 
-    fn save(&self, folder_path: &Path) -> LibResult<()> {
+    fn save(&self) -> LibResult<()> {
+        let folder_path = Self::get_folder();
+
         if !folder_path.exists() {
             fs::create_dir_all(&folder_path)?;
         }
