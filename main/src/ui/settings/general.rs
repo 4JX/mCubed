@@ -12,7 +12,9 @@ impl SettingsSection for GeneralSettings {
 
     fn show(ui: &mut Ui) {
         Self::settings_section(ui, &IMAGES.lock().settings, "General", |ui| {
-            ui.label("Mods folder path");
+            ui.label("Mods folder path").on_hover_text(
+                "The path to the current mods folder of your Minecraft installation",
+            );
 
             if ui
                 .button(CONF.lock().mod_folder_path.display().to_string())

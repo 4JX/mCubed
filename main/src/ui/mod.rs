@@ -129,7 +129,9 @@ impl eframe::App for MCubedAppUI {
             ui.set_max_size(ui.available_size() - Vec2::splat(50.0));
 
             let settings_res = ui.allocate_ui_at_rect(rect.0, |ui| {
-                SettingsUi::show(ui);
+                ScrollArea::new([false, true]).show(ui, |ui| {
+                    SettingsUi::show(ui);
+                });
             });
 
             ui.set_max_width(settings_res.response.rect.width());
@@ -291,9 +293,20 @@ impl MCubedAppUI {
                     Vec2::splat(12.0),
                 );
 
-                if ui.add(button).clicked() {
-                    ScreenPrompt::set_shown(ctx, "settings", true);
-                };
+                ui.horizontal(|ui| {
+                    if self.backend_context.checking_for_updates {
+                        ui.horizontal(|ui| {
+                            Spinner::new().size(14.0).ui(ui);
+                            ui.label("Checking for updates");
+                        });
+                    };
+
+                    ui.with_layout(Layout::right_to_left(), |ui| {
+                        if ui.add(button).clicked() {
+                            ScreenPrompt::set_shown(ctx, "settings", true);
+                        };
+                    });
+                });
 
                 ui.horizontal(|ui| {
                     ui.vertical_centered_justified(|ui| {
@@ -329,13 +342,6 @@ impl MCubedAppUI {
 
                             retain
                         });
-                    });
-                }
-
-                if self.backend_context.checking_for_updates {
-                    ui.horizontal(|ui| {
-                        Spinner::new().size(14.0).ui(ui);
-                        ui.label("Checking for updates");
                     });
                 }
 

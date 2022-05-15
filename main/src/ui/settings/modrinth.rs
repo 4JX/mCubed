@@ -15,7 +15,7 @@ impl SettingsSection for ModrinthSettings {
 
     fn show(ui: &mut Ui) {
         Self::settings_section(ui, &IMAGES.lock().modrinth, "Modrinth", |ui| {
-            ui.label("Base release type");
+            ui.label("Base release type").on_hover_text("This indicates the minimum level of stability a version should be marked with to appear when update-checking");
 
             let current = CONF.lock().modrinth_version_type;
 
