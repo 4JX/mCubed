@@ -18,8 +18,10 @@ impl SettingsSection for GeneralSettings {
                 .button(CONF.lock().mod_folder_path.display().to_string())
                 .clicked()
             {
+                // This intentionally causes the UI to hang while the dialog is open, so that the user must do something before operations resume
                 let folder = rfd::FileDialog::new()
                     .set_title("Choose the mods path")
+                    .set_directory(&CONF.lock().mod_folder_path)
                     .pick_folder();
 
                 if let Some(folder) = folder {
