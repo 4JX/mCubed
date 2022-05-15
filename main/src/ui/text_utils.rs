@@ -87,7 +87,7 @@ pub fn default_text_styles() -> TextStyles {
     );
     text_styles.insert(
         TextStyle::Heading,
-        FontId::new(20.0, FontFamily::Name("Inter-Medium".into())),
+        FontId::new(16.0, FontFamily::Name("Inter-Medium".into())),
     );
     text_styles.insert(
         TextStyle::Monospace,

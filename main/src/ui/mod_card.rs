@@ -11,7 +11,7 @@ use eframe::{
         Sense, Ui,
     },
     emath::Vec2,
-    epaint::{ColorImage, Rounding, TextureHandle},
+    epaint::{ColorImage, TextureHandle},
 };
 
 use super::{misc, text_utils, ICON_RESIZE_QUALITY, IMAGES, THEME};
@@ -133,7 +133,7 @@ impl ModCard {
 
         let frame_res = Frame {
             fill: THEME.colors.dark_gray,
-            rounding: Rounding::same(2.0),
+            rounding: THEME.rounding.small,
             ..Frame::default()
         }
         .show(ui, |ui| {
@@ -148,40 +148,39 @@ impl ModCard {
                     ..Frame::default()
                 }
                 .show(ui, |ui| {
-                    let image_size = Vec2::splat(12.0);
                     match mod_file.data.state {
-                        FileState::Current => {
-                            ui.image(images.mod_status_ok.as_ref().unwrap().id(), image_size)
-                        }
+                        FileState::Current => ui.image(
+                            images.mod_status_ok.as_ref().unwrap().id(),
+                            THEME.image_size.mod_card_status,
+                        ),
                         FileState::Outdated => ui.image(
                             images.mod_status_outdated.as_ref().unwrap().id(),
-                            image_size,
+                            THEME.image_size.mod_card_status,
                         ),
-                        FileState::Invalid => {
-                            ui.image(images.mod_status_invalid.as_ref().unwrap().id(), image_size)
-                        }
+                        FileState::Invalid => ui.image(
+                            images.mod_status_invalid.as_ref().unwrap().id(),
+                            THEME.image_size.mod_card_status,
+                        ),
                         FileState::Local => ui.image(
                             // There's not much that can be done here, assume its all good
                             images.mod_status_ok.as_ref().unwrap().id(),
-                            image_size,
+                            THEME.image_size.mod_card_status,
                         ),
                     };
                 });
 
                 ui.add_space(THEME.spacing.medium);
 
-                let icon_size = 26.0;
-
                 Frame {
-                    rounding: Rounding::same(5.0),
+                    rounding: THEME.rounding.big,
                     fill: THEME.colors.mod_card.mod_status_icon_background,
                     ..Frame::default()
                 }
                 .show(ui, |ui| {
-                    ui.set_width(icon_size);
-                    ui.set_height(icon_size);
+                    ui.set_width(THEME.image_size.mod_card_icon.x);
+                    ui.set_height(THEME.image_size.mod_card_icon.y);
                     if let Some(texture) = &mod_icon {
-                        ui.image(texture.id(), Vec2::splat(icon_size));
+                        ui.image(texture.id(), THEME.image_size.mod_card_icon);
                     }
                 });
 
@@ -204,27 +203,31 @@ impl ModCard {
                 ui.vertical(|ui| {
                     ui.set_width(60.);
 
-                    let image_size = ui.available_height() / 2.0 * 0.5;
-
                     ui.horizontal(|ui| {
                         let raw_text =
                             text_utils::mod_card_data_header(mod_entry.modloader.to_string());
 
                         let text = match mod_entry.modloader {
                             ModLoader::Forge => {
-                                ui.image(images.forge.as_ref().unwrap(), Vec2::splat(image_size));
+                                ui.image(
+                                    images.forge.as_ref().unwrap(),
+                                    THEME.image_size.mod_card_data,
+                                );
 
                                 raw_text.color(THEME.mod_card_modloader().forge)
                             }
                             ModLoader::Fabric => {
-                                ui.image(images.fabric.as_ref().unwrap(), Vec2::splat(image_size));
+                                ui.image(
+                                    images.fabric.as_ref().unwrap(),
+                                    THEME.image_size.mod_card_data,
+                                );
 
                                 raw_text.color(THEME.mod_card_modloader().fabric)
                             }
                             ModLoader::Both => {
                                 ui.image(
                                     images.forge_and_fabric.as_ref().unwrap(),
-                                    Vec2::splat(image_size),
+                                    THEME.image_size.mod_card_data,
                                 );
 
                                 raw_text.color(THEME.mod_card_modloader().forge_and_fabric)
@@ -243,19 +246,25 @@ impl ModCard {
 
                         let text = match mod_file.data.sourced_from {
                             CurrentSource::None => {
-                                ui.image(images.none.as_ref().unwrap(), Vec2::splat(image_size));
+                                ui.image(
+                                    images.none.as_ref().unwrap(),
+                                    THEME.image_size.mod_card_data,
+                                );
 
                                 raw_text.color(THEME.mod_card_source().none)
                             }
                             CurrentSource::Local => {
-                                ui.image(images.local.as_ref().unwrap(), Vec2::splat(image_size));
+                                ui.image(
+                                    images.local.as_ref().unwrap(),
+                                    THEME.image_size.mod_card_data,
+                                );
 
                                 raw_text.color(THEME.mod_card_source().local)
                             }
                             CurrentSource::Modrinth => {
                                 ui.image(
                                     images.modrinth.as_ref().unwrap(),
-                                    Vec2::splat(image_size),
+                                    THEME.image_size.mod_card_data,
                                 );
 
                                 raw_text.color(THEME.mod_card_source().modrinth)
@@ -263,7 +272,7 @@ impl ModCard {
                             CurrentSource::CurseForge => {
                                 ui.image(
                                     images.curseforge.as_ref().unwrap(),
-                                    Vec2::splat(image_size),
+                                    THEME.image_size.mod_card_data,
                                 );
 
                                 raw_text.color(THEME.mod_card_source().curseforge)

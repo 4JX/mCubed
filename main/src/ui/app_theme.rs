@@ -1,13 +1,19 @@
-use eframe::egui::{
-    style::{Margin, Selection, WidgetVisuals, Widgets},
-    Color32, Frame, Rounding, Stroke, Visuals,
+use eframe::{
+    egui::{
+        style::{Margin, Selection, WidgetVisuals, Widgets},
+        Color32, Frame, Rounding, Stroke, Visuals,
+    },
+    emath::Vec2,
 };
 
 pub struct AppTheme {
     pub colors: Colors,
     pub visuals: Visuals,
     pub default_panel_frame: Frame,
+    pub prompt_frame: Frame,
     pub spacing: Spacing,
+    pub rounding: RoundingTypes,
+    pub image_size: ImageSize,
 }
 
 impl AppTheme {
@@ -27,7 +33,7 @@ impl Default for AppTheme {
         let widgets = Widgets {
             noninteractive: WidgetVisuals {
                 bg_fill: colors.gray,                                 // window background
-                bg_stroke: Stroke::new(1.0, colors.gray), // separators, indentation lines, windows outlines
+                bg_stroke: Stroke::new(1.0, colors.dark_gray), // separators, indentation lines, windows outlines
                 fg_stroke: Stroke::new(1.0, Color32::from_gray(140)), // normal text color
                 rounding: Rounding::same(2.0),
                 expansion: 0.0,
@@ -82,11 +88,17 @@ impl Default for AppTheme {
             ..Frame::default()
         };
 
+        let rounding = RoundingTypes::default();
+        let prompt_frame = default_panel_frame.rounding(rounding.big);
+
         Self {
             colors,
             visuals,
             default_panel_frame,
+            prompt_frame,
             spacing: Spacing::default(),
+            rounding,
+            image_size: ImageSize::default(),
         }
     }
 }
@@ -177,6 +189,7 @@ pub struct Spacing {
     pub large: f32,
     pub medium: f32,
     pub small: f32,
+    pub widget_spacing: Vec2,
 }
 
 impl Default for Spacing {
@@ -185,6 +198,39 @@ impl Default for Spacing {
             large: 10.0,
             medium: 5.0,
             small: 2.0,
+            widget_spacing: Vec2::splat(8.0),
+        }
+    }
+}
+
+pub struct RoundingTypes {
+    pub small: Rounding,
+    pub big: Rounding,
+}
+
+impl Default for RoundingTypes {
+    fn default() -> Self {
+        Self {
+            small: Rounding::same(2.0),
+            big: Rounding::same(4.0),
+        }
+    }
+}
+
+pub struct ImageSize {
+    pub mod_card_status: Vec2,
+    pub mod_card_data: Vec2,
+    pub mod_card_icon: Vec2,
+    pub settings_heading: Vec2,
+}
+
+impl Default for ImageSize {
+    fn default() -> Self {
+        Self {
+            mod_card_status: Vec2::splat(12.0),
+            mod_card_data: Vec2::splat(10.0),
+            mod_card_icon: Vec2::splat(26.0),
+            settings_heading: Vec2::splat(16.0),
         }
     }
 }

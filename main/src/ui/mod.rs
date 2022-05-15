@@ -1,4 +1,6 @@
-use self::{app_theme::AppTheme, image_utils::ImageTextures, mod_card::FileCard};
+use self::{
+    app_theme::AppTheme, image_utils::ImageTextures, mod_card::FileCard, settings::SettingsUi,
+};
 use back::{
     messages::{BackendError, ToBackend, ToFrontend},
     mod_file::ModLoader,
@@ -9,11 +11,14 @@ use crossbeam_channel::{Receiver, Sender};
 use eframe::{
     egui::{
         style::{DebugOptions, Margin},
-        Align, CentralPanel, ComboBox, Context, Frame, InnerResponse, Label, Layout, RichText,
-        Rounding, ScrollArea, SidePanel, Spinner, Style, TextEdit, Vec2, Widget,
+        Align, CentralPanel, ComboBox, Context, Frame, ImageButton, InnerResponse, Label, Layout,
+        RichText, ScrollArea, Sense, SidePanel, Spinner, Style, TextEdit, Vec2, Widget,
     },
     CreationContext,
 };
+
+use self::widgets::screen_prompt::ScreenPrompt;
+
 use lazy_static::lazy_static;
 use parking_lot::{Mutex, Once};
 use std::thread;
@@ -22,7 +27,9 @@ mod app_theme;
 mod image_utils;
 mod misc;
 mod mod_card;
+mod settings;
 mod text_utils;
+mod widgets;
 
 static SET_LEFT_PANEL_BOTTOM_BUTTONS_WIDTH: Once = Once::new();
 const ICON_RESIZE_QUALITY: u32 = 128;
@@ -71,7 +78,7 @@ impl MCubedAppUI {
 
         let frame_clone = cc.egui_ctx.clone();
         thread::spawn(move || {
-            Back::new(None, back_tx, front_rx, frame_clone).init();
+            Back::new(back_tx, front_rx, frame_clone).init();
         });
 
         new_app.front_tx = Some(front_tx);
@@ -81,7 +88,7 @@ impl MCubedAppUI {
             sender.send(ToBackend::Startup).unwrap();
         }
 
-        SettingsBuilder::new()
+        SettingsBuilder::from_current()
             .icon_resize_size(ICON_RESIZE_QUALITY)
             .apply();
 
@@ -116,6 +123,28 @@ impl eframe::App for MCubedAppUI {
             }
         }
 
+        ScreenPrompt::new("settings").show(ctx, |ui, state| {
+            let size = ui.available_size() - Vec2::splat(50.0);
+            let rect = ui.allocate_exact_size(size, Sense::hover());
+            ui.set_max_size(ui.available_size() - Vec2::splat(50.0));
+
+            let settings_res = ui.allocate_ui_at_rect(rect.0, |ui| {
+                ScrollArea::new([false, true]).show(ui, |ui| {
+                    SettingsUi::show(ui);
+                });
+            });
+
+            ui.set_max_width(settings_res.response.rect.width());
+
+            ui.add_space(THEME.spacing.medium);
+
+            ui.with_layout(Layout::bottom_up(Align::Center), |ui| {
+                if ui.button("Close").clicked() {
+                    state.shown(false);
+                }
+            });
+        });
+
         self.render_side_panel(ctx);
 
         self.render_central_panel(ctx);
@@ -145,7 +174,7 @@ impl MCubedAppUI {
             .resizable(false)
             .max_width(240.)
             .show(ctx, |ui| {
-                ui.style_mut().spacing.item_spacing = Vec2::new(8.0, 8.0);
+                ui.style_mut().spacing.item_spacing = THEME.spacing.widget_spacing;
 
                 ui.horizontal(|ui| {
                     ui.label("Game Version");
@@ -178,7 +207,7 @@ impl MCubedAppUI {
                 Frame {
                     fill: THEME.colors.light_gray,
                     inner_margin: Margin::same(10.0),
-                    rounding: Rounding::same(4.),
+                    rounding: THEME.rounding.big,
                     ..Frame::default()
                 }
                 .show(ui, |ui| {
@@ -201,14 +230,7 @@ impl MCubedAppUI {
                                         modloader: self.selected_modloader,
                                     })
                                     .unwrap();
-                                } else {
-                                    tx.send(ToBackend::AddMod {
-                                        modrinth_id: self.add_mod_buf.clone(),
-                                        game_version: self.game_version_list[0].id.clone(),
-                                        modloader: self.selected_modloader,
-                                    })
-                                    .unwrap();
-                                }
+                                };
                             }
                         }
                     });
@@ -242,16 +264,11 @@ impl MCubedAppUI {
 
                         let refresh_button_res = ui.button("Refresh");
                         if refresh_button_res.clicked() {
-                            self.backend_context.checking_for_updates = true;
                             if let Some(tx) = &self.front_tx {
                                 if let Some(version) = &self.selected_version {
+                                    self.backend_context.checking_for_updates = true;
                                     tx.send(ToBackend::CheckForUpdates {
                                         game_version: version.id.clone(),
-                                    })
-                                    .unwrap();
-                                } else {
-                                    tx.send(ToBackend::CheckForUpdates {
-                                        game_version: self.game_version_list[0].id.clone(),
                                     })
                                     .unwrap();
                                 }
@@ -270,7 +287,27 @@ impl MCubedAppUI {
         CentralPanel::default()
             .frame(THEME.default_panel_frame)
             .show(ctx, |ui| {
-                ui.style_mut().spacing.item_spacing = Vec2::new(8.0, 8.0);
+                ui.style_mut().spacing.item_spacing = THEME.spacing.widget_spacing;
+                let button = ImageButton::new(
+                    IMAGES.lock().settings.as_ref().unwrap().id(),
+                    Vec2::splat(12.0),
+                );
+
+                ui.horizontal(|ui| {
+                    if self.backend_context.checking_for_updates {
+                        ui.horizontal(|ui| {
+                            Spinner::new().size(14.0).ui(ui);
+                            ui.label("Checking for updates");
+                        });
+                    };
+
+                    ui.with_layout(Layout::right_to_left(), |ui| {
+                        if ui.add(button).clicked() {
+                            ScreenPrompt::set_shown(ctx, "settings", true);
+                        };
+                    });
+                });
+
                 ui.horizontal(|ui| {
                     ui.vertical_centered_justified(|ui| {
                         let edit = TextEdit::singleline(&mut self.search_buf).hint_text(
@@ -288,7 +325,7 @@ impl MCubedAppUI {
                             Frame {
                                 fill: THEME.colors.error_message,
                                 inner_margin: Margin::same(6.0),
-                                rounding: Rounding::same(4.),
+                                rounding: THEME.rounding.big,
                                 ..Frame::default()
                             }
                             .show(ui, |ui| {
@@ -308,18 +345,11 @@ impl MCubedAppUI {
                     });
                 }
 
-                if self.backend_context.checking_for_updates {
-                    ui.horizontal(|ui| {
-                        Spinner::new().size(14.0).ui(ui);
-                        ui.label("Checking for updates");
-                    });
-                }
-
                 ui.vertical_centered_justified(|ui| {
                     Frame {
                         fill: THEME.colors.darker_gray,
                         inner_margin: Margin::same(10.0),
-                        rounding: Rounding::same(4.),
+                        rounding: THEME.rounding.big,
                         ..Frame::default()
                     }
                     .show(ui, |ui| {

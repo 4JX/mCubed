@@ -13,6 +13,7 @@ pub struct ImageTextures {
     pub mod_status_ok: Option<egui::TextureHandle>,
     pub mod_status_outdated: Option<egui::TextureHandle>,
     pub mod_status_invalid: Option<egui::TextureHandle>,
+    pub settings: Option<egui::TextureHandle>,
 }
 
 impl ImageTextures {
@@ -71,6 +72,11 @@ impl ImageTextures {
         self.mod_status_invalid = Some(ctx.load_texture(
             "mod-status-invalid",
             load_image_from_memory(include_bytes!("../../res/status_invalid.png")).unwrap(),
+        ));
+
+        self.settings = Some(ctx.load_texture(
+            "settings-icon",
+            load_image_from_memory(include_bytes!("../../res/settings.png")).unwrap(),
         ));
     }
 }

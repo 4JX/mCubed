@@ -8,7 +8,7 @@ homepage = "https://github.com/4JX/mCubed"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-eframe = { git = "https://github.com/4JX/egui", rev = "f3234a1" }
+eframe = { git = "https://github.com/4JX/egui", rev = "1ca27c4" }
 # eframe = { path = "../../egui/eframe" }
 image = "0.24.1"
 serde = "1.0.136"
@@ -19,3 +19,4 @@ tracing-subscriber = { version = "0.3.9", features = ["env-filter"] }
 crossbeam-channel = "0.5.2"
 parking_lot = { version = "0.12.0", features = ["deadlock_detection"] }
 lazy_static = "1.4.0"
+rfd = { version = "0.8.2", default-features = false, features = ["xdg-portal"] }
