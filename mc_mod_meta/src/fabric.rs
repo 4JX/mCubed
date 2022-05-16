@@ -11,7 +11,7 @@ use serde_json::Value;
 
 use crate::{
     error::{Error, LibResult},
-    get_modloader, ModLoader,
+    get_modloaders, ModLoader,
 };
 
 pub const FABRIC_META_PATH: &str = "fabric.mod.json";
@@ -64,9 +64,9 @@ impl FabricManifest {
     }
 
     pub fn from_file(file: &mut File) -> LibResult<Self> {
-        let modloader = get_modloader(file)?;
+        let modloaders = get_modloaders(file)?;
 
-        if modloader == ModLoader::Fabric || modloader == ModLoader::Both {
+        if modloaders.contains(&ModLoader::Fabric) {
             let reader = BufReader::new(file);
 
             let mut archive = zip::ZipArchive::new(reader)?;

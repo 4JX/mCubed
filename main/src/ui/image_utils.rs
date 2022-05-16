@@ -4,7 +4,6 @@ use eframe::egui;
 pub struct ImageTextures {
     pub forge: egui::TextureHandle,
     pub fabric: egui::TextureHandle,
-    pub forge_and_fabric: egui::TextureHandle,
     pub none: egui::TextureHandle,
     pub local: egui::TextureHandle,
     pub curseforge: egui::TextureHandle,
@@ -27,11 +26,6 @@ impl ImageTextures {
         let fabric = ctx.load_texture(
             "fabric-icon",
             load_image_from_memory(include_bytes!("../../res/fabric.png")).unwrap(),
-        );
-
-        let forge_and_fabric = ctx.load_texture(
-            "forge_and_fabric-icon",
-            load_image_from_memory(include_bytes!("../../res/forge_and_fabric.png")).unwrap(),
         );
 
         let none = ctx.load_texture(
@@ -82,7 +76,6 @@ impl ImageTextures {
         Self {
             forge,
             fabric,
-            forge_and_fabric,
             none,
             local,
             curseforge,

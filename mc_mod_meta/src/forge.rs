@@ -10,7 +10,7 @@ use serde::Deserialize;
 
 use crate::{
     error::{Error, LibResult},
-    get_modloader, ModLoader,
+    get_modloaders, ModLoader,
 };
 
 pub const FORGE_META_PATH: &str = "META-INF/mods.toml";
@@ -40,9 +40,9 @@ impl ForgeManifest {
     }
 
     pub fn from_file(file: &mut File) -> LibResult<Self> {
-        let modloader = get_modloader(file)?;
+        let modloaders = get_modloaders(file)?;
 
-        if modloader == ModLoader::Forge || modloader == ModLoader::Both {
+        if modloaders.contains(&ModLoader::Forge) {
             let reader = BufReader::new(file);
 
             let mut archive = zip::ZipArchive::new(reader)?;

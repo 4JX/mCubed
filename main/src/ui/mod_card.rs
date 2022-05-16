@@ -217,11 +217,6 @@ impl ModCard {
 
                                 raw_text.color(THEME.mod_card_modloader().fabric)
                             }
-                            ModLoader::Both => {
-                                ui.image(&images.forge_and_fabric, THEME.image_size.mod_card_data);
-
-                                raw_text.color(THEME.mod_card_modloader().forge_and_fabric)
-                            }
                         };
 
                         ui.add_space(THEME.spacing.medium);

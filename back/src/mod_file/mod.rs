@@ -45,12 +45,11 @@ pub struct ModEntry {
 pub enum ModLoader {
     Forge,
     Fabric,
-    Both,
 }
 
 impl Default for ModLoader {
     fn default() -> Self {
-        Self::Both
+        Self::Forge
     }
 }
 
@@ -65,7 +64,6 @@ impl From<ModLoader> for FeModLoader {
         match modloader {
             ModLoader::Forge => Self::Forge,
             ModLoader::Fabric => Self::Fabric,
-            ModLoader::Both => Self::Fabric,
         }
     }
 }
@@ -75,7 +73,6 @@ impl From<McModLoader> for ModLoader {
         match modloader {
             McModLoader::Forge => Self::Forge,
             McModLoader::Fabric => Self::Fabric,
-            McModLoader::Both => Self::Both,
         }
     }
 }

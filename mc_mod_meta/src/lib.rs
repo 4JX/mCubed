@@ -11,29 +11,30 @@ pub mod error;
 pub mod fabric;
 pub mod forge;
 
-pub fn get_modloader(file: &File) -> LibResult<ModLoader> {
+pub fn get_modloaders(file: &File) -> LibResult<Vec<ModLoader>> {
     let reader = BufReader::new(file);
 
     let archive = zip::ZipArchive::new(reader)?;
 
     let names: Vec<String> = archive.file_names().map(ToString::to_string).collect();
 
-    match (
-        names.contains(&FORGE_META_PATH.to_string()),
-        names.contains(&FABRIC_META_PATH.to_string()),
-    ) {
-        (true, true) => Ok(ModLoader::Both),
-        (true, false) => Ok(ModLoader::Forge),
-        (false, true) => Ok(ModLoader::Fabric),
-        (false, false) => Err(error::Error::InvalidModFile),
+    let mut modloader_vec = Vec::new();
+
+    if names.contains(&FORGE_META_PATH.to_string()) {
+        modloader_vec.push(ModLoader::Forge);
     }
+
+    if names.contains(&FABRIC_META_PATH.to_string()) {
+        modloader_vec.push(ModLoader::Fabric);
+    }
+
+    Ok(modloader_vec)
 }
 
 #[derive(Clone, Copy, PartialEq, Debug)]
 pub enum ModLoader {
     Forge,
     Fabric,
-    Both,
 }
 
 impl fmt::Display for ModLoader {

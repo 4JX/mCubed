@@ -17,10 +17,9 @@ impl ModFile {
 
         let hashes = Hashes::get_hashes_from_file(&mut file)?;
 
-        let entries = ModEntry::from_file(&mut file)?;
-
-        let mut loaders: Vec<ModLoader> = entries.iter().map(|entry| entry.modloader).collect();
-        loaders.dedup();
+        let from_file = ModEntry::from_file(&mut file)?;
+        let entries = from_file.0;
+        let loaders = from_file.1;
 
         let data = ModFileData {
             sources: Sources::default(),
@@ -40,43 +39,30 @@ impl ModFile {
 
 impl ModEntry {
     #[instrument(level = "debug")]
-    pub fn from_file(file: &mut fs::File) -> LibResult<Vec<Self>> {
+    pub fn from_file(file: &mut fs::File) -> LibResult<(Vec<Self>, Vec<ModLoader>)> {
+        let modloaders = mc_mod_meta::get_modloaders(file)?;
+
         let mut mod_vec = Vec::new();
 
-        let modloader = mc_mod_meta::get_modloader(file)?;
-        match modloader {
-            mc_mod_meta::ModLoader::Forge => {
-                let forge_meta = ForgeManifest::from_file(file)?;
-                for forge_mod_entry in forge_meta.mods {
-                    let icon_path = forge_mod_entry.logo_file.clone();
-                    let mod_entry = Self::from_forge_manifest(forge_mod_entry);
-
-                    add_to_mod_vec(&mut mod_vec, file, mod_entry, icon_path);
-                }
-            }
-            mc_mod_meta::ModLoader::Fabric => {
-                let fabric_manifest = FabricManifest::from_file(file)?;
-                let icon_path = fabric_manifest.icon.clone();
-
-                let mod_entry = Self::from_fabric_manifest(fabric_manifest);
-                add_to_mod_vec(&mut mod_vec, file, mod_entry, icon_path);
-            }
-
-            mc_mod_meta::ModLoader::Both => {
-                // Given the mod has entries for both forge and fabric, simplify things by just displaying one entry with the fabric data
-                let fabric_manifest = FabricManifest::from_file(file)?;
-                let icon_path = fabric_manifest.icon.clone();
-
-                let mut mod_entry = Self::from_fabric_manifest(fabric_manifest);
-
-                // However, the modloader is replaced with the "Both" type
-                mod_entry.modloader = ModLoader::Both;
+        if modloaders.contains(&mc_mod_meta::ModLoader::Forge) {
+            let forge_meta = ForgeManifest::from_file(file)?;
+            for forge_mod_entry in forge_meta.mods {
+                let icon_path = forge_mod_entry.logo_file.clone();
+                let mod_entry = Self::from_forge_manifest(forge_mod_entry);
 
                 add_to_mod_vec(&mut mod_vec, file, mod_entry, icon_path);
             }
-        };
+        }
 
-        Ok(mod_vec)
+        if modloaders.contains(&mc_mod_meta::ModLoader::Fabric) {
+            let fabric_manifest = FabricManifest::from_file(file)?;
+            let icon_path = fabric_manifest.icon.clone();
+
+            let mod_entry = Self::from_fabric_manifest(fabric_manifest);
+            add_to_mod_vec(&mut mod_vec, file, mod_entry, icon_path);
+        }
+
+        Ok((mod_vec, modloaders.into_iter().map(Into::into).collect()))
     }
 }
 
