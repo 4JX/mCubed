@@ -3,7 +3,7 @@ use self::{
 };
 use back::{
     messages::{BackendError, ToBackend, ToFrontend},
-    mod_file::ModLoader,
+    mod_file::{FileState, ModLoader},
     settings::SettingsBuilder,
     Back, GameVersion,
 };
@@ -130,7 +130,7 @@ impl eframe::App for MCubedAppUI {
             ui.set_max_size(ui.available_size() - Vec2::splat(50.0));
 
             let settings_res = ui.allocate_ui_at_rect(rect.0, |ui| {
-                ScrollArea::new([false, true]).show(ui, |ui| {
+                ScrollArea::vertical().show(ui, |ui| {
                     SettingsUi::show(ui, &self.images);
                 });
             });
@@ -298,6 +298,15 @@ impl MCubedAppUI {
                     ui.with_layout(Layout::right_to_left(), |ui| {
                         if ui.add(button).clicked() {
                             ScreenPrompt::set_shown(ctx, "settings", true);
+                        };
+
+                        if self
+                            .mod_list
+                            .iter()
+                            .any(|card| card.mod_file().data.state == FileState::Outdated)
+                            && ui.button("Update All").clicked()
+                        {
+                            self.front_tx.send(ToBackend::UpdateAll).unwrap()
                         };
                     });
                 });

@@ -30,6 +30,8 @@ pub enum ToBackend {
         modloader: ModLoader,
     },
 
+    UpdateAll,
+
     UpdateMod {
         mod_file: Box<ModFile>,
     },
