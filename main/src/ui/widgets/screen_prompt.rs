@@ -83,7 +83,7 @@ impl ScreenPrompt {
                         });
 
                     if prompt_area_res.response.clicked_elsewhere() && self.outside_click_closes {
-                        state.is_shown = false
+                        state.is_shown = false;
                     };
 
                     prompt_area_res.inner

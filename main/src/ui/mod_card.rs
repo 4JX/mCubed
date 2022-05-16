@@ -14,7 +14,7 @@ use eframe::{
     epaint::{ColorImage, TextureHandle},
 };
 
-use super::{misc, text_utils, ICON_RESIZE_QUALITY, IMAGES, THEME};
+use super::{image_utils::ImageTextures, misc, text_utils, ICON_RESIZE_QUALITY, THEME};
 
 pub struct FileCard {
     mod_file: ModFile,
@@ -56,7 +56,8 @@ impl FileCard {
         &mut self,
         current_search: &str,
         ui: &mut Ui,
-        front_tx: &Option<Sender<ToBackend>>,
+        front_tx: &Sender<ToBackend>,
+        images: &ImageTextures,
     ) {
         let mod_file = &mut self.mod_file;
 
@@ -73,7 +74,7 @@ impl FileCard {
             let key = format!("{}{}", mod_file.hashes.sha1, entry.id);
             let mod_icon = self.mod_icons.get(&key);
 
-            ModCard::show(mod_file, &entry, ui, front_tx, mod_icon);
+            ModCard::show(mod_file, &entry, ui, front_tx, mod_icon, images);
         }
     }
 }
@@ -85,8 +86,9 @@ impl ModCard {
         mod_file: &mut ModFile,
         mod_entry: &ModEntry,
         ui: &mut Ui,
-        front_tx: &Option<Sender<ToBackend>>,
+        front_tx: &Sender<ToBackend>,
         mod_icon: Option<&TextureHandle>,
+        images: &ImageTextures,
     ) {
         let mut state = collapsing_header::CollapsingState::load_with_default_open(
             ui.ctx(),
@@ -95,7 +97,7 @@ impl ModCard {
             false,
         );
 
-        let header_res = Self::render_header(mod_entry, mod_file, ui, front_tx, mod_icon);
+        let header_res = Self::render_header(mod_entry, mod_file, ui, front_tx, mod_icon, images);
 
         if header_res.clicked() {
             state.toggle(ui);
@@ -126,11 +128,10 @@ impl ModCard {
         mod_entry: &ModEntry,
         mod_file: &mut ModFile,
         ui: &mut Ui,
-        front_tx: &Option<Sender<ToBackend>>,
+        front_tx: &Sender<ToBackend>,
         mod_icon: Option<&TextureHandle>,
+        images: &ImageTextures,
     ) -> Response {
-        let images = IMAGES.lock();
-
         let frame_res = Frame {
             fill: THEME.colors.dark_gray,
             rounding: THEME.rounding.small,
@@ -149,21 +150,19 @@ impl ModCard {
                 }
                 .show(ui, |ui| {
                     match mod_file.data.state {
-                        FileState::Current => ui.image(
-                            images.mod_status_ok.as_ref().unwrap().id(),
-                            THEME.image_size.mod_card_status,
-                        ),
+                        FileState::Current => {
+                            ui.image(&images.mod_status_ok, THEME.image_size.mod_card_status)
+                        }
                         FileState::Outdated => ui.image(
-                            images.mod_status_outdated.as_ref().unwrap().id(),
+                            &images.mod_status_outdated,
                             THEME.image_size.mod_card_status,
                         ),
-                        FileState::Invalid => ui.image(
-                            images.mod_status_invalid.as_ref().unwrap().id(),
-                            THEME.image_size.mod_card_status,
-                        ),
+                        FileState::Invalid => {
+                            ui.image(&images.mod_status_invalid, THEME.image_size.mod_card_status)
+                        }
                         FileState::Local => ui.image(
                             // There's not much that can be done here, assume its all good
-                            images.mod_status_ok.as_ref().unwrap().id(),
+                            &images.mod_status_ok,
                             THEME.image_size.mod_card_status,
                         ),
                     };
@@ -209,26 +208,17 @@ impl ModCard {
 
                         let text = match mod_entry.modloader {
                             ModLoader::Forge => {
-                                ui.image(
-                                    images.forge.as_ref().unwrap(),
-                                    THEME.image_size.mod_card_data,
-                                );
+                                ui.image(&images.forge, THEME.image_size.mod_card_data);
 
                                 raw_text.color(THEME.mod_card_modloader().forge)
                             }
                             ModLoader::Fabric => {
-                                ui.image(
-                                    images.fabric.as_ref().unwrap(),
-                                    THEME.image_size.mod_card_data,
-                                );
+                                ui.image(&images.fabric, THEME.image_size.mod_card_data);
 
                                 raw_text.color(THEME.mod_card_modloader().fabric)
                             }
                             ModLoader::Both => {
-                                ui.image(
-                                    images.forge_and_fabric.as_ref().unwrap(),
-                                    THEME.image_size.mod_card_data,
-                                );
+                                ui.image(&images.forge_and_fabric, THEME.image_size.mod_card_data);
 
                                 raw_text.color(THEME.mod_card_modloader().forge_and_fabric)
                             }
@@ -246,34 +236,22 @@ impl ModCard {
 
                         let text = match mod_file.data.sourced_from {
                             CurrentSource::None => {
-                                ui.image(
-                                    images.none.as_ref().unwrap(),
-                                    THEME.image_size.mod_card_data,
-                                );
+                                ui.image(&images.none, THEME.image_size.mod_card_data);
 
                                 raw_text.color(THEME.mod_card_source().none)
                             }
                             CurrentSource::Local => {
-                                ui.image(
-                                    images.local.as_ref().unwrap(),
-                                    THEME.image_size.mod_card_data,
-                                );
+                                ui.image(&images.local, THEME.image_size.mod_card_data);
 
                                 raw_text.color(THEME.mod_card_source().local)
                             }
                             CurrentSource::Modrinth => {
-                                ui.image(
-                                    images.modrinth.as_ref().unwrap(),
-                                    THEME.image_size.mod_card_data,
-                                );
+                                ui.image(&images.modrinth, THEME.image_size.mod_card_data);
 
                                 raw_text.color(THEME.mod_card_source().modrinth)
                             }
                             CurrentSource::CurseForge => {
-                                ui.image(
-                                    images.curseforge.as_ref().unwrap(),
-                                    THEME.image_size.mod_card_data,
-                                );
+                                ui.image(&images.curseforge, THEME.image_size.mod_card_data);
 
                                 raw_text.color(THEME.mod_card_source().curseforge)
                             }
@@ -322,16 +300,14 @@ impl ModCard {
                 ui.with_layout(Layout::right_to_left(), |ui| {
                     ui.add_space(THEME.spacing.large);
 
-                    let button =
-                        ImageButton::new(images.bin.as_ref().unwrap().id(), Vec2::splat(12.));
+                    let button = ImageButton::new(&images.bin, Vec2::splat(12.));
 
                     if ui.add(button).clicked() {
-                        if let Some(tx) = &front_tx {
-                            tx.send(ToBackend::DeleteMod {
+                        front_tx
+                            .send(ToBackend::DeleteMod {
                                 path: mod_file.path.clone(),
                             })
                             .unwrap();
-                        }
                     };
 
                     ui.add_space(THEME.spacing.medium);
@@ -341,12 +317,11 @@ impl ModCard {
                             .button(text_utils::update_button_text("Update"))
                             .clicked()
                     {
-                        if let Some(tx) = &front_tx {
-                            tx.send(ToBackend::UpdateMod {
+                        front_tx
+                            .send(ToBackend::UpdateMod {
                                 mod_file: Box::new(mod_file.clone()),
                             })
                             .unwrap();
-                        }
                     }
                 });
             });

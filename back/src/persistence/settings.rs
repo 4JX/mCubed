@@ -1,19 +1,13 @@
-use std::{path::PathBuf, sync::Arc};
-
+use super::storage_trait::StorageTrait;
+use crate::{error::LibResult, paths};
 use ferinth::structures::version_structs::VersionType;
-use lazy_static::lazy_static;
+use once_cell::sync::Lazy;
 use parking_lot::Mutex;
 use serde::{Deserialize, Serialize};
+use std::path::PathBuf;
 
-use crate::{error::LibResult, paths};
-
-use super::storage_trait::StorageTrait;
-
-lazy_static! {
-    pub static ref CONF: Arc<Mutex<SettingsBuilder>> = Arc::new(Mutex::new(
-        SettingsBuilder::load_from_file().unwrap_or_default()
-    ));
-}
+pub static CONF: Lazy<Mutex<SettingsBuilder>> =
+    Lazy::new(|| Mutex::new(SettingsBuilder::load_from_file().unwrap_or_default()));
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct SettingsBuilder {

@@ -1,11 +1,11 @@
+use once_cell::sync::Lazy;
 use std::path::PathBuf;
 use tracing::instrument;
 
-lazy_static::lazy_static! {
-    static ref BASE_DIRS: directories::BaseDirs = directories::BaseDirs::new().expect("Could not get base dirs");
-    static ref HOME_DIR: std::path::PathBuf = BASE_DIRS.home_dir().to_owned();
-    pub static ref CONFIG_DIR: std::path::PathBuf = BASE_DIRS.config_dir().join("mCubed");
-}
+static BASE_DIRS: Lazy<directories::BaseDirs> =
+    Lazy::new(|| directories::BaseDirs::new().expect("Could not get base dirs"));
+static HOME_DIR: Lazy<PathBuf> = Lazy::new(|| BASE_DIRS.home_dir().to_owned());
+pub static CONFIG_DIR: Lazy<PathBuf> = Lazy::new(|| BASE_DIRS.config_dir().join("mCubed"));
 
 #[cfg(target_os = "windows")]
 #[instrument(level = "trace")]

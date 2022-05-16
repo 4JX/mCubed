@@ -1,83 +1,98 @@
 use eframe::egui;
 
-#[derive(Default, Clone)]
+#[derive(Clone)]
 pub struct ImageTextures {
-    pub forge: Option<egui::TextureHandle>,
-    pub fabric: Option<egui::TextureHandle>,
-    pub forge_and_fabric: Option<egui::TextureHandle>,
-    pub none: Option<egui::TextureHandle>,
-    pub local: Option<egui::TextureHandle>,
-    pub curseforge: Option<egui::TextureHandle>,
-    pub modrinth: Option<egui::TextureHandle>,
-    pub bin: Option<egui::TextureHandle>,
-    pub mod_status_ok: Option<egui::TextureHandle>,
-    pub mod_status_outdated: Option<egui::TextureHandle>,
-    pub mod_status_invalid: Option<egui::TextureHandle>,
-    pub settings: Option<egui::TextureHandle>,
+    pub forge: egui::TextureHandle,
+    pub fabric: egui::TextureHandle,
+    pub forge_and_fabric: egui::TextureHandle,
+    pub none: egui::TextureHandle,
+    pub local: egui::TextureHandle,
+    pub curseforge: egui::TextureHandle,
+    pub modrinth: egui::TextureHandle,
+    pub bin: egui::TextureHandle,
+    pub mod_status_ok: egui::TextureHandle,
+    pub mod_status_outdated: egui::TextureHandle,
+    pub mod_status_invalid: egui::TextureHandle,
+    pub settings: egui::TextureHandle,
 }
 
 impl ImageTextures {
     /// This function should not be called in the update method
-    pub fn load_images(&mut self, ctx: &egui::Context) {
-        self.forge = Some(ctx.load_texture(
+    pub fn new(ctx: &egui::Context) -> Self {
+        let forge = ctx.load_texture(
             "forge-icon",
             load_image_from_memory(include_bytes!("../../res/forge.png")).unwrap(),
-        ));
+        );
 
-        self.fabric = Some(ctx.load_texture(
+        let fabric = ctx.load_texture(
             "fabric-icon",
             load_image_from_memory(include_bytes!("../../res/fabric.png")).unwrap(),
-        ));
+        );
 
-        self.forge_and_fabric = Some(ctx.load_texture(
+        let forge_and_fabric = ctx.load_texture(
             "forge_and_fabric-icon",
             load_image_from_memory(include_bytes!("../../res/forge_and_fabric.png")).unwrap(),
-        ));
+        );
 
-        self.none = Some(ctx.load_texture(
+        let none = ctx.load_texture(
             "source-local-icon",
             load_image_from_memory(include_bytes!("../../res/none.png")).unwrap(),
-        ));
+        );
 
-        self.local = Some(ctx.load_texture(
+        let local = ctx.load_texture(
             "source-local-icon",
             load_image_from_memory(include_bytes!("../../res/local.png")).unwrap(),
-        ));
+        );
 
-        self.curseforge = Some(ctx.load_texture(
+        let curseforge = ctx.load_texture(
             "source-curseforge-icon",
             load_image_from_memory(include_bytes!("../../res/curseforge.png")).unwrap(),
-        ));
+        );
 
-        self.modrinth = Some(ctx.load_texture(
+        let modrinth = ctx.load_texture(
             "source-modrinth-icon",
             load_image_from_memory(include_bytes!("../../res/modrinth.png")).unwrap(),
-        ));
+        );
 
-        self.bin = Some(ctx.load_texture(
+        let bin = ctx.load_texture(
             "bin-icon",
             load_image_from_memory(include_bytes!("../../res/bin.png")).unwrap(),
-        ));
+        );
 
-        self.mod_status_ok = Some(ctx.load_texture(
+        let mod_status_ok = ctx.load_texture(
             "mod-status-ok",
             load_image_from_memory(include_bytes!("../../res/status_ok.png")).unwrap(),
-        ));
+        );
 
-        self.mod_status_outdated = Some(ctx.load_texture(
+        let mod_status_outdated = ctx.load_texture(
             "mod-status-outdated",
             load_image_from_memory(include_bytes!("../../res/status_outdated.png")).unwrap(),
-        ));
+        );
 
-        self.mod_status_invalid = Some(ctx.load_texture(
+        let mod_status_invalid = ctx.load_texture(
             "mod-status-invalid",
             load_image_from_memory(include_bytes!("../../res/status_invalid.png")).unwrap(),
-        ));
+        );
 
-        self.settings = Some(ctx.load_texture(
+        let settings = ctx.load_texture(
             "settings-icon",
             load_image_from_memory(include_bytes!("../../res/settings.png")).unwrap(),
-        ));
+        );
+
+        Self {
+            forge,
+            fabric,
+            forge_and_fabric,
+            none,
+            local,
+            curseforge,
+            modrinth,
+            bin,
+            mod_status_ok,
+            mod_status_outdated,
+            mod_status_invalid,
+            settings,
+        }
     }
 }
 

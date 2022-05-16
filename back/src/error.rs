@@ -55,7 +55,7 @@ pub enum Error {
     FerinthNotSHA1Error,
     #[error("Could not parse url")]
     FerinthURLParseError,
-    #[error("Could not parse url")]
+    #[error("The ratelimit was exceeded, please wait {} seconds before trying again", .0)]
     FerinthRatelimitExceeded(usize),
 
     // Daedalus errors
@@ -102,10 +102,13 @@ impl From<ferinth::Error> for Error {
         match err {
             ferinth::Error::NotBase62 => Self::FerinthBase62Error,
             ferinth::Error::NotSHA1 => Self::FerinthNotSHA1Error,
-            ferinth::Error::ReqwestError(inner) => Self::ReqwestError {
-                inner,
-                item: "Unknown (Ferinth)".to_string(),
-            },
+            ferinth::Error::ReqwestError(inner) => {
+                let item = inner.url().map_or("Unknown (Ferinth)".to_string(), |url| {
+                    url.as_str().to_string()
+                });
+
+                Self::ReqwestError { inner, item }
+            }
             ferinth::Error::URLParseError(_) => Self::FerinthURLParseError,
             ferinth::Error::RateLimitExceeded(seconds) => Self::FerinthRatelimitExceeded(seconds),
         }

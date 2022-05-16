@@ -3,6 +3,7 @@ use ferinth::{
     structures::version_structs::{ListVersionsParams, Version, VersionType},
     Ferinth,
 };
+use reqwest::StatusCode;
 use tracing::instrument;
 
 use crate::{
@@ -26,11 +27,9 @@ impl Default for Modrinth {
 
 impl Modrinth {
     #[instrument(skip(self))]
-    pub(crate) async fn get_modrinth_id_from_hash(&self, mod_hash: &str) -> Option<String> {
-        match self.ferinth.get_version_from_file_hash(mod_hash).await {
-            Ok(result) => Some(result.project_id),
-            Err(_err) => None,
-        }
+    pub(crate) async fn get_modrinth_id_from_hash(&self, mod_hash: &str) -> LibResult<String> {
+        let version = self.ferinth.get_version_from_file_hash(mod_hash).await?;
+        Ok(version.project_id)
     }
 
     #[instrument(skip(self, data))]
@@ -46,15 +45,29 @@ impl Modrinth {
             let hashes = hashes.as_ref().unwrap();
             let modrinth_id = self.get_modrinth_id_from_hash(&hashes.sha1).await;
 
-            if let Some(id) = modrinth_id {
-                mod_data.sources.modrinth = Some(ModrinthData {
-                    id,
-                    latest_valid_version: None,
-                });
+            match modrinth_id {
+                Ok(id) => {
+                    mod_data.sources.modrinth = Some(ModrinthData {
+                        id,
+                        latest_valid_version: None,
+                    });
 
-                // If the source has not been set by the user, automatically track Modrinth
-                if mod_data.sourced_from == CurrentSource::None {
-                    mod_data.sourced_from = CurrentSource::Modrinth;
+                    // If the source has not been set by the user, automatically track Modrinth
+                    if mod_data.sourced_from == CurrentSource::None {
+                        mod_data.sourced_from = CurrentSource::Modrinth;
+                    };
+                }
+                Err(err) => {
+                    // In the case there was no id found, gracefully exit without altering anything
+                    if let error::Error::ReqwestError { inner, .. } = &err {
+                        if let Some(status) = inner.status() {
+                            if status == StatusCode::NOT_FOUND {
+                                return Ok(());
+                            }
+                        }
+                    }
+
+                    return Err(err);
                 }
             }
         }
@@ -193,7 +206,7 @@ fn accepted_versions_vec() -> Vec<VersionType> {
     let ver_arr = [VersionType::Release, VersionType::Beta, VersionType::Alpha];
     let mut allowed_versions = Vec::new();
     for version in ver_arr {
-        allowed_versions.push(version)
+        allowed_versions.push(version);
     }
     allowed_versions.push(min_ver);
     allowed_versions

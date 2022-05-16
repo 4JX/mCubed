@@ -7,6 +7,10 @@ use eframe::{egui::Vec2, IconData};
 
 mod ui;
 
+const RUST_LIB_BACKTRACE: &str = "RUST_LIB_BACKTRACE";
+const RUST_BACKTRACE: &str = "RUST_BACKTRACE";
+const RUST_LOG: &str = "RUST_LOG";
+
 fn main() -> Result<(), Report> {
     setup_logging()?;
 
@@ -26,17 +30,20 @@ fn main() -> Result<(), Report> {
 }
 
 fn setup_logging() -> Result<(), Report> {
-    if std::env::var("RUST_LIB_BACKTRACE").is_err() {
-        std::env::set_var("RUST_LIB_BACKTRACE", "1");
+    #[cfg(debug_assertions)]
+    use tracing_subscriber::fmt::format::FmtSpan;
+
+    if std::env::var(RUST_LIB_BACKTRACE).is_err() {
+        std::env::set_var(RUST_LIB_BACKTRACE, "1");
     }
 
-    if std::env::var("RUST_BACKTRACE").is_err() {
-        std::env::set_var("RUST_BACKTRACE", "1");
+    if std::env::var(RUST_BACKTRACE).is_err() {
+        std::env::set_var(RUST_BACKTRACE, "1");
     }
     color_eyre::install()?;
 
-    if std::env::var("RUST_LOG").is_err() {
-        std::env::set_var("RUST_LOG", "info");
+    if std::env::var(RUST_LOG).is_err() {
+        std::env::set_var(RUST_LOG, "info");
     }
 
     let env_filter = EnvFilter::try_from_default_env()?.add_directive("back=info".parse()?);
@@ -44,9 +51,6 @@ fn setup_logging() -> Result<(), Report> {
     let subscriber_config = tracing_subscriber::fmt::fmt().with_env_filter(env_filter);
 
     // Log extra stuff if it's a debug build
-    #[cfg(debug_assertions)]
-    use tracing_subscriber::fmt::format::FmtSpan;
-
     #[cfg(debug_assertions)]
     let subscriber_config = subscriber_config
         .with_thread_ids(true)

@@ -8,12 +8,12 @@ edition = "2021"
 [dependencies]
 tokio = { version = "1.17.0", features = ["rt", "rt-multi-thread"] }
 # ferinth = "1.4.1"
-ferinth = { git = "https://github.com/4JX/ferinth", rev = "48d3409" }
+ferinth = { git = "https://github.com/4JX/ferinth", rev = "691cfe0" }
 # ferinth = { path = "../../ferinth" }
 sha-1 = "0.10.0"
 sha2 = "0.10.2"
 mc_mod_meta = { path = "../mc_mod_meta" }
-lazy_static = "1.4.0"
+once_cell = "1.10.0"
 hex = "0.4.3"
 bytes = "1.1.0"
 # daedalus = "0.1.14"

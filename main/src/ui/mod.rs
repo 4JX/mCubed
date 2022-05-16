@@ -16,11 +16,11 @@ use eframe::{
     },
     CreationContext,
 };
+use once_cell::sync::Lazy;
 
 use self::widgets::screen_prompt::ScreenPrompt;
 
-use lazy_static::lazy_static;
-use parking_lot::{Mutex, Once};
+use parking_lot::Once;
 use std::thread;
 
 mod app_theme;
@@ -34,16 +34,13 @@ mod widgets;
 static SET_LEFT_PANEL_BOTTOM_BUTTONS_WIDTH: Once = Once::new();
 const ICON_RESIZE_QUALITY: u32 = 128;
 
-lazy_static! {
-    static ref THEME: AppTheme = AppTheme::default();
-    static ref IMAGES: Mutex<ImageTextures> = Mutex::new(ImageTextures::default());
-}
+static THEME: Lazy<AppTheme> = Lazy::new(AppTheme::default);
 
-#[derive(Default)]
 pub struct MCubedAppUI {
     // UI
     search_buf: String,
     add_mod_buf: String,
+    images: ImageTextures,
 
     // Data
     mod_list: Vec<FileCard>,
@@ -53,8 +50,8 @@ pub struct MCubedAppUI {
     backend_context: BackendContext,
 
     // Data transferring
-    front_tx: Option<Sender<ToBackend>>,
-    back_rx: Option<Receiver<ToFrontend>>,
+    front_tx: Sender<ToBackend>,
+    back_rx: Receiver<ToFrontend>,
 
     // Misc sizes to combat immediate mode shenanigans
     left_panel_bottom_buttons_width: f32,
@@ -68,11 +65,6 @@ struct BackendContext {
 
 impl MCubedAppUI {
     pub fn new(cc: &CreationContext) -> Self {
-        let mut new_app = Self::default();
-
-        new_app.configure_style(&cc.egui_ctx);
-        IMAGES.lock().load_images(&cc.egui_ctx);
-
         let (front_tx, front_rx) = crossbeam_channel::unbounded();
         let (back_tx, back_rx) = crossbeam_channel::unbounded();
 
@@ -81,16 +73,27 @@ impl MCubedAppUI {
             Back::new(back_tx, front_rx, frame_clone).init();
         });
 
-        new_app.front_tx = Some(front_tx);
-        new_app.back_rx = Some(back_rx);
-
-        if let Some(sender) = &new_app.front_tx {
-            sender.send(ToBackend::Startup).unwrap();
-        }
-
         SettingsBuilder::from_current()
             .icon_resize_size(ICON_RESIZE_QUALITY)
             .apply();
+
+        Self::configure_style(&cc.egui_ctx);
+
+        let new_app = Self {
+            search_buf: String::default(),
+            add_mod_buf: String::default(),
+            images: ImageTextures::new(&cc.egui_ctx),
+            mod_list: Vec::default(),
+            game_version_list: Vec::default(),
+            selected_version: Option::default(),
+            selected_modloader: ModLoader::default(),
+            backend_context: BackendContext::default(),
+            front_tx,
+            back_rx,
+            left_panel_bottom_buttons_width: f32::default(),
+        };
+
+        new_app.front_tx.send(ToBackend::Startup).unwrap();
 
         new_app
     }
@@ -98,28 +101,26 @@ impl MCubedAppUI {
 
 impl eframe::App for MCubedAppUI {
     fn update(&mut self, ctx: &Context, _frame: &mut eframe::Frame) {
-        if let Some(rx) = &self.back_rx {
-            match rx.try_recv() {
-                Ok(message) => match message {
-                    ToFrontend::SetVersionMetadata { manifest } => {
-                        self.selected_version = Some(manifest.versions[0].clone());
-                        self.game_version_list = manifest.versions;
-                    }
-                    ToFrontend::UpdateModList { mod_list } => {
-                        self.backend_context.checking_for_updates = false;
-                        self.mod_list = mod_list
-                            .into_iter()
-                            .map(|file| FileCard::new(file, ctx))
-                            .collect();
-                        ctx.request_repaint();
-                    }
-                    ToFrontend::BackendError { error } => {
-                        self.backend_context.backend_errors.push(error);
-                    }
-                },
-                Err(err) => {
-                    let _ = err;
+        match self.back_rx.try_recv() {
+            Ok(message) => match message {
+                ToFrontend::SetVersionMetadata { manifest } => {
+                    self.selected_version = Some(manifest.versions[0].clone());
+                    self.game_version_list = manifest.versions;
                 }
+                ToFrontend::UpdateModList { mod_list } => {
+                    self.backend_context.checking_for_updates = false;
+                    self.mod_list = mod_list
+                        .into_iter()
+                        .map(|file| FileCard::new(file, ctx))
+                        .collect();
+                    ctx.request_repaint();
+                }
+                ToFrontend::BackendError { error } => {
+                    self.backend_context.backend_errors.push(error);
+                }
+            },
+            Err(err) => {
+                let _ = err;
             }
         }
 
@@ -130,7 +131,7 @@ impl eframe::App for MCubedAppUI {
 
             let settings_res = ui.allocate_ui_at_rect(rect.0, |ui| {
                 ScrollArea::new([false, true]).show(ui, |ui| {
-                    SettingsUi::show(ui);
+                    SettingsUi::show(ui, &self.images);
                 });
             });
 
@@ -151,8 +152,8 @@ impl eframe::App for MCubedAppUI {
     }
 
     fn on_exit(&mut self, _gl: &eframe::glow::Context) {
-        if let Some(tx) = &self.front_tx {
-            tx.send(ToBackend::UpdateBackendList {
+        self.front_tx
+            .send(ToBackend::UpdateBackendList {
                 mod_list: self
                     .mod_list
                     .iter()
@@ -162,8 +163,7 @@ impl eframe::App for MCubedAppUI {
             })
             .unwrap();
 
-            tx.send(ToBackend::Shutdown).unwrap();
-        }
+        self.front_tx.send(ToBackend::Shutdown).unwrap();
     }
 }
 
@@ -222,16 +222,15 @@ impl MCubedAppUI {
                         ui.add_sized(Vec2::new(130.0, ui.available_height()), edit);
 
                         if ui.button("Fetch Mod").clicked() {
-                            if let Some(tx) = &self.front_tx {
-                                if let Some(version) = &self.selected_version {
-                                    tx.send(ToBackend::AddMod {
+                            if let Some(version) = &self.selected_version {
+                                self.front_tx
+                                    .send(ToBackend::AddMod {
                                         modrinth_id: self.add_mod_buf.clone(),
                                         game_version: version.id.clone(),
                                         modloader: self.selected_modloader,
                                     })
                                     .unwrap();
-                                };
-                            }
+                            };
                         }
                     });
 
@@ -247,8 +246,8 @@ impl MCubedAppUI {
                         let rescan_folder_button_res = ui.button("Re-scan Folder");
 
                         if rescan_folder_button_res.clicked() {
-                            if let Some(tx) = &self.front_tx {
-                                tx.send(ToBackend::UpdateBackendList {
+                            self.front_tx
+                                .send(ToBackend::UpdateBackendList {
                                     mod_list: self
                                         .mod_list
                                         .iter()
@@ -258,20 +257,18 @@ impl MCubedAppUI {
                                 })
                                 .unwrap();
 
-                                tx.send(ToBackend::ScanFolder).unwrap();
-                            }
+                            self.front_tx.send(ToBackend::ScanFolder).unwrap();
                         };
 
                         let refresh_button_res = ui.button("Refresh");
                         if refresh_button_res.clicked() {
-                            if let Some(tx) = &self.front_tx {
-                                if let Some(version) = &self.selected_version {
-                                    self.backend_context.checking_for_updates = true;
-                                    tx.send(ToBackend::CheckForUpdates {
+                            if let Some(version) = &self.selected_version {
+                                self.backend_context.checking_for_updates = true;
+                                self.front_tx
+                                    .send(ToBackend::CheckForUpdates {
                                         game_version: version.id.clone(),
                                     })
                                     .unwrap();
-                                }
                             }
                         }
                     });
@@ -288,10 +285,7 @@ impl MCubedAppUI {
             .frame(THEME.default_panel_frame)
             .show(ctx, |ui| {
                 ui.style_mut().spacing.item_spacing = THEME.spacing.widget_spacing;
-                let button = ImageButton::new(
-                    IMAGES.lock().settings.as_ref().unwrap().id(),
-                    Vec2::splat(12.0),
-                );
+                let button = ImageButton::new(&self.images.settings, Vec2::splat(12.0));
 
                 ui.horizontal(|ui| {
                     if self.backend_context.checking_for_updates {
@@ -377,7 +371,12 @@ impl MCubedAppUI {
                                 ScrollArea::vertical().show(ui, |ui| {
                                     ui.style_mut().spacing.item_spacing.y = THEME.spacing.large;
                                     for file_card in &mut self.mod_list {
-                                        file_card.show(&self.search_buf, ui, &self.front_tx);
+                                        file_card.show(
+                                            &self.search_buf,
+                                            ui,
+                                            &self.front_tx,
+                                            &self.images,
+                                        );
                                     }
                                 });
                             }
@@ -389,7 +388,7 @@ impl MCubedAppUI {
 }
 
 impl MCubedAppUI {
-    fn configure_style(&self, ctx: &Context) {
+    fn configure_style(ctx: &Context) {
         let style = Style {
             text_styles: text_utils::default_text_styles(),
             visuals: THEME.visuals.clone(),

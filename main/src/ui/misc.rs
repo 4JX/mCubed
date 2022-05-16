@@ -19,6 +19,8 @@ pub fn combobox_icon_fn(ui: &Ui, rect: Rect, visuals: &WidgetVisuals, _is_open: 
 
 #[allow(dead_code)]
 pub fn collapsing_state_icon_fn(ui: &mut Ui, openness: f32, response: &Response) {
+    use std::f32::consts::TAU;
+
     let visuals = ui.style().interact(response);
     let stroke = visuals.fg_stroke;
 
@@ -31,7 +33,7 @@ pub fn collapsing_state_icon_fn(ui: &mut Ui, openness: f32, response: &Response)
     );
     let rect = rect.expand(visuals.expansion);
     let mut points = vec![rect.left_top(), rect.right_top(), rect.center_bottom()];
-    use std::f32::consts::TAU;
+
     let rotation = emath::Rot2::from_angle(remap(openness, 0.0..=1.0, -TAU / 4.0..=0.0));
     for p in &mut points {
         *p = rect.center() + rotation * (*p - rect.center());

@@ -1,7 +1,7 @@
 use back::settings::{SettingsBuilder, CONF};
 use eframe::egui::Ui;
 
-use crate::ui::IMAGES;
+use crate::ui::image_utils::ImageTextures;
 
 use super::SettingsSection;
 
@@ -10,8 +10,8 @@ pub(super) struct GeneralSettings;
 impl SettingsSection for GeneralSettings {
     const ID: &'static str = "general";
 
-    fn show(ui: &mut Ui) {
-        Self::settings_section(ui, &IMAGES.lock().settings, "General", |ui| {
+    fn show(ui: &mut Ui, images: &ImageTextures) {
+        Self::settings_section(ui, &images.settings, "General", |ui| {
             ui.label("Mods folder path").on_hover_text(
                 "The path to the current mods folder of your Minecraft installation",
             );
@@ -32,6 +32,6 @@ impl SettingsSection for GeneralSettings {
                         .apply();
                 }
             }
-        })
+        });
     }
 }

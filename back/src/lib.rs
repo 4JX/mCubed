@@ -18,6 +18,7 @@ use parking_lot::{Mutex, Once};
 use persistence::cache::CacheStorage;
 use tracing::{debug, error, info, instrument};
 use crate::{messages::BackendError, settings::CONF};
+use once_cell::sync::Lazy;
 
 mod error;
 pub mod messages;
@@ -32,10 +33,8 @@ pub use ferinth::structures::version_structs::VersionType;
 
 
 static LOG_CHANNEL_CLOSED: Once = Once::new();
+static MODRINTH: Lazy<Modrinth> = Lazy::new(Modrinth::default) ;
 
-lazy_static::lazy_static!(
-    static ref MODRINTH: Modrinth = Modrinth::default();
-);
 
 pub struct Back {
     mod_list: Vec<ModFile>,
