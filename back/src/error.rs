@@ -60,13 +60,7 @@ pub enum Error {
 
     // Daedalus errors
     #[error("Failed to validate file checksum at url {url} with hash {hash} after {tries} tries")]
-    DaedalusChecksumFailure {
-        hash: String,
-
-        url: String,
-
-        tries: u32,
-    },
+    DaedalusChecksumFailure { hash: String, url: String, tries: u32 },
     #[error("Error while managing asynchronous tasks")]
     DaedalusTaskError(#[from] tokio::task::JoinError),
     #[error("{0}")]
@@ -103,9 +97,9 @@ impl From<ferinth::Error> for Error {
             ferinth::Error::NotBase62 => Self::FerinthBase62Error,
             ferinth::Error::NotSHA1 => Self::FerinthNotSHA1Error,
             ferinth::Error::ReqwestError(inner) => {
-                let item = inner.url().map_or("Unknown (Ferinth)".to_string(), |url| {
-                    url.as_str().to_string()
-                });
+                let item = inner
+                    .url()
+                    .map_or("Unknown (Ferinth)".to_string(), |url| url.as_str().to_string());
 
                 Self::ReqwestError { inner, item }
             }
@@ -118,9 +112,7 @@ impl From<ferinth::Error> for Error {
 impl From<daedalus::Error> for Error {
     fn from(err: daedalus::Error) -> Self {
         match err {
-            daedalus::Error::ChecksumFailure { hash, url, tries } => {
-                Self::DaedalusChecksumFailure { hash, url, tries }
-            }
+            daedalus::Error::ChecksumFailure { hash, url, tries } => Self::DaedalusChecksumFailure { hash, url, tries },
             daedalus::Error::SerdeError(error) => Self::SerdeError(error),
             daedalus::Error::FetchError { inner, item } => Self::ReqwestError { inner, item },
             daedalus::Error::TaskError(err) => Self::DaedalusTaskError(err),

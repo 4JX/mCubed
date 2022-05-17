@@ -94,8 +94,5 @@ fn load_image_from_memory(image_data: &[u8]) -> Result<egui::ColorImage, image::
     let size = [image.width() as _, image.height() as _];
     let image_buffer = image.to_rgba8();
     let pixels = image_buffer.as_flat_samples();
-    Ok(egui::ColorImage::from_rgba_unmultiplied(
-        size,
-        pixels.as_slice(),
-    ))
+    Ok(egui::ColorImage::from_rgba_unmultiplied(size, pixels.as_slice()))
 }

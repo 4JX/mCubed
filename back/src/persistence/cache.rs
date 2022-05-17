@@ -2,13 +2,12 @@ use std::path::PathBuf;
 
 use serde::{Deserialize, Serialize};
 
+use super::storage_trait::StorageTrait;
 use crate::{
     error::{self, LibResult},
     mod_file::ModFile,
     paths,
 };
-
-use super::storage_trait::StorageTrait;
 
 #[derive(Debug, Clone, Deserialize, Default, Serialize)]
 pub struct CacheStorage {
@@ -18,9 +17,7 @@ pub struct CacheStorage {
 impl<'a> StorageTrait<'a> for CacheStorage {
     const FILE_NAME: &'static str = "mods.mCubed.json";
 
-    fn get_folder() -> PathBuf {
-        paths::default_mod_dir()
-    }
+    fn get_folder() -> PathBuf { paths::default_mod_dir() }
 }
 
 impl CacheStorage {
@@ -40,15 +37,9 @@ impl CacheStorage {
         }
     }
 
-    pub fn save_list_cache(&self) -> LibResult<()> {
-        self.save()
-    }
+    pub fn save_list_cache(&self) -> LibResult<()> { self.save() }
 
-    pub fn get_cache(&self) -> &Vec<ModFile> {
-        &self.storage
-    }
+    pub fn get_cache(&self) -> &Vec<ModFile> { &self.storage }
 
-    pub fn get_cache_mut(&mut self) -> &mut Vec<ModFile> {
-        &mut self.storage
-    }
+    pub fn get_cache_mut(&mut self) -> &mut Vec<ModFile> { &mut self.storage }
 }

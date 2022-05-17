@@ -1,9 +1,7 @@
 use color_eyre::Report;
-
+use eframe::{egui::Vec2, IconData};
 use tracing_subscriber::EnvFilter;
 use ui::MCubedAppUI;
-
-use eframe::{egui::Vec2, IconData};
 
 mod ui;
 
@@ -22,11 +20,7 @@ fn main() -> Result<(), Report> {
         ..eframe::NativeOptions::default()
     };
 
-    eframe::run_native(
-        "mCubed",
-        native_options,
-        Box::new(|cc| Box::new(MCubedAppUI::new(cc))),
-    );
+    eframe::run_native("mCubed", native_options, Box::new(|cc| Box::new(MCubedAppUI::new(cc))));
 }
 
 fn setup_logging() -> Result<(), Report> {
@@ -52,9 +46,7 @@ fn setup_logging() -> Result<(), Report> {
 
     // Log extra stuff if it's a debug build
     #[cfg(debug_assertions)]
-    let subscriber_config = subscriber_config
-        .with_thread_ids(true)
-        .with_span_events(FmtSpan::ENTER);
+    let subscriber_config = subscriber_config.with_thread_ids(true).with_span_events(FmtSpan::ENTER);
 
     subscriber_config.init();
 

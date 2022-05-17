@@ -24,7 +24,7 @@ pub struct FabricManifest {
     pub id: String,
     pub version: String,
 
-    //Mod Loading
+    // Mod Loading
     pub environment: Option<Environment>,
     pub entrypoints: Option<Entrypoints>,
     pub jars: Option<Vec<JarFilePath>>,
@@ -34,24 +34,24 @@ pub struct FabricManifest {
     #[serde(rename = "accessWidener")]
     pub access_widener: Option<String>,
 
-    //Dependency resolution
+    // Dependency resolution
     pub depends: Option<HashMap<String, DependencyVersion>>,
     pub recommends: Option<HashMap<String, DependencyVersion>>,
     pub suggests: Option<HashMap<String, DependencyVersion>>,
     pub breaks: Option<HashMap<String, DependencyVersion>>,
     pub conflicts: Option<HashMap<String, DependencyVersion>>,
 
-    //Metadata
+    // Metadata
     pub name: Option<String>,
     pub description: Option<String>,
     pub contact: Option<ContactObject>,
     pub authors: Option<Vec<Author>>,
-    //The data contained within "contributors" has the same layout as "authors"
+    // The data contained within "contributors" has the same layout as "authors"
     pub contributors: Option<Vec<Author>>,
     pub license: Option<License>,
     pub icon: Option<String>,
 
-    //Things inside the "custom" field will be parsed to the best of Serde's abilities
+    // Things inside the "custom" field will be parsed to the best of Serde's abilities
     pub custom: Option<HashMap<String, Value>>,
 }
 
@@ -111,7 +111,7 @@ pub struct Entrypoints {
     #[serde(rename = "preLaunch")]
     pub prelaunch: Vec<Entrypoint>,
 
-    //A catch-all for custom entrypoints added by other mods
+    // A catch-all for custom entrypoints added by other mods
     #[serde(flatten)]
     pub other: HashMap<String, Value>,
 }

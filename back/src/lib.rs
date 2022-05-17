@@ -1,17 +1,17 @@
 use std::{fmt::Debug, fs, io::Write, path::Path, process, sync::Arc};
 
-use crate::{messages::BackendError, settings::CONF};
 use bytes::Bytes;
 use crossbeam_channel::{Receiver, Sender};
 use futures::future;
 use messages::{ToBackend, ToFrontend};
-use mod_file::{FileState, ModFileData, ModLoader};
-use mod_file::{Hashes, ModFile};
+use mod_file::{FileState, Hashes, ModFile, ModFileData, ModLoader};
 use modrinth::Modrinth;
 use once_cell::sync::Lazy;
 use parking_lot::{Mutex, Once};
 use persistence::cache::CacheStorage;
 use tracing::{debug, error, info, instrument};
+
+use crate::{messages::BackendError, settings::CONF};
 
 mod error;
 pub mod messages;
@@ -81,7 +81,7 @@ impl Back {
                                 self.scan_folder();
 
                                 self.transfer_list_data_to_current(&self.cache.get_cache().clone());
-                                
+
                                 self.send_list();
 
                                 self.get_version_metadata().await;
@@ -91,7 +91,7 @@ impl Back {
                                 if let Err(error) = CONF.lock().save_config() {
                                     error!(%error, "Could not save config");
                                 }
-                                
+
                                 self.save_list_cache();
                                 process::exit(0);
                             }
@@ -104,8 +104,7 @@ impl Back {
 
                             ToBackend::UpdateBackendList { mod_list } => {
                                 self.mod_list = mod_list;
-                            },
-
+                            }
 
                             ToBackend::CheckForUpdates { game_version } => {
                                 self.scan_folder();
@@ -116,7 +115,7 @@ impl Back {
                             }
 
                             ToBackend::GetVersionMetadata => {
-                               self.get_version_metadata().await;
+                                self.get_version_metadata().await;
                             }
 
                             ToBackend::AddMod {
@@ -149,15 +148,15 @@ impl Back {
 
                             ToBackend::DeleteMod { path } => {
                                 self.delete_mod(&path);
-                            },
+                            }
                         }
                         self.egui_context.request_repaint();
                     }
                     Err(error) => {
                         // As the only reason this will error out is if the channel is closed (sender is dropped) a one time log of the error is enough
-                       LOG_CHANNEL_CLOSED.call_once(|| {
-                           error!(%error, "There was an error when receiving a message from the frontend:");
-                       });
+                        LOG_CHANNEL_CLOSED.call_once(|| {
+                            error!(%error, "There was an error when receiving a message from the frontend:");
+                        });
                     }
                 };
             }
@@ -246,10 +245,7 @@ impl Back {
 
                         self.back_tx
                             .send(ToFrontend::BackendError {
-                                error: BackendError::new(
-                                    format!("Could not parse: {}", path.display()),
-                                    error,
-                                ),
+                                error: BackendError::new(format!("Could not parse: {}", path.display()), error),
                             })
                             .unwrap();
                         break 'file_loop;
@@ -264,10 +260,7 @@ impl Back {
     #[instrument(skip(self))]
     async fn check_for_updates(&mut self, game_version: String) {
         let back_tx = &self.back_tx;
-        let mod_list_m = self
-            .mod_list
-            .iter_mut()
-            .map(|file| Arc::new(Mutex::new(file)));
+        let mod_list_m = self.mod_list.iter_mut().map(|file| Arc::new(Mutex::new(file)));
 
         let mut handles = Vec::new();
 
@@ -310,10 +303,7 @@ impl Back {
 
                 self.back_tx
                     .send(ToFrontend::BackendError {
-                        error: BackendError::new(
-                            format!("Could not add mod: {}", modrinth_id),
-                            error,
-                        ),
+                        error: BackendError::new(format!("Could not add mod: {}", modrinth_id), error),
                     })
                     .unwrap();
             }
@@ -350,18 +340,12 @@ impl Back {
     #[instrument(skip(self))]
     async fn get_version_metadata(&self) {
         match daedalus::minecraft::fetch_version_manifest(None).await {
-            Ok(manifest) => self
-                .back_tx
-                .send(ToFrontend::SetVersionMetadata { manifest })
-                .unwrap(),
+            Ok(manifest) => self.back_tx.send(ToFrontend::SetVersionMetadata { manifest }).unwrap(),
             Err(error) => {
                 error!("There was an error getting the version metadata");
                 self.back_tx
                     .send(ToFrontend::BackendError {
-                        error: BackendError::new(
-                            "There was an error getting the version metadata",
-                            error,
-                        ),
+                        error: BackendError::new("There was an error getting the version metadata", error),
                     })
                     .unwrap();
             }
@@ -396,10 +380,7 @@ impl Back {
     }
 
     async fn update_all_mods(&mut self) {
-        let mod_list_m = self
-            .mod_list
-            .iter_mut()
-            .map(|file| Arc::new(Mutex::new(file)));
+        let mod_list_m = self.mod_list.iter_mut().map(|file| Arc::new(Mutex::new(file)));
 
         let mut handles = Vec::new();
 

@@ -1,5 +1,6 @@
-use once_cell::sync::Lazy;
 use std::path::PathBuf;
+
+use once_cell::sync::Lazy;
 use tracing::instrument;
 
 static BASE_DIRS: Lazy<directories::BaseDirs> =
@@ -9,19 +10,11 @@ pub static CONFIG_DIR: Lazy<PathBuf> = Lazy::new(|| BASE_DIRS.config_dir().join(
 
 #[cfg(target_os = "windows")]
 #[instrument(level = "trace")]
-pub fn default_mod_dir() -> PathBuf {
-    HOME_DIR
-        .join("AppData")
-        .join("Roaming")
-        .join(".minecraft")
-        .join("mods")
-}
+pub fn default_mod_dir() -> PathBuf { HOME_DIR.join("AppData").join("Roaming").join(".minecraft").join("mods") }
 
 #[cfg(target_os = "linux")]
 #[instrument(level = "trace")]
-pub fn default_mod_dir() -> PathBuf {
-    HOME_DIR.join(".minecraft").join("mods")
-}
+pub fn default_mod_dir() -> PathBuf { HOME_DIR.join(".minecraft").join("mods") }
 
 #[cfg(target_os = "macos")]
 #[instrument(level = "trace")]

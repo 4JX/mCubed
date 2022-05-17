@@ -3,7 +3,6 @@ use std::{fmt::Debug, path::PathBuf};
 
 use ferinth::structures::version_structs::{ModLoader as FeModLoader, VersionFile};
 use mc_mod_meta::{fabric::FabricManifest, forge::ForgeModEntry, ModLoader as McModLoader};
-
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 
@@ -48,15 +47,11 @@ pub enum ModLoader {
 }
 
 impl Default for ModLoader {
-    fn default() -> Self {
-        Self::Forge
-    }
+    fn default() -> Self { Self::Forge }
 }
 
 impl fmt::Display for ModLoader {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        fmt::Debug::fmt(self, f)
-    }
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result { fmt::Debug::fmt(self, f) }
 }
 
 impl From<ModLoader> for FeModLoader {
@@ -111,9 +106,7 @@ pub enum CurrentSource {
 }
 
 impl fmt::Display for CurrentSource {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        fmt::Debug::fmt(self, f)
-    }
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result { fmt::Debug::fmt(self, f) }
 }
 
 impl ModEntry {
@@ -132,9 +125,7 @@ impl ModEntry {
 
     #[instrument(skip(fabric_manifest), level = "debug")]
     fn from_fabric_manifest(fabric_manifest: FabricManifest) -> Self {
-        let mod_name = fabric_manifest
-            .name
-            .unwrap_or_else(|| fabric_manifest.id.clone());
+        let mod_name = fabric_manifest.name.unwrap_or_else(|| fabric_manifest.id.clone());
 
         let parsed_authors = fabric_manifest.authors.map_or_else(
             || None,

@@ -17,13 +17,9 @@ pub struct AppTheme {
 }
 
 impl AppTheme {
-    pub const fn mod_card_source(&self) -> &SourceTheme {
-        &self.colors.mod_card.source
-    }
+    pub const fn mod_card_source(&self) -> &SourceTheme { &self.colors.mod_card.source }
 
-    pub const fn mod_card_modloader(&self) -> &ModloaderTheme {
-        &self.colors.mod_card.modloader
-    }
+    pub const fn mod_card_modloader(&self) -> &ModloaderTheme { &self.colors.mod_card.modloader }
 }
 
 impl Default for AppTheme {
@@ -33,7 +29,7 @@ impl Default for AppTheme {
         let widgets = Widgets {
             noninteractive: WidgetVisuals {
                 bg_fill: colors.gray,                                 // window background
-                bg_stroke: Stroke::new(1.0, colors.dark_gray), // separators, indentation lines, windows outlines
+                bg_stroke: Stroke::new(1.0, colors.dark_gray),        // separators, indentation lines, windows outlines
                 fg_stroke: Stroke::new(1.0, Color32::from_gray(140)), // normal text color
                 rounding: Rounding::same(2.0),
                 expansion: 0.0,

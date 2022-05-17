@@ -22,9 +22,7 @@ pub struct State {
 }
 
 impl State {
-    pub fn shown(&mut self, shown: bool) {
-        self.is_shown = shown;
-    }
+    pub fn shown(&mut self, shown: bool) { self.is_shown = shown; }
 }
 
 impl ScreenPrompt {
@@ -57,37 +55,30 @@ impl ScreenPrompt {
         let mut state = state.unwrap_or_default();
 
         let res = if state.is_shown {
-            let area_res = Area::new("prompt_bg")
-                .fixed_pos(Pos2::ZERO)
-                .show(ctx, |ui| {
-                    let screen_rect = ctx.input().screen_rect;
+            let area_res = Area::new("prompt_bg").fixed_pos(Pos2::ZERO).show(ctx, |ui| {
+                let screen_rect = ctx.input().screen_rect;
 
-                    ui.allocate_response(screen_rect.size(), Sense::click());
+                ui.allocate_response(screen_rect.size(), Sense::click());
 
-                    ui.painter().add(Shape::rect_filled(
-                        screen_rect,
-                        Rounding::none(),
-                        self.bg_overlay_color,
-                    ));
+                ui.painter()
+                    .add(Shape::rect_filled(screen_rect, Rounding::none(), self.bg_overlay_color));
 
-                    let prompt_area_res = Area::new("prompt_centered")
-                        .fixed_pos(Pos2::ZERO)
-                        .anchor(Align2::CENTER_CENTER, Vec2::splat(0.0))
-                        .order(Order::Foreground)
-                        .show(ctx, |ui| {
-                            let InnerResponse { inner, .. } = self
-                                .prompt_frame
-                                .show(ui, |ui| add_contents(ui, &mut state));
+                let prompt_area_res = Area::new("prompt_centered")
+                    .fixed_pos(Pos2::ZERO)
+                    .anchor(Align2::CENTER_CENTER, Vec2::splat(0.0))
+                    .order(Order::Foreground)
+                    .show(ctx, |ui| {
+                        let InnerResponse { inner, .. } = self.prompt_frame.show(ui, |ui| add_contents(ui, &mut state));
 
-                            inner
-                        });
+                        inner
+                    });
 
-                    if prompt_area_res.response.clicked_elsewhere() && self.outside_click_closes {
-                        state.is_shown = false;
-                    };
+                if prompt_area_res.response.clicked_elsewhere() && self.outside_click_closes {
+                    state.is_shown = false;
+                };
 
-                    prompt_area_res.inner
-                });
+                prompt_area_res.inner
+            });
             Some(area_res)
         } else {
             None

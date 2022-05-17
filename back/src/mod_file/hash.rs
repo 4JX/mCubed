@@ -1,8 +1,8 @@
+use std::{fs::File, io::Read};
+
 use bytes::Bytes;
 use serde::{Deserialize, Serialize};
 use sha1::Digest;
-use std::fs::File;
-use std::io::Read;
 use tracing::instrument;
 
 use crate::error::LibResult;
@@ -26,9 +26,7 @@ impl Hashes {
 
     #[allow(dead_code)]
     #[instrument(skip(bytes))]
-    pub(crate) fn get_hashes_from_bytes(bytes: &Bytes) -> Self {
-        get_hashes_from_vec(bytes)
-    }
+    pub(crate) fn get_hashes_from_bytes(bytes: &Bytes) -> Self { get_hashes_from_vec(bytes) }
 
     #[instrument(level = "trace")]
     pub(crate) fn dummy() -> Self {

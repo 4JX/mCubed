@@ -1,4 +1,4 @@
-//TODO: Add the Quilt manifest whenever that becomes stable, see https://github.com/QuiltMC/rfcs/blob/master/specification/0002-quilt.mod.json.md
+// TODO: Add the Quilt manifest whenever that becomes stable, see https://github.com/QuiltMC/rfcs/blob/master/specification/0002-quilt.mod.json.md
 
 use core::fmt;
 use std::{fs::File, io::BufReader};
@@ -38,7 +38,5 @@ pub enum ModLoader {
 }
 
 impl fmt::Display for ModLoader {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        fmt::Debug::fmt(self, f)
-    }
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result { fmt::Debug::fmt(self, f) }
 }

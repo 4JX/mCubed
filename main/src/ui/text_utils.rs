@@ -1,10 +1,7 @@
 use std::{borrow::Cow, collections::BTreeMap};
 
 use eframe::{
-    egui::{
-        FontData, FontDefinitions, FontFamily, FontId, FontTweak, RichText, TextFormat, TextStyle,
-        Ui,
-    },
+    egui::{FontData, FontDefinitions, FontFamily, FontId, FontTweak, RichText, TextFormat, TextStyle, Ui},
     emath::Align,
     epaint::text::{LayoutJob, TextWrapping},
 };
@@ -27,9 +24,7 @@ pub fn get_font_def() -> FontDefinitions {
     };
 
     let inter_semi_bold = FontData {
-        font: Cow::Borrowed(include_bytes!(
-            "../../fonts/inter/static/Inter-SemiBold.ttf"
-        )),
+        font: Cow::Borrowed(include_bytes!("../../fonts/inter/static/Inter-SemiBold.ttf")),
         index: 0,
         tweak: FontTweak::default(),
     };
@@ -45,9 +40,7 @@ pub fn get_font_def() -> FontDefinitions {
     };
 
     let inter_extra_bold = FontData {
-        font: Cow::Borrowed(include_bytes!(
-            "../../fonts/inter/static/Inter-ExtraBold.ttf"
-        )),
+        font: Cow::Borrowed(include_bytes!("../../fonts/inter/static/Inter-ExtraBold.ttf")),
         index: 0,
         tweak: FontTweak::default(),
     };
@@ -89,18 +82,10 @@ pub fn default_text_styles() -> TextStyles {
         TextStyle::Heading,
         FontId::new(16.0, FontFamily::Name("Inter-Medium".into())),
     );
-    text_styles.insert(
-        TextStyle::Monospace,
-        FontId::new(14.0, FontFamily::Monospace),
-    );
+    text_styles.insert(TextStyle::Monospace, FontId::new(14.0, FontFamily::Monospace));
 
     // Custom
-    insert_style(
-        &mut text_styles,
-        "Mod-Card-Data-Header",
-        "Inter-SemiBold",
-        10.0,
-    );
+    insert_style(&mut text_styles, "Mod-Card-Data-Header", "Inter-SemiBold", 10.0);
     insert_style(&mut text_styles, "Mod-Card-Data-Text", "Inter-Medium", 10.0);
     insert_style(&mut text_styles, "Update-Button", "Inter-SemiBold", 9.0);
 
@@ -120,21 +105,13 @@ pub fn update_button_text(text: impl Into<String>) -> RichText {
 }
 
 pub fn mod_name_job(ui: &Ui, display_name: &str) -> LayoutJob {
-    let mut job = LayoutJob::single_section(
-        display_name.to_string(),
-        TextFormat {
-            font_id: ui
-                .style()
-                .text_styles
-                .get(&TextStyle::Body)
-                .unwrap()
-                .clone(),
-            color: ui.style().visuals.override_text_color.unwrap(),
+    let mut job = LayoutJob::single_section(display_name.to_string(), TextFormat {
+        font_id: ui.style().text_styles.get(&TextStyle::Body).unwrap().clone(),
+        color: ui.style().visuals.override_text_color.unwrap(),
 
-            valign: Align::Center,
-            ..TextFormat::default()
-        },
-    );
+        valign: Align::Center,
+        ..TextFormat::default()
+    });
 
     job.wrap = TextWrapping {
         max_rows: 1,

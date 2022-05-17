@@ -7,9 +7,8 @@ use std::{
 use mc_mod_meta::{fabric::FabricManifest, forge::ForgeManifest};
 use tracing::instrument;
 
-use crate::{error::LibResult, settings::CONF};
-
 use super::{CurrentSource, FileState, Hashes, ModEntry, ModFile, ModFileData, ModLoader, Sources};
+use crate::{error::LibResult, settings::CONF};
 
 impl ModFile {
     pub fn from_path(path: PathBuf) -> LibResult<Self> {
@@ -66,12 +65,7 @@ impl ModEntry {
     }
 }
 
-fn add_to_mod_vec(
-    mod_vec: &mut Vec<ModEntry>,
-    file: &fs::File,
-    mut mod_entry: ModEntry,
-    icon_path: Option<String>,
-) {
+fn add_to_mod_vec(mod_vec: &mut Vec<ModEntry>, file: &fs::File, mut mod_entry: ModEntry, icon_path: Option<String>) {
     if let Some(icon_path) = icon_path {
         if let Ok(icon) = load_icon(file, &icon_path) {
             mod_entry.icon = Some(icon);

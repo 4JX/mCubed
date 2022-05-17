@@ -1,6 +1,5 @@
-use self::{
-    app_theme::AppTheme, image_utils::ImageTextures, mod_card::FileCard, settings::SettingsUi,
-};
+use std::thread;
+
 use back::{
     messages::{BackendError, ToBackend, ToFrontend},
     mod_file::{FileState, ModLoader},
@@ -11,17 +10,18 @@ use crossbeam_channel::{Receiver, Sender};
 use eframe::{
     egui::{
         style::{DebugOptions, Margin},
-        Align, CentralPanel, ComboBox, Context, Frame, ImageButton, InnerResponse, Label, Layout,
-        RichText, ScrollArea, Sense, SidePanel, Spinner, Style, TextEdit, Vec2, Widget,
+        Align, CentralPanel, ComboBox, Context, Frame, ImageButton, InnerResponse, Label, Layout, RichText, ScrollArea,
+        Sense, SidePanel, Spinner, Style, TextEdit, Vec2, Widget,
     },
     CreationContext,
 };
 use once_cell::sync::Lazy;
-
-use self::widgets::screen_prompt::ScreenPrompt;
-
 use parking_lot::Once;
-use std::thread;
+
+use self::{
+    app_theme::AppTheme, image_utils::ImageTextures, mod_card::FileCard, settings::SettingsUi,
+    widgets::screen_prompt::ScreenPrompt,
+};
 
 mod app_theme;
 mod image_utils;
@@ -109,10 +109,7 @@ impl eframe::App for MCubedAppUI {
                 }
                 ToFrontend::UpdateModList { mod_list } => {
                     self.backend_context.checking_for_updates = false;
-                    self.mod_list = mod_list
-                        .into_iter()
-                        .map(|file| FileCard::new(file, ctx))
-                        .collect();
+                    self.mod_list = mod_list.into_iter().map(|file| FileCard::new(file, ctx)).collect();
                     ctx.request_repaint();
                 }
                 ToFrontend::BackendError { error } => {
@@ -154,12 +151,7 @@ impl eframe::App for MCubedAppUI {
     fn on_exit(&mut self, _gl: &eframe::glow::Context) {
         self.front_tx
             .send(ToBackend::UpdateBackendList {
-                mod_list: self
-                    .mod_list
-                    .iter()
-                    .map(FileCard::mod_file)
-                    .cloned()
-                    .collect(),
+                mod_list: self.mod_list.iter().map(FileCard::mod_file).cloned().collect(),
             })
             .unwrap();
 
@@ -182,23 +174,17 @@ impl MCubedAppUI {
                     ui.with_layout(Layout::right_to_left(), |ui| {
                         ComboBox::from_id_source("version-combo")
                             .icon(misc::combobox_icon_fn)
-                            .selected_text(
-                                if let Some(selected_value) = self.selected_version.as_ref() {
-                                    selected_value.id.as_str()
-                                } else if self.game_version_list.is_empty() {
-                                    "Loading..."
-                                } else {
-                                    self.selected_version = Some(self.game_version_list[0].clone());
-                                    self.selected_version.as_ref().unwrap().id.as_str()
-                                },
-                            )
+                            .selected_text(if let Some(selected_value) = self.selected_version.as_ref() {
+                                selected_value.id.as_str()
+                            } else if self.game_version_list.is_empty() {
+                                "Loading..."
+                            } else {
+                                self.selected_version = Some(self.game_version_list[0].clone());
+                                self.selected_version.as_ref().unwrap().id.as_str()
+                            })
                             .show_ui(ui, |ui| {
                                 for version in &self.game_version_list {
-                                    ui.selectable_value(
-                                        &mut self.selected_version,
-                                        Some(version.clone()),
-                                        &version.id,
-                                    );
+                                    ui.selectable_value(&mut self.selected_version, Some(version.clone()), &version.id);
                                 }
                             });
                     });
@@ -215,9 +201,8 @@ impl MCubedAppUI {
                     ui.set_width(ui.available_width());
 
                     ui.horizontal(|ui| {
-                        let edit = TextEdit::singleline(&mut self.add_mod_buf).hint_text(
-                            RichText::new("Modrinth ID or Slug").color(THEME.colors.gray),
-                        );
+                        let edit = TextEdit::singleline(&mut self.add_mod_buf)
+                            .hint_text(RichText::new("Modrinth ID or Slug").color(THEME.colors.gray));
 
                         ui.add_sized(Vec2::new(130.0, ui.available_height()), edit);
 
@@ -248,12 +233,7 @@ impl MCubedAppUI {
                         if rescan_folder_button_res.clicked() {
                             self.front_tx
                                 .send(ToBackend::UpdateBackendList {
-                                    mod_list: self
-                                        .mod_list
-                                        .iter()
-                                        .map(FileCard::mod_file)
-                                        .cloned()
-                                        .collect(),
+                                    mod_list: self.mod_list.iter().map(FileCard::mod_file).cloned().collect(),
                                 })
                                 .unwrap();
 
@@ -313,9 +293,8 @@ impl MCubedAppUI {
 
                 ui.horizontal(|ui| {
                     ui.vertical_centered_justified(|ui| {
-                        let edit = TextEdit::singleline(&mut self.search_buf).hint_text(
-                            RichText::new("Search installed mods").color(THEME.colors.gray),
-                        );
+                        let edit = TextEdit::singleline(&mut self.search_buf)
+                            .hint_text(RichText::new("Search installed mods").color(THEME.colors.gray));
                         ui.add(edit);
                     });
                 });
@@ -380,12 +359,7 @@ impl MCubedAppUI {
                                 ScrollArea::vertical().show(ui, |ui| {
                                     ui.style_mut().spacing.item_spacing.y = THEME.spacing.large;
                                     for file_card in &mut self.mod_list {
-                                        file_card.show(
-                                            &self.search_buf,
-                                            ui,
-                                            &self.front_tx,
-                                            &self.images,
-                                        );
+                                        file_card.show(&self.search_buf, ui, &self.front_tx, &self.images);
                                     }
                                 });
                             }

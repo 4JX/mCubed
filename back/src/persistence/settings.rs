@@ -1,10 +1,12 @@
-use super::storage_trait::StorageTrait;
-use crate::{error::LibResult, paths};
+use std::path::PathBuf;
+
 use ferinth::structures::version_structs::VersionType;
 use once_cell::sync::Lazy;
 use parking_lot::Mutex;
 use serde::{Deserialize, Serialize};
-use std::path::PathBuf;
+
+use super::storage_trait::StorageTrait;
+use crate::{error::LibResult, paths};
 
 pub static CONF: Lazy<Mutex<SettingsBuilder>> =
     Lazy::new(|| Mutex::new(SettingsBuilder::load_from_file().unwrap_or_default()));
@@ -22,19 +24,13 @@ pub struct SettingsBuilder {
 impl SettingsBuilder {
     /// Create a new [SettingsBuilder](SettingsBuilder) from the current values
     #[must_use]
-    pub fn from_current() -> Self {
-        CONF.lock().clone()
-    }
+    pub fn from_current() -> Self { CONF.lock().clone() }
 
     /// Create a new [SettingsBuilder](SettingsBuilder) from a file on the disk
-    pub fn load_from_file() -> LibResult<Self> {
-        Self::load()
-    }
+    pub fn load_from_file() -> LibResult<Self> { Self::load() }
 
     /// Save the current configuration to disk
-    pub fn save_config(&self) -> LibResult<()> {
-        self.save()
-    }
+    pub fn save_config(&self) -> LibResult<()> { self.save() }
 
     /// Set the icon resize size
     #[must_use]
@@ -77,7 +73,5 @@ impl Default for SettingsBuilder {
 impl<'a> StorageTrait<'a> for SettingsBuilder {
     const FILE_NAME: &'static str = "settings.json";
 
-    fn get_folder() -> PathBuf {
-        paths::CONFIG_DIR.to_path_buf()
-    }
+    fn get_folder() -> PathBuf { paths::CONFIG_DIR.to_path_buf() }
 }

@@ -5,7 +5,6 @@ use eframe::{
 use once_cell::sync::Lazy;
 
 use self::{general::GeneralSettings, modrinth::ModrinthSettings};
-
 use super::{image_utils::ImageTextures, misc, THEME};
 
 mod general;
@@ -26,19 +25,11 @@ static SECTION_BASE_ID: Lazy<Id> = Lazy::new(|| Id::new("settings_section"));
 pub(super) trait SettingsSection {
     const ID: &'static str;
 
-    fn settings_section(
-        ui: &mut Ui,
-        header_image: &TextureHandle,
-        header_text: &str,
-        body: impl FnOnce(&mut Ui),
-    ) {
+    fn settings_section(ui: &mut Ui, header_image: &TextureHandle, header_text: &str, body: impl FnOnce(&mut Ui)) {
         let id = SECTION_BASE_ID.with(Self::ID);
 
-        let mut state = collapsing_header::CollapsingState::load_with_default_open(
-            ui.ctx(),
-            ui.make_persistent_id(id),
-            false,
-        );
+        let mut state =
+            collapsing_header::CollapsingState::load_with_default_open(ui.ctx(), ui.make_persistent_id(id), false);
 
         let header_res = Frame {
             fill: THEME.colors.darker_gray,

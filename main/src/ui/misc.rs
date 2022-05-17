@@ -5,10 +5,7 @@ use eframe::{
 };
 
 pub fn combobox_icon_fn(ui: &Ui, rect: Rect, visuals: &WidgetVisuals, _is_open: bool) {
-    let rect = Rect::from_center_size(
-        rect.center(),
-        Vec2::new(rect.width() * 0.6, rect.height() * 0.4),
-    );
+    let rect = Rect::from_center_size(rect.center(), Vec2::new(rect.width() * 0.6, rect.height() * 0.4));
 
     ui.painter().add(Shape::convex_polygon(
         vec![rect.left_top(), rect.right_top(), rect.center_bottom()],
@@ -27,10 +24,7 @@ pub fn collapsing_state_icon_fn(ui: &mut Ui, openness: f32, response: &Response)
     let rect = response.rect;
 
     // Draw a pointy triangle arrow:
-    let rect = Rect::from_center_size(
-        rect.center(),
-        Vec2::new(rect.width() * 0.6, rect.height() * 0.4),
-    );
+    let rect = Rect::from_center_size(rect.center(), Vec2::new(rect.width() * 0.6, rect.height() * 0.4));
     let rect = rect.expand(visuals.expansion);
     let mut points = vec![rect.left_top(), rect.right_top(), rect.center_bottom()];
 
@@ -39,6 +33,5 @@ pub fn collapsing_state_icon_fn(ui: &mut Ui, openness: f32, response: &Response)
         *p = rect.center() + rotation * (*p - rect.center());
     }
 
-    ui.painter()
-        .add(Shape::convex_polygon(points, stroke.color, stroke));
+    ui.painter().add(Shape::convex_polygon(points, stroke.color, stroke));
 }

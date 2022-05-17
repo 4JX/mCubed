@@ -94,9 +94,10 @@ impl Modrinth {
                             accepted_version_types
                                 .iter()
                                 .any(|ver_type| ver_type == &version.version_type)
-                                && mod_data.loaders.iter().all(|loader| {
-                                    version.loaders.contains(&loader.to_string().to_lowercase())
-                                })
+                                && mod_data
+                                    .loaders
+                                    .iter()
+                                    .all(|loader| version.loaders.contains(&loader.to_string().to_lowercase()))
                                 && !version.files.is_empty()
                         })
                         .collect();
@@ -110,14 +111,12 @@ impl Modrinth {
                                     .iter()
                                     .any(|file| file.hashes.sha1 == Some(hashes.sha1.clone()))
                                 {
-                                    modrinth_data.latest_valid_version =
-                                        Some(filtered_list[0].files[0].clone());
+                                    modrinth_data.latest_valid_version = Some(filtered_list[0].files[0].clone());
                                     mod_data.state = FileState::Outdated;
                                 }
                             } else {
                                 // If hashes aren't provided assume its outdated
-                                modrinth_data.latest_valid_version =
-                                    Some(filtered_list[0].files[0].clone());
+                                modrinth_data.latest_valid_version = Some(filtered_list[0].files[0].clone());
                                 mod_data.state = FileState::Outdated;
                             }
                         }
@@ -171,8 +170,7 @@ impl Modrinth {
                     sources,
                 };
 
-                self.check_for_updates(&mut mod_file, None, &game_version)
-                    .await?;
+                self.check_for_updates(&mut mod_file, None, &game_version).await?;
 
                 let bytes = self.update_mod(&mod_file).await?;
                 Ok((mod_file, bytes))
@@ -194,10 +192,7 @@ impl Modrinth {
             featured: None,
         };
 
-        Ok(self
-            .ferinth
-            .list_versions(modrinth_id, Some(query_params))
-            .await?)
+        Ok(self.ferinth.list_versions(modrinth_id, Some(query_params)).await?)
     }
 }
 

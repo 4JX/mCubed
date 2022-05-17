@@ -1,10 +1,12 @@
-use crate::error::LibResult;
-use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use std::{
     fs::{self, File},
     io::Write,
     path::PathBuf,
 };
+
+use serde::{de::DeserializeOwned, Deserialize, Serialize};
+
+use crate::error::LibResult;
 
 pub(super) trait StorageTrait<'a>
 where

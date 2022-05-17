@@ -1,7 +1,8 @@
 // Using https://github.com/theRookieCoder/ferium/blob/main/src/util/ferium_error.rs as a base
 
-use serde_json::error::Error as JsonError;
 use std::io::Error as IoError;
+
+use serde_json::error::Error as JsonError;
 use thiserror::Error;
 use toml::de::Error as TomlError;
 use zip::result::ZipError;

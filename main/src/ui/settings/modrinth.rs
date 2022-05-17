@@ -4,9 +4,8 @@ use back::{
 };
 use eframe::egui::{ComboBox, Ui};
 
-use crate::ui::{image_utils::ImageTextures, misc};
-
 use super::SettingsSection;
+use crate::ui::{image_utils::ImageTextures, misc};
 
 pub(super) struct ModrinthSettings;
 
@@ -23,8 +22,7 @@ impl SettingsSection for ModrinthSettings {
                 .icon(misc::combobox_icon_fn)
                 .selected_text(format!("{:?}", current))
                 .show_ui(ui, |ui| {
-                    let release_res =
-                        ui.selectable_label(current == VersionType::Release, "Release");
+                    let release_res = ui.selectable_label(current == VersionType::Release, "Release");
                     let beta_res = ui.selectable_label(current == VersionType::Beta, "Beta");
                     let alpha_res = ui.selectable_label(current == VersionType::Alpha, "Alpha");
                     let builder = SettingsBuilder::from_current();
