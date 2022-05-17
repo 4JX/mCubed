@@ -1,0 +1,35 @@
+# https://rust-lang.github.io/rustfmt/?version=master&search=
+unstable_features = true
+
+# If rustfmt fails to do its thing it's probably got to do with this line
+max_width = 120
+
+# Stable
+# Repetition is bad
+use_field_init_shorthand = true
+# try! is deprecated, no reason to have it appear
+use_try_shorthand = true
+
+# Unstable
+# Why make it longer than needed?
+condense_wildcard_suffixes = true
+fn_single_line = true
+# Readability
+format_code_in_doc_comments = true
+overflow_delimited_expr = true
+# Consistency
+hex_literal_case = "Upper"
+imports_granularity = "Crate"
+normalize_comments = true
+normalize_doc_attributes = true
+reorder_impl_items = true
+group_imports = "StdExternalCrate"
+
+
+# ? To consider
+# version = "Two"
+# enum_discrim_align_threshold = 20
+# struct_field_align_threshold = 20
+# inline_attribute_width = 0
+# short_array_element_width_threshold = 20
+# wrap_comments = true
