@@ -11,7 +11,7 @@ use eframe::{
     egui::{
         style::{DebugOptions, Margin},
         Align, CentralPanel, ComboBox, Context, Frame, ImageButton, InnerResponse, Label, Layout, RichText, ScrollArea,
-        Sense, SidePanel, Spinner, Style, TextEdit, Vec2, Widget,
+        SidePanel, Spinner, Style, TextEdit, Vec2, Widget,
     },
     CreationContext,
 };
@@ -122,19 +122,9 @@ impl eframe::App for MCubedAppUI {
         }
 
         ScreenPrompt::new("settings").show(ctx, |ui, state| {
-            let size = ui.available_size() - Vec2::splat(50.0);
-            let rect = ui.allocate_exact_size(size, Sense::hover());
-            ui.set_max_size(ui.available_size() - Vec2::splat(50.0));
-
-            let settings_res = ui.allocate_ui_at_rect(rect.0, |ui| {
-                ScrollArea::vertical().show(ui, |ui| {
-                    SettingsUi::show(ui, &self.images);
-                });
+            ScrollArea::vertical().show(ui, |ui| {
+                SettingsUi::show(ui, &self.images);
             });
-
-            ui.set_max_width(settings_res.response.rect.width());
-
-            ui.add_space(THEME.spacing.medium);
 
             ui.with_layout(Layout::bottom_up(Align::Center), |ui| {
                 if ui.button("Close").clicked() {

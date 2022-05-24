@@ -14,6 +14,7 @@ pub struct AppTheme {
     pub spacing: Spacing,
     pub rounding: RoundingTypes,
     pub image_size: ImageSize,
+    pub margin: MarginSize,
 }
 
 impl AppTheme {
@@ -78,8 +79,10 @@ impl Default for AppTheme {
             ..Visuals::default()
         };
 
+        let margin = MarginSize::default();
+
         let default_panel_frame = Frame {
-            inner_margin: Margin::same(8.0),
+            inner_margin: margin.frame_margin,
             fill: colors.gray,
             ..Frame::default()
         };
@@ -95,6 +98,7 @@ impl Default for AppTheme {
             spacing: Spacing::default(),
             rounding,
             image_size: ImageSize::default(),
+            margin
         }
     }
 }
@@ -226,5 +230,15 @@ impl Default for ImageSize {
             mod_card_icon: Vec2::splat(26.0),
             settings_heading: Vec2::splat(16.0),
         }
+    }
+}
+
+pub struct MarginSize {
+    pub frame_margin: Margin
+}
+
+impl Default for MarginSize{
+    fn default() -> Self {
+        Self { frame_margin: Margin::same(8.0) }
     }
 }

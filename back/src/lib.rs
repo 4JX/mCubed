@@ -1,4 +1,4 @@
-use std::{fmt::Debug, fs, io::Write, path::Path, process, sync::Arc};
+use std::{fmt::Debug, fs, io::Write, path::Path, sync::Arc};
 
 use bytes::Bytes;
 use crossbeam_channel::{Receiver, Sender};
@@ -93,7 +93,7 @@ impl Back {
                                 }
 
                                 self.save_list_cache();
-                                process::exit(0);
+                                break;
                             }
 
                             ToBackend::ScanFolder => {
