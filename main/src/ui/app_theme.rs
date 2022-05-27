@@ -98,7 +98,7 @@ impl Default for AppTheme {
             spacing: Spacing::default(),
             rounding,
             image_size: ImageSize::default(),
-            margin
+            margin,
         }
     }
 }
@@ -234,11 +234,13 @@ impl Default for ImageSize {
 }
 
 pub struct MarginSize {
-    pub frame_margin: Margin
+    pub frame_margin: Margin,
 }
 
-impl Default for MarginSize{
+impl Default for MarginSize {
     fn default() -> Self {
-        Self { frame_margin: Margin::same(8.0) }
+        Self {
+            frame_margin: Margin::same(8.0),
+        }
     }
 }

@@ -1,8 +1,8 @@
 use std::hash::Hash;
 
 use eframe::{
-    egui::{Area, Context, Frame, Id, InnerResponse, Sense, Ui, Layout},
-    emath::{Pos2, Align},
+    egui::{Area, Context, Frame, Id, InnerResponse, Layout, Sense, Ui},
+    emath::{Align, Pos2},
     epaint::{Color32, Rounding, Shape},
 };
 
@@ -64,19 +64,18 @@ impl ScreenPrompt {
                     .add(Shape::rect_filled(screen_rect, Rounding::none(), self.bg_overlay_color));
 
                 let mut inner_rect = screen_rect.shrink(30.0);
-           
-                inner_rect.max -= self.prompt_frame.inner_margin.right_bottom() ;
+
+                inner_rect.max -= self.prompt_frame.inner_margin.right_bottom();
 
                 let mut child_ui = ui.child_ui(inner_rect, Layout::top_down(Align::Center));
-              
+
                 let InnerResponse { inner, response } = self.prompt_frame.show(&mut child_ui, |ui| {
                     ui.set_min_size(inner_rect.size());
                     ui.set_max_size(inner_rect.size());
-                    
+
                     add_contents(ui, &mut state)
                 });
 
-          
                 if response.clicked_elsewhere() && self.outside_click_closes {
                     state.is_shown = false;
                 };

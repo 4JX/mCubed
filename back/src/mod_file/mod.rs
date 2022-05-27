@@ -1,7 +1,7 @@
 use core::fmt;
 use std::{fmt::Debug, path::PathBuf};
 
-use ferinth::structures::version_structs::{ModLoader as FeModLoader, VersionFile};
+use ferinth::structures::{version_structs::VersionFile, ModLoader as FeModLoader};
 use mc_mod_meta::{fabric::FabricManifest, forge::ForgeModEntry, ModLoader as McModLoader};
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
@@ -57,8 +57,8 @@ impl fmt::Display for ModLoader {
 impl From<ModLoader> for FeModLoader {
     fn from(modloader: ModLoader) -> Self {
         match modloader {
-            ModLoader::Forge => Self::Forge,
-            ModLoader::Fabric => Self::Fabric,
+            ModLoader::Forge => Self("Forge".to_string()),
+            ModLoader::Fabric => Self("Fabric".to_string()),
         }
     }
 }

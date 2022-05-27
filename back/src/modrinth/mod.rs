@@ -1,7 +1,7 @@
 use bytes::Bytes;
 use ferinth::{
-    structures::version_structs::{ListVersionsParams, Version, VersionType},
-    Ferinth,
+    structures::version_structs::{Version, VersionType},
+    Ferinth, ListVersionsParams,
 };
 use reqwest::StatusCode;
 use tracing::instrument;
