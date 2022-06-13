@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use ferinth::structures::version_structs::VersionType;
+use ferinth::structures::version_structs::VersionType as FerinthVersionType;
 use once_cell::sync::Lazy;
 use parking_lot::Mutex;
 use serde::{Deserialize, Serialize};
@@ -74,4 +74,21 @@ impl<'a> StorageTrait<'a> for SettingsBuilder {
     const FILE_NAME: &'static str = "settings.json";
 
     fn get_folder() -> PathBuf { paths::CONFIG_DIR.to_path_buf() }
+}
+
+#[derive(Clone, Serialize, Deserialize, Debug, Copy, PartialEq, Eq)]
+pub enum VersionType {
+    Alpha,
+    Beta,
+    Release,
+}
+
+impl From<VersionType> for FerinthVersionType {
+    fn from(ver: VersionType) -> Self {
+        match ver {
+            VersionType::Alpha => FerinthVersionType::Alpha,
+            VersionType::Beta => FerinthVersionType::Beta,
+            VersionType::Release => FerinthVersionType::Release,
+        }
+    }
 }

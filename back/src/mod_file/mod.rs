@@ -1,7 +1,6 @@
 use core::fmt;
 use std::{fmt::Debug, path::PathBuf};
 
-use ferinth::structures::ModLoader as FeModLoader;
 use mc_mod_meta::{fabric::FabricManifest, forge::ForgeModEntry, ModLoader as McModLoader};
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
@@ -55,15 +54,6 @@ impl fmt::Display for ModLoader {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result { fmt::Debug::fmt(self, f) }
 }
 
-impl From<ModLoader> for FeModLoader {
-    fn from(modloader: ModLoader) -> Self {
-        match modloader {
-            ModLoader::Forge => Self("Forge".to_string()),
-            ModLoader::Fabric => Self("Fabric".to_string()),
-        }
-    }
-}
-
 impl From<McModLoader> for ModLoader {
     fn from(modloader: McModLoader) -> Self {
         match modloader {
@@ -73,6 +63,14 @@ impl From<McModLoader> for ModLoader {
     }
 }
 
+impl ModLoader {
+    pub fn as_str(&self) -> &str {
+        match self {
+            ModLoader::Forge => "forge",
+            ModLoader::Fabric => "fabric",
+        }
+    }
+}
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct Sources {
     pub curseforge: Option<CurseForgeData>,
@@ -84,7 +82,8 @@ pub struct CurseForgeData;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct ModrinthData {
-    pub id: String,
+    pub project_id: String,
+    pub version_id: Option<String>,
     pub cdn_file: Option<CdnFile>,
 }
 

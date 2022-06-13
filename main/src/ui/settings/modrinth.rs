@@ -1,7 +1,4 @@
-use back::{
-    settings::{SettingsBuilder, CONF},
-    VersionType,
-};
+use back::settings::{SettingsBuilder, VersionType, CONF};
 use eframe::egui::{ComboBox, Ui};
 
 use super::SettingsSection;

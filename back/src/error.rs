@@ -108,8 +108,8 @@ impl From<ferinth::Error> for Error {
 
                 Self::ReqwestError { inner, item }
             }
-            ferinth::Error::URLParseError(_) => Self::FerinthURLParseError,
             ferinth::Error::RateLimitExceeded(seconds) => Self::FerinthRatelimitExceeded(seconds),
+            ferinth::Error::JSONError(err) => Self::SerdeError(err),
         }
     }
 }

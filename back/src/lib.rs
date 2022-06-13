@@ -1,4 +1,4 @@
-use std::{fmt::Debug, fs, path::Path, sync::Arc};
+use std::{collections::HashMap, fmt::Debug, fs, path::Path, sync::Arc};
 
 use crossbeam_channel::{Receiver, Sender};
 use futures::future;
@@ -22,7 +22,6 @@ mod persistence;
 mod structs;
 
 pub use daedalus::minecraft::Version as GameVersion;
-pub use ferinth::structures::version_structs::VersionType;
 pub use persistence::settings;
 
 static LOG_CHANNEL_CLOSED: Once = Once::new();
@@ -109,6 +108,8 @@ impl Back {
 
                             ToBackend::CheckForUpdates { game_version } => {
                                 self.scan_folder();
+
+                                self.update_file_data().await;
 
                                 self.check_for_updates(game_version).await;
 
@@ -261,33 +262,17 @@ impl Back {
     #[instrument(skip(self))]
     async fn check_for_updates(&mut self, game_version: String) {
         let back_tx = &self.back_tx;
-        let mod_list_m = self.mod_list.iter_mut().map(|file| Arc::new(Mutex::new(file)));
+        let data_mut: Vec<&mut ModFileData> = self.mod_list.iter_mut().map(|file| &mut file.data).collect();
 
-        let mut handles = Vec::new();
+        if let Err(error) = MODRINTH.check_for_updates(data_mut, &game_version).await {
+            error!("Failed to check for updates");
 
-        for file in mod_list_m {
-            let game_version = game_version.clone();
-            handles.push(async move {
-                let mut file = file.lock();
-
-                let hashes = file.hashes.clone();
-
-                if let Err(error) = MODRINTH
-                    .check_for_updates(&mut file.data, Some(&hashes), &game_version)
-                    .await
-                {
-                    error!("Failed to check for updates");
-
-                    back_tx
-                        .send(ToFrontend::BackendError {
-                            error: BackendError::new("Failed to check for updates", error),
-                        })
-                        .unwrap();
-                };
-            });
-        }
-
-        future::join_all(handles).await;
+            back_tx
+                .send(ToFrontend::BackendError {
+                    error: BackendError::new("Failed to check for updates", error),
+                })
+                .unwrap();
+        };
     }
 
     #[instrument(skip(self))]
@@ -401,6 +386,24 @@ impl Back {
         }
 
         future::join_all(handles).await;
+    }
+
+    async fn update_file_data(&mut self) {
+        let map: HashMap<&Hashes, &mut ModFileData> = self
+            .mod_list
+            .iter_mut()
+            .map(|file| (&file.hashes, &mut file.data))
+            .collect();
+
+        if let Err(error) = MODRINTH.set_modrinth_data(map).await {
+            error!("Failed to check for set Modrinth data");
+
+            self.back_tx
+                .send(ToFrontend::BackendError {
+                    error: BackendError::new("Failed to set Modrinth data", error),
+                })
+                .unwrap();
+        };
     }
 }
 

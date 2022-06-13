@@ -1,8 +1,9 @@
+use std::collections::HashMap;
+
 use ferinth::{
     structures::version_structs::{Version, VersionType},
-    Ferinth, ListVersionsParams,
+    Ferinth,
 };
-use reqwest::StatusCode;
 use tracing::instrument;
 
 use crate::{
@@ -11,69 +12,32 @@ use crate::{
     settings::CONF,
 };
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct Modrinth {
     ferinth: Ferinth,
-}
-
-impl Default for Modrinth {
-    fn default() -> Self {
-        Self {
-            ferinth: Ferinth::new(),
-        }
-    }
 }
 
 impl Modrinth {
     #[instrument(skip(self))]
     pub(crate) async fn get_modrinth_id_from_hash(&self, mod_hash: &str) -> LibResult<String> {
-        let version = self.ferinth.get_version_from_file_hash(mod_hash).await?;
+        let version = self.ferinth.get_version_from_hash(mod_hash).await?;
         Ok(version.project_id)
     }
 
     #[instrument(skip(self, data))]
-    pub(crate) async fn check_for_updates(
-        &self,
-        data: impl Into<&mut ModFileData>,
-        hashes: Option<&Hashes>,
-        game_version: &str,
-    ) -> LibResult<()> {
-        let mod_data = data.into();
-        // Get and set the modrinth ID, without one the operation cannot proceed
-        if mod_data.sources.modrinth.is_none() && hashes.is_some() {
-            let hashes = hashes.as_ref().unwrap();
-            let modrinth_id = self.get_modrinth_id_from_hash(&hashes.sha1).await;
+    pub(crate) async fn check_for_updates(&self, data: Vec<&mut ModFileData>, game_version: &str) -> LibResult<()> {
+        let meets_req: Vec<&mut ModFileData> = data
+            .into_iter()
+            .filter(|e| e.sourced_from == CurrentSource::Modrinth && e.sources.modrinth.is_some())
+            .collect();
 
-            match modrinth_id {
-                Ok(id) => {
-                    mod_data.sources.modrinth = Some(ModrinthData { id, cdn_file: None });
-
-                    // If the source has not been set by the user, automatically track Modrinth
-                    if mod_data.sourced_from == CurrentSource::None {
-                        mod_data.sourced_from = CurrentSource::Modrinth;
-                    };
-                }
-                Err(err) => {
-                    // In the case there was no id found, gracefully exit without altering anything
-                    if let error::Error::ReqwestError { inner, .. } = &err {
-                        if let Some(status) = inner.status() {
-                            if status == StatusCode::NOT_FOUND {
-                                return Ok(());
-                            }
-                        }
-                    }
-
-                    return Err(err);
-                }
-            }
-        }
-
-        if mod_data.sourced_from == CurrentSource::Modrinth {
-            // This will not always give a result, therefore the data needs to be checked again (In case it is "Some", assume its correct)
-            if let Some(modrinth_data) = &mut mod_data.sources.modrinth {
+        let mut handles = Vec::new();
+        for mod_data in meets_req {
+            handles.push(async {
+                let modrinth_data = mod_data.sources.modrinth.as_mut().unwrap();
                 // The version list can now be fetched
                 let version_list = self
-                    .list_versions(&modrinth_data.id, &mod_data.loaders, game_version)
+                    .list_versions(&modrinth_data.project_id, &mod_data.loaders, &[game_version])
                     .await?;
 
                 if version_list.is_empty() {
@@ -100,26 +64,26 @@ impl Modrinth {
 
                     if !filtered_list.is_empty() {
                         {
-                            if let Some(hashes) = &hashes {
-                                // If the version being checked contains a file with the hash of our local copy, it means it is already on the latest possible version
-                                if !filtered_list[0]
-                                    .files
-                                    .iter()
-                                    .any(|file| file.hashes.sha1 == Some(hashes.sha1.clone()))
-                                {
+                            if let Some(version_id) = &modrinth_data.version_id {
+                                // If the version being checked has the same ID as our local copy, it means it is already on the latest possible version
+                                if &filtered_list[0].id != version_id {
                                     modrinth_data.cdn_file = Some(filtered_list[0].files[0].clone().into());
                                     mod_data.state = FileState::Outdated;
                                 }
                             } else {
-                                // If hashes aren't provided assume its outdated
+                                // If an ID isn't provided assume its outdated
                                 modrinth_data.cdn_file = Some(filtered_list[0].files[0].clone().into());
                                 mod_data.state = FileState::Outdated;
                             }
                         }
                     }
-                }
-            }
+                };
+
+                Ok::<(), error::Error>(())
+            });
         }
+
+        futures::future::try_join_all(handles).await?;
 
         Ok(())
     }
@@ -134,7 +98,8 @@ impl Modrinth {
         match self.ferinth.get_project(modrinth_id.as_str()).await {
             Ok(project) => {
                 let modrinth = ModrinthData {
-                    id: project.id,
+                    project_id: project.id,
+                    version_id: None,
                     cdn_file: None,
                 };
 
@@ -153,7 +118,7 @@ impl Modrinth {
                     sources,
                 };
 
-                self.check_for_updates(&mut mod_file, None, &game_version).await?;
+                self.check_for_updates(vec![&mut mod_file], &game_version).await?;
 
                 Ok(mod_file)
             }
@@ -166,15 +131,48 @@ impl Modrinth {
         &self,
         modrinth_id: &str,
         loaders: &Vec<ModLoader>,
-        game_version: &str,
+        game_versions: &[&str],
     ) -> LibResult<Vec<ferinth::structures::version_structs::Version>> {
-        let query_params = ListVersionsParams {
-            loaders: Some(loaders.iter().map(|loader| (*loader).into()).collect()),
-            game_versions: Some(vec![game_version].iter().map(ToString::to_string).collect()),
-            featured: None,
-        };
+        Ok(self
+            .ferinth
+            .list_versions_filtered(
+                modrinth_id,
+                Some(
+                    loaders
+                        .iter()
+                        .map(|loader| loader.as_str())
+                        .collect::<Vec<&str>>()
+                        .as_slice(),
+                ),
+                Some(game_versions),
+                None,
+            )
+            .await?)
+    }
 
-        Ok(self.ferinth.list_versions(modrinth_id, Some(query_params)).await?)
+    pub(crate) async fn set_modrinth_data(&self, data: HashMap<&Hashes, &mut ModFileData>) -> LibResult<()> {
+        let mut valid_data: HashMap<&Hashes, &mut ModFileData> =
+            data.into_iter().filter(|e| e.1.sources.modrinth.is_none()).collect();
+
+        let hashes: Vec<String> = valid_data.iter().map(|e| e.0.sha1.clone()).collect();
+        let versions = self.ferinth.get_versions_from_hashes(hashes).await?;
+
+        for (sha1, ver_data) in versions {
+            let entries = valid_data.iter_mut().filter(|e| e.0.sha1 == sha1);
+            for entry in entries {
+                entry.1.sources.modrinth = Some(ModrinthData {
+                    project_id: ver_data.project_id.clone(),
+                    version_id: Some(ver_data.id.clone()),
+                    cdn_file: None,
+                });
+
+                if entry.1.sourced_from == CurrentSource::None {
+                    entry.1.sourced_from = CurrentSource::Modrinth;
+                };
+            }
+        }
+
+        Ok(())
     }
 }
 
@@ -185,6 +183,6 @@ fn accepted_versions_vec() -> Vec<VersionType> {
     for version in ver_arr {
         allowed_versions.push(version);
     }
-    allowed_versions.push(min_ver);
+    allowed_versions.push(min_ver.into());
     allowed_versions
 }
