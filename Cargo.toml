@@ -1,2 +1,9 @@
 [workspace]
 members = ["main", "mc_mod_meta", "back"]
+
+
+[profile.release]
+# debug = true
+# codegen-units = 1
+# strip = true
+# lto = true

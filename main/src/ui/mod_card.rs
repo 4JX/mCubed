@@ -269,6 +269,7 @@ impl ModCard {
                     ui.add_space(THEME.spacing.medium);
 
                     if mod_file.data.state == FileState::Outdated
+                        && mod_file.updatable()
                         && ui.button(text_utils::update_button_text("Update")).clicked()
                     {
                         front_tx

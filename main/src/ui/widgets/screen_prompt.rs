@@ -67,7 +67,7 @@ impl ScreenPrompt {
 
                 inner_rect.max -= self.prompt_frame.inner_margin.right_bottom();
 
-                let mut child_ui = ui.child_ui(inner_rect, Layout::top_down(Align::Center));
+                let mut child_ui = ui.child_ui(inner_rect, Layout::top_down(Align::LEFT));
 
                 let InnerResponse { inner, response } = self.prompt_frame.show(&mut child_ui, |ui| {
                     ui.set_min_size(inner_rect.size());

@@ -1,4 +1,10 @@
-use std::{collections::HashMap, fmt::Debug, fs, path::Path, sync::Arc};
+use std::{
+    collections::HashMap,
+    fmt::Debug,
+    fs,
+    path::{Path, PathBuf},
+    sync::Arc,
+};
 
 use crossbeam_channel::{Receiver, Sender};
 use futures::future;
@@ -8,6 +14,7 @@ use modrinth::Modrinth;
 use once_cell::sync::Lazy;
 use parking_lot::{Mutex, Once};
 use persistence::cache::CacheStorage;
+use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 use structs::CdnFile;
 use tracing::{debug, error, info, instrument};
 
@@ -213,6 +220,8 @@ impl Back {
     #[instrument(skip(self))]
     fn send_list(&mut self) {
         info!(length = self.mod_list.len(), "Sending the mods list");
+        self.mod_list
+            .sort_by(|a, b| a.path.file_name().unwrap().cmp(b.path.file_name().unwrap()));
 
         self.back_tx
             .send(ToFrontend::UpdateModList {
@@ -229,32 +238,21 @@ impl Back {
         let old_list = self.mod_list.clone();
         self.mod_list.clear();
 
-        let read_dir = fs::read_dir(&mod_folder_path).unwrap();
+        let mod_list = Arc::new(Mutex::new(&mut self.mod_list));
+        let back_tx = &self.back_tx;
 
-        'file_loop: for file_entry in read_dir {
-            let path = file_entry.unwrap().path();
+        mod_folder_iter(|path| match ModFile::from_path(path.clone()) {
+            Ok(entry) => mod_list.clone().lock().push(entry),
+            Err(error) => {
+                error!("Could not parse {}", path.display());
 
-            if is_relevant_file(&path) {
-                debug!(?path, "Parsing file");
-
-                match ModFile::from_path(path.clone()) {
-                    Ok(entry) => self.mod_list.push(entry),
-                    Err(error) => {
-                        // In the case of an error the mod list will be cleared
-                        self.mod_list.clear();
-
-                        error!(path = %path.display(), "Could not parse mod");
-
-                        self.back_tx
-                            .send(ToFrontend::BackendError {
-                                error: BackendError::new(format!("Could not parse: {}", path.display()), error),
-                            })
-                            .unwrap();
-                        break 'file_loop;
-                    }
-                }
+                back_tx
+                    .send(ToFrontend::BackendError {
+                        error: BackendError::new(format!("Could not parse: {}", path.display()), error),
+                    })
+                    .unwrap();
             }
-        }
+        });
 
         self.transfer_list_data_to_current(&old_list);
     }
@@ -282,8 +280,7 @@ impl Back {
             .await
         {
             Ok(mod_data) => {
-                // create_mod_file(&mod_data, &bytes);
-                dbg!(&mod_data.sources.modrinth);
+                create_mod_file(&mod_data).await;
             }
             Err(error) => {
                 error!(%modrinth_id, "Could not add mod");
@@ -367,7 +364,11 @@ impl Back {
     }
 
     async fn update_all_mods(&mut self) {
-        let mod_list_m = self.mod_list.iter_mut().map(|file| Arc::new(Mutex::new(file)));
+        let mod_list_m = self
+            .mod_list
+            .iter_mut()
+            .filter(|file| file.updatable())
+            .map(|file| Arc::new(Mutex::new(file)));
 
         let mut handles = Vec::new();
 
@@ -415,23 +416,26 @@ async fn update_mod(mod_file: &ModFile) -> Option<ModFile> {
         "Updating mod"
     );
 
-    let read_dir = fs::read_dir(&CONF.lock().mod_folder_path).unwrap();
+    let target_path = Mutex::new(None);
 
-    for file_entry in read_dir {
-        let path = file_entry.unwrap().path();
+    mod_folder_iter(|path| {
+        let mut file = fs::File::open(&path).unwrap();
 
-        if is_relevant_file(&path) {
-            let mut file = fs::File::open(&path).unwrap();
+        let hashes = Hashes::get_hashes_from_file(&mut file).unwrap();
 
-            let hashes = Hashes::get_hashes_from_file(&mut file).unwrap();
-
-            // We found the file the mod_file belongs to
-            if mod_file.hashes.sha1 == hashes.sha1 {
-                std::fs::remove_file(path).unwrap();
-
-                return create_mod_file(&mod_file.data).await;
-            }
+        // We found the file the mod_file belongs to
+        if mod_file.hashes.sha1 == hashes.sha1 {
+            *target_path.lock() = Some(path.clone());
         }
+    });
+
+    let path = target_path.lock();
+    if path.is_some() {
+        let new_file = create_mod_file(&mod_file.data).await;
+        if new_file.is_some() {
+            std::fs::remove_file(path.as_ref().unwrap()).unwrap();
+        }
+        return new_file;
     }
 
     None
@@ -486,8 +490,24 @@ fn get_cdn_file(file_data: &ModFileData) -> Option<CdnFile> {
                 }
             }
         }
-        _ => unreachable!("Attempted to get CDN file via invalid route {}", file_data.sourced_from),
+        _ => unreachable!("Attempted to get CDN file via invalid route {:?}", file_data),
     }
 
     None
+}
+
+fn mod_folder_iter<OP>(func: OP)
+where
+    OP: Fn(&PathBuf) + Sync + Send,
+{
+    let mod_folder_path = CONF.lock().mod_folder_path.clone();
+
+    let read_dir = fs::read_dir(&mod_folder_path).unwrap();
+
+    let filtered: Vec<PathBuf> = read_dir
+        .filter(|e| e.is_ok() && is_relevant_file(&e.as_ref().unwrap().path()))
+        .map(|e| e.as_ref().unwrap().path())
+        .collect();
+
+    filtered.par_iter().for_each(func);
 }

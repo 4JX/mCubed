@@ -30,6 +30,7 @@ zip = "0.6.2"
 image = "0.24.2"
 futures = "0.3.21"
 async-fetcher = { git = "https://github.com/4JX/async-fetcher", rev = "8b75189" }
+rayon = "1.5.3"
 
 # For their error types
 reqwest = { version = "0.11.9", default-features = false }

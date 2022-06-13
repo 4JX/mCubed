@@ -19,6 +19,10 @@ pub struct ModFile {
     pub path: PathBuf,
 }
 
+impl ModFile {
+    pub fn updatable(&self) -> bool { self.data.sourced_from.updatable() }
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct ModFileData {
     pub sources: Sources,
@@ -106,6 +110,11 @@ pub enum CurrentSource {
 
 impl fmt::Display for CurrentSource {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result { fmt::Debug::fmt(self, f) }
+}
+
+impl CurrentSource {
+    /// Wether the file can be updated by fetching a new version from a CDN
+    fn updatable(&self) -> bool { self != &Self::None && self != &Self::Local }
 }
 
 impl ModEntry {
