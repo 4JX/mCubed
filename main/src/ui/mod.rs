@@ -198,13 +198,15 @@ impl MCubedAppUI {
 
                         if ui.button("Fetch Mod").clicked() {
                             if let Some(version) = &self.selected_version {
-                                self.front_tx
-                                    .send(ToBackend::AddMod {
-                                        modrinth_id: self.add_mod_buf.clone(),
-                                        game_version: version.id.clone(),
-                                        modloader: self.selected_modloader,
-                                    })
-                                    .unwrap();
+                                if !self.add_mod_buf.is_empty() {
+                                    self.front_tx
+                                        .send(ToBackend::AddMod {
+                                            modrinth_id: self.add_mod_buf.clone(),
+                                            game_version: version.id.clone(),
+                                            modloader: self.selected_modloader,
+                                        })
+                                        .unwrap();
+                                }
                             };
                         }
                     });
@@ -218,7 +220,7 @@ impl MCubedAppUI {
                 ui.with_layout(Layout::bottom_up(Align::Center), |ui| {
                     ui.set_max_width(self.left_panel_bottom_buttons_width);
                     let horizontal_res = ui.horizontal(|ui| {
-                        let rescan_folder_button_res = ui.button("Re-scan Folder");
+                        let rescan_folder_button_res = ui.button("Scan Folder");
 
                         if rescan_folder_button_res.clicked() {
                             self.front_tx

@@ -6,9 +6,9 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-tokio = { version = "1.17.0", features = ["rt", "rt-multi-thread"] }
+tokio = { version = "1.17.0", features = ["rt-multi-thread"] }
 # ferinth = "1.4.1"
-ferinth = { git = "https://github.com/4JX/ferinth", rev = "07b64fa" }
+ferinth = { git = "https://github.com/4JX/ferinth", rev = "aecaf03" }
 # ferinth = { path = "../../ferinth" }
 sha-1 = "0.10.0"
 sha2 = "0.10.2"
@@ -31,6 +31,7 @@ serde_json = "1.0.79"
 zip = "0.6.2"
 image = "0.24.2"
 futures = "0.3.21"
+async-fetcher = { git = "https://github.com/4JX/async-fetcher", rev = "8b75189" }
 
 # For their error types
-reqwest = "0.11.9"
+reqwest = { version = "0.11.9", default-features = false }

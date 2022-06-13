@@ -1,6 +1,5 @@
-use std::{fmt::Debug, fs, io::Write, path::Path, sync::Arc};
+use std::{fmt::Debug, fs, path::Path, sync::Arc};
 
-use bytes::Bytes;
 use crossbeam_channel::{Receiver, Sender};
 use futures::future;
 use messages::{ToBackend, ToFrontend};
@@ -9,6 +8,7 @@ use modrinth::Modrinth;
 use once_cell::sync::Lazy;
 use parking_lot::{Mutex, Once};
 use persistence::cache::CacheStorage;
+use structs::CdnFile;
 use tracing::{debug, error, info, instrument};
 
 use crate::{messages::BackendError, settings::CONF};
@@ -19,6 +19,7 @@ pub mod mod_file;
 mod modrinth;
 mod paths;
 mod persistence;
+mod structs;
 
 pub use daedalus::minecraft::Version as GameVersion;
 pub use ferinth::structures::version_structs::VersionType;
@@ -292,11 +293,12 @@ impl Back {
     #[instrument(skip(self))]
     async fn add_mod(&mut self, modrinth_id: String, game_version: String, modloader: ModLoader) {
         match MODRINTH
-            .create_mod_file(modrinth_id.clone(), game_version, modloader)
+            .create_mod_data(modrinth_id.clone(), game_version, modloader)
             .await
         {
-            Ok((mod_data, bytes)) => {
-                create_mod_file(&mod_data, &bytes);
+            Ok(mod_data) => {
+                // create_mod_file(&mod_data, &bytes);
+                dbg!(&mod_data.sources.modrinth);
             }
             Err(error) => {
                 error!(%modrinth_id, "Could not add mod");
@@ -404,30 +406,27 @@ impl Back {
 
 #[instrument(skip(mod_file))]
 async fn update_mod(mod_file: &ModFile) -> Option<ModFile> {
-    if let Ok(bytes) = MODRINTH.update_mod(&mod_file.data).await {
-        info!(
-            path = ?mod_file.path,
-            sha1 = %mod_file.hashes.sha1,
-            "Updating mod"
-        );
+    info!(
+        path = ?mod_file.path,
+        sha1 = %mod_file.hashes.sha1,
+        "Updating mod"
+    );
 
-        let read_dir = fs::read_dir(&CONF.lock().mod_folder_path).unwrap();
+    let read_dir = fs::read_dir(&CONF.lock().mod_folder_path).unwrap();
 
-        for file_entry in read_dir {
-            let path = file_entry.unwrap().path();
+    for file_entry in read_dir {
+        let path = file_entry.unwrap().path();
 
-            if is_relevant_file(&path) {
-                let mut file = fs::File::open(&path).unwrap();
+        if is_relevant_file(&path) {
+            let mut file = fs::File::open(&path).unwrap();
 
-                let hashes = Hashes::get_hashes_from_file(&mut file).unwrap();
+            let hashes = Hashes::get_hashes_from_file(&mut file).unwrap();
 
-                // We found the file the mod_file belongs to
-                if mod_file.hashes.sha1 == hashes.sha1 {
-                    std::fs::remove_file(path).unwrap();
+            // We found the file the mod_file belongs to
+            if mod_file.hashes.sha1 == hashes.sha1 {
+                std::fs::remove_file(path).unwrap();
 
-                    return Some(create_mod_file(&mod_file.data, &bytes));
-                    // break 'file_loop;
-                }
+                return create_mod_file(&mod_file.data).await;
             }
         }
     }
@@ -450,32 +449,42 @@ fn is_relevant_file(path: &Path) -> bool {
             == Some(true)
 }
 
-#[instrument(skip(mod_data, bytes))]
-fn create_mod_file(mod_data: &ModFileData, bytes: &Bytes) -> ModFile {
+#[instrument(skip(file_data))]
+async fn create_mod_file(file_data: &ModFileData) -> Option<ModFile> {
     // The data is guaranteed to exist, unwrapping here is fine
-    let filename = &mod_data
-        .sources
-        .modrinth
-        .as_ref()
-        .unwrap()
-        .latest_valid_version
-        .as_ref()
-        .unwrap()
-        .filename;
+    let cdn_file = get_cdn_file(file_data);
 
-    let path = CONF.lock().mod_folder_path.join(&filename);
+    if let Some(cdn_file) = cdn_file {
+        let folder = CONF.lock().mod_folder_path.clone();
+        let full_path = folder.join(&cdn_file.filename);
 
-    info!("Creating file {}", filename);
+        info!("Creating file {}", cdn_file.filename);
 
-    let mut new_mod_file = fs::File::create(&path).unwrap();
+        cdn_file.download(folder).await;
 
-    new_mod_file.write_all(bytes).unwrap();
+        let mut new_file = ModFile::from_path(full_path).unwrap();
 
-    let mut new_file = ModFile::from_path(path).unwrap();
+        // Ensure the data for the entry is kept
+        new_file.data.sources = file_data.sources.clone();
+        new_file.data.sourced_from = file_data.sourced_from;
 
-    // Ensure the data for the entry is kept
-    new_file.data.sources = mod_data.sources.clone();
-    new_file.data.sourced_from = mod_data.sourced_from;
+        return Some(new_file);
+    };
 
-    new_file
+    None
+}
+
+fn get_cdn_file(file_data: &ModFileData) -> Option<CdnFile> {
+    match file_data.sourced_from {
+        mod_file::CurrentSource::Modrinth => {
+            if let Some(modrinth_data) = &file_data.sources.modrinth {
+                if let Some(ref file) = modrinth_data.cdn_file {
+                    return Some(file.clone());
+                }
+            }
+        }
+        _ => unreachable!("Attempted to get CDN file via invalid route {}", file_data.sourced_from),
+    }
+
+    None
 }

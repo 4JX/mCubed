@@ -1,6 +1,8 @@
 use mc_mod_meta::error::Error as MetaError;
 use thiserror::Error;
 
+use crate::mod_file::hash::HashError;
+
 pub type LibResult<T> = std::result::Result<T, Error>;
 
 #[derive(Debug, Error)]
@@ -27,6 +29,9 @@ pub enum Error {
 
     #[error("Failed to parse cache file:  {}", err)]
     FailedToParseEntryCache { err: serde_json::Error },
+
+    #[error("Could not get file hash:  {0}")]
+    ParseHash(#[from] HashError),
 
     // Shared errors
     #[error("Encountered an I/O error while handling the file: {}", .0)]
@@ -118,5 +123,12 @@ impl From<daedalus::Error> for Error {
             daedalus::Error::TaskError(err) => Self::DaedalusTaskError(err),
             daedalus::Error::ParseError(string) => Self::DaedalusParseError(string),
         }
+    }
+}
+
+impl From<reqwest::Error> for Error {
+    fn from(err: reqwest::Error) -> Self {
+        let item = err.url().map_or("Unknown".to_string(), |url| url.as_str().to_string());
+        Self::ReqwestError { inner: err, item }
     }
 }

@@ -31,7 +31,7 @@ pub fn get_modloaders(file: &File) -> LibResult<Vec<ModLoader>> {
     Ok(modloader_vec)
 }
 
-#[derive(Clone, Copy, PartialEq, Debug)]
+#[derive(Clone, Copy, PartialEq, Debug, Eq)]
 pub enum ModLoader {
     Forge,
     Fabric,

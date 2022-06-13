@@ -1,4 +1,3 @@
-use bytes::Bytes;
 use ferinth::{
     structures::version_structs::{Version, VersionType},
     Ferinth, ListVersionsParams,
@@ -47,10 +46,7 @@ impl Modrinth {
 
             match modrinth_id {
                 Ok(id) => {
-                    mod_data.sources.modrinth = Some(ModrinthData {
-                        id,
-                        latest_valid_version: None,
-                    });
+                    mod_data.sources.modrinth = Some(ModrinthData { id, cdn_file: None });
 
                     // If the source has not been set by the user, automatically track Modrinth
                     if mod_data.sourced_from == CurrentSource::None {
@@ -111,12 +107,12 @@ impl Modrinth {
                                     .iter()
                                     .any(|file| file.hashes.sha1 == Some(hashes.sha1.clone()))
                                 {
-                                    modrinth_data.latest_valid_version = Some(filtered_list[0].files[0].clone());
+                                    modrinth_data.cdn_file = Some(filtered_list[0].files[0].clone().into());
                                     mod_data.state = FileState::Outdated;
                                 }
                             } else {
                                 // If hashes aren't provided assume its outdated
-                                modrinth_data.latest_valid_version = Some(filtered_list[0].files[0].clone());
+                                modrinth_data.cdn_file = Some(filtered_list[0].files[0].clone().into());
                                 mod_data.state = FileState::Outdated;
                             }
                         }
@@ -128,31 +124,18 @@ impl Modrinth {
         Ok(())
     }
 
-    #[instrument(skip(self, mod_data))]
-    pub(crate) async fn update_mod(&self, mod_data: &ModFileData) -> LibResult<Bytes> {
-        if let Some(data) = &mod_data.sources.modrinth {
-            if let Some(version_file) = &data.latest_valid_version {
-                Ok(self.ferinth.download_version_file(version_file).await?)
-            } else {
-                Err(error::Error::InvalidLatestVersionError)
-            }
-        } else {
-            Err(error::Error::NoModrinthDataError)
-        }
-    }
-
     #[instrument(skip(self))]
-    pub(crate) async fn create_mod_file(
+    pub(crate) async fn create_mod_data(
         &self,
         modrinth_id: String,
         game_version: String,
         modloader: ModLoader,
-    ) -> LibResult<(ModFileData, Bytes)> {
+    ) -> LibResult<ModFileData> {
         match self.ferinth.get_project(modrinth_id.as_str()).await {
             Ok(project) => {
                 let modrinth = ModrinthData {
                     id: project.id,
-                    latest_valid_version: None,
+                    cdn_file: None,
                 };
 
                 let sources = Sources {
@@ -172,8 +155,7 @@ impl Modrinth {
 
                 self.check_for_updates(&mut mod_file, None, &game_version).await?;
 
-                let bytes = self.update_mod(&mod_file).await?;
-                Ok((mod_file, bytes))
+                Ok(mod_file)
             }
             Err(_err) => Err(error::Error::NotValidModrinthId),
         }

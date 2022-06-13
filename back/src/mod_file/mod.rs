@@ -1,12 +1,13 @@
 use core::fmt;
 use std::{fmt::Debug, path::PathBuf};
 
-use ferinth::structures::{version_structs::VersionFile, ModLoader as FeModLoader};
+use ferinth::structures::ModLoader as FeModLoader;
 use mc_mod_meta::{fabric::FabricManifest, forge::ForgeModEntry, ModLoader as McModLoader};
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 
 pub use self::hash::Hashes;
+use crate::structs::CdnFile;
 
 pub mod from_file;
 pub mod hash;
@@ -40,7 +41,7 @@ pub struct ModEntry {
 }
 
 // Middleman "ModLoader" enum to convert between those of the other crates
-#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize, Eq)]
 pub enum ModLoader {
     Forge,
     Fabric,
@@ -84,11 +85,10 @@ pub struct CurseForgeData;
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct ModrinthData {
     pub id: String,
-    pub latest_valid_version: Option<VersionFile>,
+    pub cdn_file: Option<CdnFile>,
 }
 
-#[allow(dead_code)]
-#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize, Eq)]
 pub enum FileState {
     Current,
     Outdated,
@@ -97,7 +97,7 @@ pub enum FileState {
 }
 
 #[allow(dead_code)]
-#[derive(Clone, Copy, PartialEq, Serialize, Deserialize, Debug)]
+#[derive(Clone, Copy, PartialEq, Serialize, Deserialize, Debug, Eq)]
 pub enum CurrentSource {
     None,
     Local,
