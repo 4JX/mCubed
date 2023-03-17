@@ -11,3 +11,8 @@ Prebuilt binaries can be found on the [releases page](https://github.com/4JX/mCu
 # Preview
 
 ![Preview of the app](images/preview.png)
+
+
+# Requires
+
+- openssl 1.1
